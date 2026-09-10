@@ -81,3 +81,31 @@ The Phase 1 sample worker is not created on application launch. It is created on
 Status: accepted for Phase 1 implementation.
 
 The desktop loads bundled HTML/CSS/JavaScript directly in pywebview and exposes a narrow `js_api` bridge. JobPilot does not run Flask/FastAPI or a separate application web backend for its UI. The UI contains no remote scripts, analytics, or external fetch calls.
+
+## D-014 - immutable resume and evidence provenance
+
+Status: accepted for Phase 2 implementation.
+
+The original user-selected master `.tex` is never edited in place. JobPilot copies it byte-for-byte into a versioned app-owned directory, records SHA-256/size/original name, and verifies the copy before registering it. Re-importing identical bytes reuses that source version; changed bytes create a new source version while older evidence remains retained. Every candidate fact and editable region points to the registered source and a source locator/hash.
+
+A fact cannot become approved if its backing app-owned source no longer matches its recorded SHA-256. Editing a fact creates a new candidate version under the same stable fact ID rather than rewriting approved history.
+
+## D-015 - explicit Tectonic installation and two-step offline gate
+
+Status: accepted for Phase 2 implementation.
+
+Phase 2 pins the app-managed Windows x64 Tectonic binary to version 0.17.0 and verifies the official release archive by exact byte size and SHA-256 before installing it under JobPilot's managed tool root. Installation occurs only after an explicit UI action.
+
+Package support files may be fetched only during an explicitly approved cache-populating baseline compile. Onboarding is not ready until the same master source later compiles successfully with `--only-cached --untrusted`. A network-enabled compile therefore cannot by itself satisfy the resume baseline gate.
+
+## D-016 - native source selection and explicit mapping/fact review
+
+Status: accepted for Phase 2 implementation.
+
+The JavaScript UI does not receive a generic filesystem-import method. Master/supporting paths enter the controller only from pywebview's native file dialog. Candidate editable regions start disabled and must be selected by the user; any later region change invalidates mapping confirmation. Automatically extracted resume statements start as candidate facts and every candidate must be approved, corrected, or rejected before onboarding can be ready.
+
+## D-017 - PDF extraction is validation evidence, not factual truth
+
+Status: accepted for Phase 2 implementation.
+
+pypdf records baseline page geometry and extracted-text hashes and checks that a compiled resume contains usable text. The immutable LaTeX source and approved facts remain authoritative. PDF extraction order is not assumed to reproduce semantic reading order, so extracted PDF text cannot silently create or approve facts.
