@@ -2,48 +2,45 @@
 
 ## Current phase
 
-Phase 0 - feasibility and architecture.
+Phase 1 - runnable desktop foundation.
 
-Status: implementation in progress on 2026-09-10. Local non-external checks pass; target-Windows CI evidence is still required before this phase can be marked complete.
+Status: implementation in progress on 2026-09-10. Phase 0 is complete and was merged to `main` through PR #1.
 
 ## Verified repository state at phase start
 
-- GitHub repository: `AaryaMody1301/jobpilot-local`.
-- Default branch: `main`.
-- Repository was empty before Phase 0.
-- No repository-local `AGENTS.md` or inherited project files existed.
+- Read `SPEC.md`, `ROADMAP.md`, `DECISIONS.md`, `PROGRESS.md`, and `AGENTS.md` from the merged repository.
+- `main` commit at Phase 1 start: `e973e9bf3d9067b62d0ad2f4ab6be6b383be5042` (merge of Phase 0 PR #1).
+- The corrected Phase 0 Windows run `34450358935` completed successfully.
+- Windows evidence: **28 passed, 2 deselected**; pinned dependencies and Playwright Chromium installed; PyInstaller 6.22.2 onedir probe built; packaged self-test exited successfully.
+- Phase 0 external Tectonic/model probes remain opt-in because no user resume/cache or approved local model exists yet; that does not block the architecture phase.
 
-## Completed work
+## Phase 1 work implemented
 
-- User approved Windows 10/11 x64 v1 target, Stop semantics, starter ATS board registry plus user additions, and MIT licensing.
-- Official documentation/release research performed for Python, pywebview, Playwright, Windows Job Objects, Tectonic, llama.cpp, Greenhouse, Lever, and Ashby.
-- Defined session and application state machines, including terminal `UNCERTAIN` submission outcomes.
-- Added SQLite WAL/migration/recovery primitives that requeue safe pre-submit work and classify interrupted post-submit attempts as `UNCERTAIN`.
-- Added app-owned path guards for future destructive model cleanup.
-- Added cross-platform process-supervisor interface and Windows Job Object implementation that creates the child suspended, assigns it to the owned Job Object, then resumes it.
-- Added Tectonic command policy (`--only-cached`, `--untrusted`) and explicit cache-population opt-in.
-- Added localhost-only llama.cpp request builder plus strict local structured-response validation.
-- Added read-only controlled Playwright form inspection and blocker recognition; it contains no submit action.
-- Added Phase 0 Windows GitHub Actions workflow and PyInstaller desktop self-test probe.
+- Added migration `002_phase1_foundation.sql` for local JSON settings, activity history, and sample-work metadata.
+- Extended `ManagedPaths` to create database, document, artifact, model, browser, Tectonic cache, backup, cache, runtime, and log roots under the app-owned data directory.
+- Serialized SQLite access for pywebview/background threads while preserving WAL, FULL synchronous mode, foreign keys, busy timeout, migrations, and crash classification.
+- Added strict editable targeting settings with the agreed defaults and local JSON persistence.
+- Added a sample-only lifecycle worker that is created only by Start, schedules no external work, obeys Pause, and is joined/cancelled by Stop or Close.
+- Added thread-safe `ApplicationController` lifecycle and narrow `DesktopBridge` API.
+- Added local bundled HTML/CSS/JavaScript dashboard with navigation, Start/Pause/Stop, sample queue/activity, targeting settings, and local-data view. Later-phase features are explicitly shown as unavailable rather than simulated.
+- Added source and packaged self-tests plus hidden Edge/WebView2 smoke mode.
+- Added Phase 1 Windows workflow and PyInstaller onedir specification.
 
-## Verification evidence
+## Verification evidence so far
 
-Local host verification on 2026-09-10:
+Local host:
 
-- `PYTHONPATH=src pytest -q -m 'not external'` -> **25 passed, 3 skipped, 2 deselected**.
-- Skips are target-dependent: two controlled Playwright tests because the local Chromium binary is absent, and one Windows Job Object test because this host is not Windows.
-- `PYTHONPATH=src pytest -q -m external` -> **2 skipped, 28 deselected** because no explicitly installed Tectonic executable or approved llama.cpp model/server was supplied.
-- A dependency-install attempt in this container could not reach PyPI, so pywebview/PyInstaller packaging cannot be honestly verified on this host.
-- Windows CI is configured to install the pinned project dependencies and Playwright Chromium, run the non-external suite, package the pywebview probe with PyInstaller, and execute its self-test. That workflow result is required before Phase 0 completion.
+- `PYTHONPATH=src pytest -q -m 'not external'` -> **46 passed, 4 skipped, 2 deselected**.
+- Skips are environmental: three Playwright tests because the managed Chromium binary is not installed in this container and one Windows Job Object test because this host is not Windows.
+- `python -m jobpilot.app.main --self-test` cannot run on this host because pywebview is not installed and this container cannot reach PyPI; the Windows workflow installs the exact pinned dependency and must pass the source/package self-tests.
+- This environment also blocks browser navigation to local `file://` and loopback URLs by administrator policy, so interactive DOM smoke evidence must come from the Windows workflow.
 
-## Known constraints
+## Known boundaries
 
-- This development environment is not the target Windows desktop. Windows Job Object and pywebview/WebView2 behavior must be verified by the Windows CI job and later on a real Windows 10/11 desktop.
-- No user LaTeX resume has been provided; template compatibility belongs to Phase 2 and cannot be claimed yet.
-- No model download has been approved or performed. Phase 0 validates the llama.cpp request/response trust boundary, not model quality. Hardware-specific model selection remains Phase 3.
-- Tectonic 0.17.0 is recorded as the candidate Windows binary, but the optional external compilation probe is not a substitute for testing the user's actual template in Phase 2.
-- No real employer application will be submitted during development.
+- Phase 1 contains no job discovery, AI inference, resume rewriting, application form filling, or employer submission.
+- The displayed confirmed-application count is zero by design; the sample queue is never reported as applications.
+- Resume/template compatibility is not evaluated until Phase 2 and requires the user's LaTeX resume source.
 
 ## Exact next step
 
-Publish the Phase 0 branch, collect the Windows workflow result, fix any target-platform failures, update this record with the evidence, then stop at the Phase 0 boundary for review.
+Publish the Phase 1 branch, run its Windows acceptance workflow, fix any failures, record the final evidence, and stop at the Phase 1 boundary. Do not start Phase 2 until requested.

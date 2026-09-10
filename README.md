@@ -4,23 +4,23 @@
 
 ## Status
 
-Phase 0 - feasibility and architecture. No real-employer submission capability is enabled. The repository currently contains architecture records and executable feasibility primitives/tests only.
+Phase 0 feasibility/architecture is complete. Phase 1 builds the runnable desktop foundation using clearly labelled local sample work. No job discovery, resume rewriting, local-model inference, ATS form filling, or real-employer submission is enabled yet.
 
 ## Safety and privacy invariants
 
 - Windows 10/11 x64 only for v1.
 - No cloud AI, hosted database, telemetry, paid API, paid proxy, or CAPTCHA solving.
 - No startup service or hidden background scheduler.
-- Opening the application must never begin work automatically.
+- Opening the application is always Idle and does not create a work thread.
 - `Start` is required to begin or resume scheduling.
 - `Pause` schedules no new work.
 - `Stop` cancels discovery, generation, and pre-submit work while leaving the UI open.
-- Closing stops discovery/generation immediately. A submission that may already have started may receive up to 60 seconds for confirmation; otherwise it becomes `UNCERTAIN`.
+- Closing stops discovery/generation immediately. A later submission that may already have started may receive up to 60 seconds for confirmation; otherwise it becomes `UNCERTAIN`.
 - `UNCERTAIN` submissions are never automatically retried.
 - Only processes and files proven to be owned by this application may be terminated or deleted.
 - Real employer submissions remain disabled until explicit user activation after onboarding and review gates.
 
-## Phase 0 developer checks
+## Run the Phase 1 desktop
 
 Production baseline: Python 3.13.15 on Windows 10/11 x64.
 
@@ -30,16 +30,27 @@ py -3.13 -m venv .venv
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 python -m playwright install chromium
-pytest -m "not external"
+python -m jobpilot.app.main
 ```
 
-External feasibility checks are intentionally opt-in because they require separately installed or approved binaries/models:
+The dashboard is deliberately marked **Phase 1 · Sample Mode**. Start only advances local sample lifecycle items used to prove Start/Pause/Stop and persistence.
+
+Run acceptance checks:
 
 ```powershell
-pytest -m external
+pytest -m "not external"
+python -m jobpilot.app.main --self-test
+python -m jobpilot.app.main --window-smoke
+pyinstaller --clean --noconfirm packaging\jobpilot.spec
+.\dist\jobpilot-local\jobpilot-local.exe --self-test
+.\dist\jobpilot-local\jobpilot-local.exe --window-smoke
 ```
 
-See `docs/PHASE0_ACCEPTANCE.md` for exact expectations and environment variables.
+See `docs/PHASE1_ACCEPTANCE.md` for exact Phase 1 expectations. External Tectonic/llama.cpp feasibility checks remain explicitly opt-in with `pytest -m external`.
+
+## Local data
+
+Runtime data is kept outside Git under `%LOCALAPPDATA%\JobPilotLocal`, including the SQLite database and app-owned document, artifact, model, browser, cache, backup, runtime, and log folders. Private candidate data and generated artifacts must never be committed.
 
 ## Project records
 
