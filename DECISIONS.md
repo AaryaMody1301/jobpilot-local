@@ -63,3 +63,21 @@ The exact llama.cpp production build and model are intentionally not pinned in P
 Status: accepted for architecture.
 
 Use documented public GET interfaces for discovery. Applicant-side submission uses visible Playwright interaction with hosted employer forms rather than employer-authenticated application APIs. Greenhouse application POST requires a Job Board API key; Lever application POST requires an API key. Browser adapters must still stop on CAPTCHA, login/verification, assessment, payment, or unsupported forms.
+
+## D-011 - pywebview bridge concurrency
+
+Status: accepted for Phase 1 implementation.
+
+pywebview documents that exposed Python API functions execute in separate threads and are not thread-safe. Phase 1 therefore serializes the shared SQLite connection with an in-process re-entrant lock and opens it with `check_same_thread=False`. Lifecycle methods are serialized by the `ApplicationController` lock. This keeps one authoritative local connection without assuming JS bridge calls run on the GUI thread.
+
+## D-012 - no dormant scheduler on launch
+
+Status: accepted for Phase 1 implementation.
+
+The Phase 1 sample worker is not created on application launch. It is created only by explicit Start, may remain paused while the app is open, and is joined and discarded by Stop or Close. Pause does not cancel an item that was already executing; it only prevents another item from being claimed, matching the product requirement that Pause stops scheduling new work.
+
+## D-013 - bundled UI without a separate application backend
+
+Status: accepted for Phase 1 implementation.
+
+The desktop loads bundled HTML/CSS/JavaScript directly in pywebview and exposes a narrow `js_api` bridge. JobPilot does not run Flask/FastAPI or a separate application web backend for its UI. The UI contains no remote scripts, analytics, or external fetch calls.
