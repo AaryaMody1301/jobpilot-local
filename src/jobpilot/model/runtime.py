@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import secrets
 import socket
 import time
 import urllib.error
@@ -28,6 +30,7 @@ class LlamaRuntimeSession:
     _supervisor: ProcessSupervisor | None = field(init=False, default=None, repr=False)
     _process: ManagedProcess | None = field(init=False, default=None, repr=False)
     _port: int | None = field(init=False, default=None, repr=False)
+    _api_key: str = field(init=False, default_factory=lambda: secrets.token_urlsafe(32), repr=False)
 
     @property
     def pid(self) -> int | None:
@@ -41,7 +44,7 @@ class LlamaRuntimeSession:
 
     @property
     def client(self) -> LlamaServerClient:
-        return LlamaServerClient(self.base_url)
+        return LlamaServerClient(self.base_url, api_key=self._api_key)
 
     def start(self) -> "LlamaRuntimeSession":
         if self._process is not None:
@@ -60,10 +63,15 @@ class LlamaRuntimeSession:
             "--parallel", "1",
             "--threads", str(max(1, self.threads)),
             "--no-webui",
+            "--offline",
+            "--cors-origins", "localhost",
+            "--no-cors-credentials",
             "--n-gpu-layers", "0" if self.backend == "cpu" else "auto",
         ]
+        environment = dict(os.environ)
+        environment["LLAMA_API_KEY"] = self._api_key
         self._supervisor = ProcessSupervisor()
-        self._process = self._supervisor.spawn(command, cwd=self.executable.parent)
+        self._process = self._supervisor.spawn(command, cwd=self.executable.parent, env=environment)
         deadline = time.monotonic() + self.startup_timeout_seconds
         health_url = f"{self.base_url}/health"
         while time.monotonic() < deadline:
@@ -71,7 +79,8 @@ class LlamaRuntimeSession:
                 self.close()
                 raise RuntimeError("llama.cpp server exited before becoming healthy")
             try:
-                with urllib.request.urlopen(health_url, timeout=2) as response:
+                request = urllib.request.Request(health_url, headers={"Authorization": f"Bearer {self._api_key}"})
+                with urllib.request.urlopen(request, timeout=2) as response:
                     if response.status == 200:
                         return self
             except (urllib.error.URLError, TimeoutError):
