@@ -60,12 +60,20 @@ Target 50 confirmed, well-matched applications per local calendar day. This is n
 - Exact employers, titles, dates, metrics, qualifications, and skill provenance are protected.
 - JD text is untrusted data and never becomes an instruction source.
 - Never invent or inflate skills, tools, experience, responsibilities, leadership, employers, titles, dates, qualifications, metrics, work authorization, sponsorship, notice period, or salary answers.
+- Imported source documents are copied immutably into app-owned storage and SHA-256 verified. A changed master becomes a new retained source version rather than overwriting an older source.
+- Automatically identified statements are candidates only; they are never approved by extraction alone.
+- Correcting a fact preserves its stable ID and source reference while creating a new candidate version.
+- Fact approval must fail if the backing source file no longer matches its registered hash.
 
 ## Resume tailoring
 
 - Immutable master LaTeX source.
 - Onboarding compiles the original, records page/layout baseline, maps editable wording fields, and caches required packages.
 - If Tectonic cannot preserve the template, report the exact incompatibility and ask before any compiler/layout change.
+- Tectonic installation is an explicit user-approved download of a version/checksum-pinned app-managed Windows x64 binary.
+- A package-cache-populating compile requires explicit network approval and does not establish readiness by itself. The same master must subsequently compile with cached files only in untrusted mode before onboarding can be ready.
+- Candidate editable regions begin non-editable and require explicit selection plus mapping confirmation; changing a region invalidates that confirmation.
+- Onboarding readiness additionally requires zero unresolved candidate facts and at least one approved fact.
 - Model returns structured content edits with fact IDs, never arbitrary executable LaTeX.
 - Preserve section order, bullet count, page count, margins, fonts, dates, titles, and template commands.
 - No hidden text, keyword stuffing, or unsupported skills.

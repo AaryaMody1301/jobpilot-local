@@ -4,7 +4,9 @@
 
 ## Status
 
-Phase 0 feasibility/architecture and Phase 1 runnable desktop foundation are complete. The current application is deliberately limited to clearly labelled local sample lifecycle work. No job discovery, resume rewriting, local-model inference, ATS form filling, or real-employer submission is enabled yet.
+Phase 0 feasibility/architecture and Phase 1 runnable desktop foundation are complete. Phase 2 resume onboarding/fact-bank functionality is implemented and controlled-fixture verified on `phase-2-resume-fact-bank`, but Phase 2 remains **partial** until the user's actual LaTeX resume and its local dependencies pass the same baseline/mapping/fact-review workflow.
+
+No AI tailoring, job discovery, ATS form filling, or real-employer submission is enabled yet.
 
 ## Safety and privacy invariants
 
@@ -20,7 +22,7 @@ Phase 0 feasibility/architecture and Phase 1 runnable desktop foundation are com
 - Only processes and files proven to be owned by this application may be terminated or deleted.
 - Real employer submissions remain disabled until explicit user activation after onboarding and review gates.
 
-## Run the Phase 1 desktop
+## Run the Phase 2 desktop
 
 Production baseline: Python 3.13.15 on Windows 10/11 x64.
 
@@ -33,12 +35,21 @@ python -m playwright install chromium
 python -m jobpilot.app.main
 ```
 
-The dashboard is deliberately marked **Phase 1 · Sample Mode**. Start only advances local sample lifecycle items used to prove Start/Pause/Stop and persistence.
+The Phase 2 UI adds **Resume & facts**. Importing a master resume uses a native file picker and copies the selected `.tex` immutably into `%LOCALAPPDATA%\JobPilotLocal`; personal documents are never committed to Git.
 
-Run acceptance checks:
+Tectonic setup is deliberately two-step:
+
+1. click **Install Tectonic 0.17.0** and approve the pinned official binary download;
+2. if the original resume needs uncached support files, click **Compile + cache packages** and explicitly approve package network access;
+3. click **Compile cached only** and require that offline compile to succeed before the baseline gate can pass;
+4. review candidate editable regions and confirm the mapping;
+5. correct/approve/reject every candidate fact. Extraction never auto-approves facts.
+
+Run repository acceptance checks:
 
 ```powershell
 pytest -m "not external"
+python scripts\phase2_tectonic_acceptance.py
 python -m jobpilot.app.main --self-test
 python -m jobpilot.app.main --window-smoke
 pyinstaller --clean --noconfirm packaging\jobpilot.spec
@@ -46,15 +57,15 @@ pyinstaller --clean --noconfirm packaging\jobpilot.spec
 .\dist\jobpilot-local\jobpilot-local.exe --window-smoke
 ```
 
-The accepted Phase 1 branch passed 50 non-external Windows tests, the source self-test, the hidden pywebview/WebView2 smoke, the PyInstaller onedir build, the packaged self-test, and the packaged hidden-window smoke. See `docs/PHASE1_ACCEPTANCE.md` and `PROGRESS.md` for the recorded evidence. External Tectonic/llama.cpp feasibility checks remain explicitly opt-in until their later approved phases.
+Controlled Windows Phase 2 acceptance run `34467708811` passed 67 tests (1 intentional platform-guard skip, 2 external tests deselected), a real Tectonic 0.17.0 network-to-cache-to-offline baseline, source/package self-tests, and source/package hidden WebView2 smokes. See `docs/PHASE2_ACCEPTANCE.md` and `PROGRESS.md`.
 
 ## Local data
 
-Runtime data is kept outside Git under `%LOCALAPPDATA%\JobPilotLocal`, including the SQLite database and app-owned document, artifact, model, browser, cache, backup, runtime, and log folders. Private candidate data and generated artifacts must never be committed.
+Runtime data is kept outside Git under `%LOCALAPPDATA%\JobPilotLocal`, including the SQLite database and app-owned document, artifact, model, browser, tool, cache, backup, runtime, and log folders. Private candidate data and generated artifacts must never be committed.
 
-## Next phase
+## Current blocker
 
-Phase 2 imports the user's actual LaTeX resume, establishes an immutable baseline, and builds the approved fact bank. It does not enable automatic rewriting or employer submissions.
+Phase 2 cannot be marked complete until the user's actual `.tex` resume is tested. If that source references local `.cls`, `.sty`, fonts, images, bibliography files, or custom resume commands, the exact dependencies/mapping must be handled without silently changing the master template or compiler.
 
 ## Project records
 

@@ -54,9 +54,30 @@ Acceptance: see `docs/PHASE1_ACCEPTANCE.md`.
 
 Known boundary: this phase contains no job discovery, AI inference, resume rewriting, application form filling, or employer submission. The dashboard's application count remains zero; sample work is never presented as an application.
 
-## Phase 2 - Resume import and approved fact bank [ ]
+## Phase 2 - Resume import and approved fact bank [!]
 
-2A immutable LaTeX import, Tectonic baseline compile, page/layout baseline, template mapping. 2B supporting-source registry and fact correction/approval/versioning. Requires the user's actual LaTeX source. No automatic rewriting or submission.
+2A immutable LaTeX import, Tectonic baseline compile, page/layout baseline, template mapping. 2B supporting-source registry and fact correction/approval/versioning. No automatic rewriting or submission.
+
+Implemented and controlled-fixture verified:
+- [x] migration `003_phase2_resume_fact_bank.sql` for immutable source metadata, template maps/regions, resume baseline, versioned facts, and fact-bank revision;
+- [x] native file-picker boundary for master `.tex` and supported evidence files; JavaScript cannot supply arbitrary filesystem paths;
+- [x] byte-for-byte app-owned master/source copies with SHA-256 integrity checks, deduplication, and retained historical source versions;
+- [x] candidate bullet-region mapping with source line ranges/raw hashes; regions start non-editable and mapping changes invalidate confirmation;
+- [x] candidate fact creation with stable IDs, source references, versions, correction history, explicit approve/reject, and source-integrity recheck before approval;
+- [x] checksum-pinned app-managed Tectonic 0.17.0 installer requiring an explicit user action;
+- [x] explicit cache-populating compile followed by mandatory `--only-cached --untrusted` baseline verification;
+- [x] baseline page count/page geometry/PDF hash/extracted-text hash/source metrics and compile-log persistence;
+- [x] onboarding-ready gate requiring verified master integrity, successful cached-only baseline, confirmed mapping, zero unresolved candidate facts, and at least one approved fact;
+- [x] Phase 2 UI for import, compiler/cache state, baseline status, editable-region review, fact review, and supporting sources;
+- [x] Phase 0→1→2 migration regression coverage and controlled Playwright UI coverage;
+- [x] Windows run `34467708811`: 67 passed, 1 platform-guard skip, 2 external tests deselected; real Tectonic network→cache→offline acceptance passed; source/package self-tests and source/package WebView2 smokes passed.
+
+Blocker before Phase 2 can be marked complete:
+- [ ] import and verify the user's actual LaTeX resume and any required local `.cls`, `.sty`, font, image, bibliography, or other source dependencies;
+- [ ] establish its exact original page/layout baseline with Tectonic, including a successful cached-only recompile;
+- [ ] review the actual template's editable-region mapping and correct/approve every fact candidate. Custom resume macros may require an explicit mapping adapter after the real source is inspected; the template/compiler must not be silently changed.
+
+Acceptance: see `docs/PHASE2_ACCEPTANCE.md`.
 
 ## Phase 3 - Local AI and resource manager [ ]
 

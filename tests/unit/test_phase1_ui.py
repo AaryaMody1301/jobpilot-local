@@ -8,7 +8,8 @@ UI = ROOT / "src" / "jobpilot" / "ui"
 def test_ui_assets_are_local_and_mark_sample_mode() -> None:
     html = (UI / "index.html").read_text(encoding="utf-8")
     js = (UI / "app.js").read_text(encoding="utf-8")
-    assert "PHASE 1" in html
+    assert "PHASE 2" in html
+    assert "sample lifecycle" in html
     assert "No telemetry" in html
     assert '<script src="app.js"></script>' in html
     assert "http://" not in html.lower()
