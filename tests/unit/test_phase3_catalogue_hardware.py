@@ -14,8 +14,8 @@ from jobpilot.model.runtime import LlamaRuntimeSession
 
 
 def test_catalogue_is_small_versioned_and_content_pinned() -> None:
-    assert CATALOGUE_VERSION == "2026-09-10.1"
-    assert 1 <= len(MODELS) <= 4
+    assert CATALOGUE_VERSION == "2026-09-10.2"
+    assert [model.id for model in MODELS] == ["qwen3-4b-q4_k_m"]
     assert 1 <= len(RUNTIMES) <= 4
     for model in MODELS:
         assert len(model.sha256) == 64
@@ -23,6 +23,7 @@ def test_catalogue_is_small_versioned_and_content_pinned() -> None:
         assert model.url.startswith("https://huggingface.co/")
         assert model.license == "Apache-2.0"
         assert model.tested_context_tokens == 4096
+        assert model.tier == "preferred"
         assert get_model(model.id) is model
     for runtime in RUNTIMES:
         assert len(runtime.sha256) == 64
@@ -80,5 +81,7 @@ def test_zip_extraction_rejects_path_traversal(tmp_path: Path) -> None:
 def test_llama_runtime_session_slots_construct_before_start(tmp_path: Path) -> None:
     session = LlamaRuntimeSession(executable=tmp_path / "llama-server.exe", model_path=tmp_path / "model.gguf", backend="cpu", context_tokens=4096, threads=2)
     assert session.pid is None
+    assert session._api_key
+    assert "_api_key" not in repr(session)
     with pytest.raises(RuntimeError, match="not started"):
         _ = session.base_url
