@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jobpilot-local"
+version = "0.0.1"
+description = "Local-first Windows desktop job application assistant"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+license = "MIT"
+authors = [{ name = "jobpilot-local contributors" }]
+dependencies = [
+  "playwright==1.62.0",
+  "psutil==7.2.2",
+  "pypdf==6.18.0",
+  "pywebview==6.2.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pyinstaller==6.22.2",
+  "pytest==9.1.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+markers = [
+  "windows: requires Windows-specific behavior",
+  "external: requires an explicitly installed external binary, browser, or model",
+]

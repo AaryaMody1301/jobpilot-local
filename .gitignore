@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Private JobPilot runtime data
+.local-data/
+data/
+artifacts/
+models/
+browsers/
+browser-profile/
+backups/
+logs/
+*.db
+*.sqlite
+*.sqlite3
+
+# Candidate source material and generated application packages
+private/
+resume/
+resumes/
+supporting-documents/
+application-packages/
+*.pdf
+*.tex
+
+# Keep controlled test fixtures only
+!tests/fixtures/*.html
+!tests/fixtures/*.txt

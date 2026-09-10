@@ -1,0 +1,4 @@
+\documentclass{article}
+\begin{document}
+JobPilot Local controlled Tectonic fixture.
+\end{document}
