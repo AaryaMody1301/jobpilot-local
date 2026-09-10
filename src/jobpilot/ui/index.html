@@ -10,134 +10,47 @@
 <body>
   <div class="shell">
     <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-mark">JP</div>
-        <div><strong>JobPilot Local</strong><span>Private desktop workspace</span></div>
-      </div>
+      <div class="brand"><div class="brand-mark">JP</div><div><strong>JobPilot Local</strong><span>Private desktop workspace</span></div></div>
       <nav id="nav">
         <button class="nav-item active" data-view="dashboard">Dashboard</button>
         <button class="nav-item" data-view="resume">Resume &amp; facts</button>
+        <button class="nav-item" data-view="model">Model &amp; resources</button>
         <button class="nav-item" data-view="jobs">Jobs</button>
         <button class="nav-item" data-view="settings">Targeting</button>
         <button class="nav-item" data-view="history">History</button>
         <button class="nav-item" data-view="system">Local data</button>
       </nav>
-      <div class="privacy-note">No telemetry. No cloud AI. No employer submissions in Phase 2.</div>
+      <div class="privacy-note">No telemetry. No cloud AI. No employer submissions in Phase 3.</div>
     </aside>
-
     <main>
-      <header class="topbar">
-        <div>
-          <div class="eyebrow">PHASE 2 · RESUME ONBOARDING</div>
-          <h1 id="page-title">Dashboard</h1>
-        </div>
-        <div class="session-controls">
-          <span id="session-badge" class="status idle">Idle</span>
-          <button id="start-button" class="primary">Start</button>
-          <button id="pause-button">Pause</button>
-          <button id="stop-button">Stop</button>
-        </div>
-      </header>
+      <header class="topbar"><div><div class="eyebrow">PHASE 3 · LOCAL AI &amp; RESOURCES</div><h1 id="page-title">Dashboard</h1></div><div class="session-controls"><span id="session-badge" class="status idle">Idle</span><button id="start-button" class="primary">Start</button><button id="pause-button">Pause</button><button id="stop-button">Stop</button></div></header>
 
       <section id="dashboard" class="view active">
-        <div class="banner"><strong>Onboarding mode.</strong> Resume sources and approved facts stay local. Start still advances only the Phase 1 sample lifecycle; discovery, AI tailoring, browser filling, and employer submissions remain disabled.</div>
-        <div class="metrics">
-          <article class="metric"><span>Confirmed today</span><strong>0</strong><small>Target 50 · not a ceiling</small></article>
-          <article class="metric"><span>Resume onboarding</span><strong id="resume-ready">Not ready</strong><small id="resume-ready-detail">Import and review required</small></article>
-          <article class="metric"><span>Fact bank revision</span><strong id="fact-revision">0</strong><small id="fact-summary">0 approved facts</small></article>
-        </div>
-        <div class="grid two">
-          <article class="card">
-            <div class="card-heading"><div><h2>Session lifecycle</h2><p>Start, Pause, and Stop remain sample-only in Phase 2.</p></div><button id="reset-sample" class="secondary">Reset sample</button></div>
-            <div id="sample-work" class="work-list"></div>
-          </article>
-          <article class="card">
-            <h2>Recent local activity</h2>
-            <p>Stored in the local SQLite database.</p>
-            <div id="activity" class="activity-list"></div>
-          </article>
-        </div>
+        <div class="banner"><strong>Local evaluation mode.</strong> Model downloads require explicit approval, run only from the pinned catalogue, and are checksum verified. Start still advances only the sample lifecycle; job discovery, resume tailoring, browser filling, and employer submissions remain disabled.</div>
+        <div class="metrics"><article class="metric"><span>Confirmed today</span><strong>0</strong><small>Target 50 · not a ceiling</small></article><article class="metric"><span>Resume onboarding</span><strong id="resume-ready">Not ready</strong><small id="resume-ready-detail">Import and review required</small></article><article class="metric"><span>Local model</span><strong id="model-ready">Not selected</strong><small id="model-ready-detail">Device evaluation required</small></article></div>
+        <div class="grid two"><article class="card"><div class="card-heading"><div><h2>Session lifecycle</h2><p>Start, Pause, and Stop remain sample lifecycle controls in Phase 3.</p></div><button id="reset-sample" class="secondary">Reset sample</button></div><div id="sample-work" class="work-list"></div></article><article class="card"><h2>Recent local activity</h2><p>Stored in the local SQLite database.</p><div id="activity" class="activity-list"></div></article></div>
       </section>
 
       <section id="resume" class="view">
-        <div class="banner"><strong>No automatic rewriting.</strong> Phase 2 only imports immutable evidence, compiles the original template, maps candidate editable regions, and lets you correct or approve facts.</div>
-        <div class="grid two">
-          <article class="card">
-            <div class="card-heading"><div><h2>Master LaTeX resume</h2><p>The selected `.tex` file is copied byte-for-byte into app-owned storage and SHA-256 verified.</p></div><button id="import-master" class="primary">Import .tex</button></div>
-            <div id="master-summary" class="detail-list"></div>
-          </article>
-          <article class="card">
-            <div class="card-heading"><div><h2>Tectonic baseline</h2><p>Compiler downloads and package-cache network access require separate explicit clicks.</p></div></div>
-            <div id="tectonic-summary" class="detail-list"></div>
-            <div class="button-row">
-              <button id="install-tectonic" class="secondary">Install Tectonic 0.17.0</button>
-              <button id="compile-cached">Compile cached only</button>
-              <button id="compile-network">Compile + cache packages</button>
-            </div>
-            <div id="baseline-summary" class="detail-list"></div>
-          </article>
-        </div>
-
-        <article class="card section-card">
-          <div class="card-heading"><div><h2>Template mapping</h2><p>Detected bullet wording is non-editable until you mark regions and confirm the map. Section order and source lines are retained.</p></div><button id="confirm-template-map" class="primary">Confirm mapping</button></div>
-          <div id="template-status" class="muted"></div>
-          <div id="template-regions" class="region-list"></div>
-        </article>
-
-        <article class="card section-card">
-          <div class="card-heading"><div><h2>Verified fact bank</h2><p>Imported resume bullets begin as candidates. Editing an approved fact creates a new candidate version with the same stable fact ID.</p></div><span id="fact-bank-status" class="muted"></span></div>
-          <div id="fact-list" class="fact-list"></div>
-        </article>
-
-        <div class="grid two section-card">
-          <article class="card">
-            <div class="card-heading"><div><h2>Supporting sources</h2><p>Optional PDFs or text/LaTeX evidence are copied immutably and hashed.</p></div><button id="import-supporting" class="secondary">Add source</button></div>
-            <div id="supporting-list" class="detail-list"></div>
-          </article>
-          <article class="card">
-            <h2>Add a sourced fact</h2>
-            <p>Use a precise page, line, section, or other locator. The source hash is attached automatically.</p>
-            <form id="fact-form">
-              <label>Source<select id="fact-source"></select></label>
-              <label>Category<select id="fact-category"></select></label>
-              <label>Source locator<input id="fact-locator" type="text" placeholder="e.g. page 2, certification section"></label>
-              <label>Fact<textarea id="fact-value" rows="4" maxlength="2000"></textarea></label>
-              <button type="submit" class="primary">Add candidate fact</button>
-            </form>
-          </article>
-        </div>
+        <div class="banner"><strong>Phase 2 safety gate remains active.</strong> The real resume has not been accepted unless this screen reaches Ready. Phase 3 does not bypass that requirement and still performs no automatic rewriting.</div>
+        <div class="grid two"><article class="card"><div class="card-heading"><div><h2>Master LaTeX resume</h2><p>The selected `.tex` file is copied byte-for-byte into app-owned storage and SHA-256 verified.</p></div><button id="import-master" class="primary">Import .tex</button></div><div id="master-summary" class="detail-list"></div></article><article class="card"><div class="card-heading"><div><h2>Tectonic baseline</h2><p>Compiler downloads and package-cache network access require separate explicit clicks.</p></div></div><div id="tectonic-summary" class="detail-list"></div><div class="button-row"><button id="install-tectonic" class="secondary">Install Tectonic 0.17.0</button><button id="compile-cached">Compile cached only</button><button id="compile-network">Compile + cache packages</button></div><div id="baseline-summary" class="detail-list"></div></article></div>
+        <article class="card section-card"><div class="card-heading"><div><h2>Template mapping</h2><p>Detected bullet wording is non-editable until you mark regions and confirm the map.</p></div><button id="confirm-template-map" class="primary">Confirm mapping</button></div><div id="template-status" class="muted"></div><div id="template-regions" class="region-list"></div></article>
+        <article class="card section-card"><div class="card-heading"><div><h2>Verified fact bank</h2><p>Imported resume bullets begin as candidates. Approved facts retain stable IDs and source evidence.</p></div><span id="fact-bank-status" class="muted"></span></div><div id="fact-list" class="fact-list"></div></article>
+        <div class="grid two section-card"><article class="card"><div class="card-heading"><div><h2>Supporting sources</h2><p>Optional evidence is copied immutably and hashed.</p></div><button id="import-supporting" class="secondary">Add source</button></div><div id="supporting-list" class="detail-list"></div></article><article class="card"><h2>Add a sourced fact</h2><form id="fact-form"><label>Source<select id="fact-source"></select></label><label>Category<select id="fact-category"></select></label><label>Source locator<input id="fact-locator" type="text" placeholder="e.g. page 2, certification section"></label><label>Fact<textarea id="fact-value" rows="4" maxlength="2000"></textarea></label><button type="submit" class="primary">Add candidate fact</button></form></article></div>
       </section>
 
-      <section id="jobs" class="view">
-        <div class="empty-state"><h2>Job discovery is not enabled yet</h2><p>Phase 5 will add Greenhouse, Lever, Ashby, and manual imports after evidence-based tailoring is proven.</p></div>
+      <section id="model" class="view">
+        <div class="banner"><strong>No automatic model activity.</strong> Hardware detection is local. Runtime/model downloads happen only after explicit confirmation. A passing evaluation permits selection for the future Phase 4 five-resume review; it does not enable auto-tailoring.</div>
+        <div class="grid two"><article class="card"><div class="card-heading"><div><h2>Hardware &amp; reserved resources</h2><p>Unknown GPU memory is shown as unknown rather than guessed.</p></div><button id="refresh-hardware" class="secondary">Refresh hardware</button></div><div id="hardware-summary" class="detail-list"></div></article><article class="card"><div class="card-heading"><div><h2>Recommendation</h2><p>Recommendation never starts a download.</p></div><button id="check-model-updates">Check updates</button></div><div id="model-recommendation" class="detail-list"></div></article></div>
+        <article class="card section-card"><h2>llama.cpp runtimes</h2><p>CPU is the conservative fallback. Vulkan is used only after a device-local evaluation passes.</p><div id="runtime-catalogue" class="fact-list"></div></article>
+        <article class="card section-card"><h2>Model catalogue</h2><p>Every weight file is content-pinned by SHA-256. Catalogue size is intentionally small.</p><div id="model-catalogue" class="fact-list"></div></article>
+        <article class="card section-card"><h2>Evaluation history</h2><p>Structured output, malicious-JD/factual adherence, controlled tailoring, and resource-budget checks must all pass.</p><div id="model-evaluations" class="activity-list"></div></article>
       </section>
 
-      <section id="settings" class="view">
-        <div class="card settings-card">
-          <div class="card-heading"><div><h2>Targeting preferences</h2><p>Saved only to the local SQLite database.</p></div><span id="save-state" class="muted"></span></div>
-          <form id="targeting-form">
-            <label>Roles<input id="roles" type="text" autocomplete="off"><small>Comma-separated</small></label>
-            <div class="form-row"><label>Target experience from<input id="min-years" type="number" min="0" step="1"></label><label>to<input id="max-years" type="number" min="0" step="1"></label></div>
-            <label>India office / hybrid cities<input id="india-cities" type="text" autocomplete="off"><small>Default is Surat only</small></label>
-            <div class="form-row"><label>Remote work origin city<input id="remote-city" type="text"></label><label>Country<input id="remote-country" type="text"></label></div>
-            <label class="checkbox"><input id="remote-origin-required" type="checkbox"><span>Remote roles must explicitly permit working from this origin</span></label>
-            <div class="form-row"><label>Salary minimum<input id="salary-minimum" type="number" min="0" step="1" placeholder="No minimum"><small>Leave blank for no minimum</small></label><label>Notice period (days)<input id="notice-days" type="number" min="0" step="1"></label></div>
-            <label>Employment types<input id="employment-types" type="text" autocomplete="off"><small>Comma-separated; default is permanent_full_time</small></label>
-            <label>Excluded employers<input id="excluded-employers" type="text" autocomplete="off"><small>Exclusion affects discovery/submission later; employment history remains unchanged.</small></label>
-            <label class="checkbox"><input id="relocation" type="checkbox"><span>Relocation outside India is acceptable</span></label>
-            <label class="checkbox"><input id="sponsorship" type="checkbox"><span>Require employer visa sponsorship for office/hybrid roles outside India</span></label>
-            <button type="submit" class="primary">Save targeting</button>
-          </form>
-        </div>
-      </section>
-
-      <section id="history" class="view">
-        <div class="empty-state"><h2>No application history yet</h2><p>Real application states remain inactive. Later phases will distinguish confirmed, blocked, failed, and uncertain outcomes.</p></div>
-      </section>
-
-      <section id="system" class="view">
-        <div class="card"><h2>Local storage</h2><p id="data-root" class="path"></p><div class="facts"><span>SQLite persistence</span><span>Immutable source copies</span><span>App-owned tool cache</span><span>Local bundled UI</span><span>No remote scripts</span></div></div>
-      </section>
+      <section id="jobs" class="view"><div class="empty-state"><h2>Job discovery is not enabled yet</h2><p>Phase 5 will add Greenhouse, Lever, Ashby, and manual imports after evidence-based tailoring is proven.</p></div></section>
+      <section id="settings" class="view"><div class="card settings-card"><div class="card-heading"><div><h2>Targeting preferences</h2><p>Saved only to the local SQLite database.</p></div><span id="save-state" class="muted"></span></div><form id="targeting-form"><label>Roles<input id="roles" type="text" autocomplete="off"><small>Comma-separated</small></label><div class="form-row"><label>Target experience from<input id="min-years" type="number" min="0" step="1"></label><label>to<input id="max-years" type="number" min="0" step="1"></label></div><label>India office / hybrid cities<input id="india-cities" type="text" autocomplete="off"><small>Default is Surat only</small></label><div class="form-row"><label>Remote work origin city<input id="remote-city" type="text"></label><label>Country<input id="remote-country" type="text"></label></div><label class="checkbox"><input id="remote-origin-required" type="checkbox"><span>Remote roles must explicitly permit working from this origin</span></label><div class="form-row"><label>Salary minimum<input id="salary-minimum" type="number" min="0" step="1" placeholder="No minimum"><small>Leave blank for no minimum</small></label><label>Notice period (days)<input id="notice-days" type="number" min="0" step="1"></label></div><label>Employment types<input id="employment-types" type="text" autocomplete="off"><small>Comma-separated; default is permanent_full_time</small></label><label>Excluded employers<input id="excluded-employers" type="text" autocomplete="off"><small>Exclusion affects discovery/submission later; employment history remains unchanged.</small></label><label class="checkbox"><input id="relocation" type="checkbox"><span>Relocation outside India is acceptable</span></label><label class="checkbox"><input id="sponsorship" type="checkbox"><span>Require employer visa sponsorship for office/hybrid roles outside India</span></label><button type="submit" class="primary">Save targeting</button></form></div></section>
+      <section id="history" class="view"><div class="empty-state"><h2>No application history yet</h2><p>Real application states remain inactive.</p></div></section>
+      <section id="system" class="view"><div class="card"><h2>Local storage</h2><p id="data-root" class="path"></p><div class="facts"><span>SQLite persistence</span><span>Immutable source copies</span><span>App-owned tool cache</span><span>App-owned model weights</span><span>Local bundled UI</span><span>No remote scripts</span></div></div></section>
     </main>
   </div>
   <div id="toast" role="status" aria-live="polite"></div>

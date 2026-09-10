@@ -71,8 +71,15 @@ class ResumeEditEnvelope:
         return cls(tuple(edits))
 
 
+@dataclass(frozen=True, slots=True)
+class StructuredJsonResponse:
+    value: dict[str, Any]
+    timings: dict[str, Any]
+    usage: dict[str, Any]
+
+
 class LlamaServerClient:
-    """Small localhost-only client; structural validation is always local."""
+    """Small localhost-only client; structural and factual validation remains local."""
 
     def __init__(self, base_url: str = "http://127.0.0.1:8080") -> None:
         if not (base_url.startswith("http://127.0.0.1:") or base_url.startswith("http://localhost:")):
@@ -80,27 +87,45 @@ class LlamaServerClient:
         self.base_url = base_url.rstrip("/")
 
     @staticmethod
+    def build_structured_request(
+        messages: Sequence[Mapping[str, str]],
+        schema: Mapping[str, Any],
+        *,
+        temperature: float = 0.0,
+        max_tokens: int = 256,
+    ) -> dict[str, Any]:
+        return {
+            "messages": [dict(message) for message in messages],
+            "temperature": temperature,
+            "seed": 0,
+            "max_tokens": int(max_tokens),
+            "cache_prompt": False,
+            "reasoning_effort": "none",
+            "chat_template_kwargs": {"enable_thinking": False},
+            "response_format": {
+                "type": "json_schema",
+                "schema": dict(schema),
+            },
+        }
+
+    @classmethod
     def build_resume_edit_request(
+        cls,
         messages: Sequence[Mapping[str, str]],
         *,
         temperature: float = 0.0,
     ) -> dict[str, Any]:
-        return {
-            "messages": list(messages),
-            "temperature": temperature,
-            "response_format": {
-                "type": "json_schema",
-                "schema": RESUME_EDIT_SCHEMA,
-            },
-        }
+        return cls.build_structured_request(messages, RESUME_EDIT_SCHEMA, temperature=temperature)
 
-    def request_resume_edits(
+    def request_structured(
         self,
         messages: Sequence[Mapping[str, str]],
+        schema: Mapping[str, Any],
         *,
         timeout_seconds: int = 120,
-    ) -> ResumeEditEnvelope:
-        payload = self.build_resume_edit_request(messages)
+        max_tokens: int = 256,
+    ) -> StructuredJsonResponse:
+        payload = self.build_structured_request(messages, schema, max_tokens=max_tokens)
         request = urllib.request.Request(
             f"{self.base_url}/v1/chat/completions",
             data=json.dumps(payload).encode("utf-8"),
@@ -115,4 +140,21 @@ class LlamaServerClient:
             raise StructuredOutputError("unexpected llama.cpp response shape") from exc
         if not isinstance(raw_content, str):
             raise StructuredOutputError("llama.cpp content is not text")
-        return ResumeEditEnvelope.parse_strict(raw_content)
+        try:
+            value = json.loads(raw_content)
+        except json.JSONDecodeError as exc:
+            raise StructuredOutputError(f"llama.cpp content is not JSON: {exc}") from exc
+        if not isinstance(value, dict):
+            raise StructuredOutputError("llama.cpp structured response must be an object")
+        timings = body.get("timings") if isinstance(body.get("timings"), dict) else {}
+        usage = body.get("usage") if isinstance(body.get("usage"), dict) else {}
+        return StructuredJsonResponse(value=value, timings=dict(timings), usage=dict(usage))
+
+    def request_resume_edits(
+        self,
+        messages: Sequence[Mapping[str, str]],
+        *,
+        timeout_seconds: int = 120,
+    ) -> ResumeEditEnvelope:
+        response = self.request_structured(messages, RESUME_EDIT_SCHEMA, timeout_seconds=timeout_seconds)
+        return ResumeEditEnvelope.parse_strict(json.dumps(response.value, separators=(",", ":")))
