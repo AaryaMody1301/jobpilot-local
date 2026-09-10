@@ -104,7 +104,9 @@ class LlamaServerClient:
             "chat_template_kwargs": {"enable_thinking": False},
             "response_format": {
                 "type": "json_schema",
-                "schema": dict(schema),
+                "json_schema": {
+                    "schema": dict(schema),
+                },
             },
         }
 
