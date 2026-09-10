@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jobpilot-local"
-version = "0.0.1"
+version = "0.1.0"
 description = "Local-first Windows desktop job application assistant"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
@@ -17,6 +17,9 @@ dependencies = [
   "pywebview==6.2.1",
 ]
 
+[project.scripts]
+jobpilot-local = "jobpilot.app.main:main"
+
 [project.optional-dependencies]
 dev = [
   "pyinstaller==6.22.2",
@@ -25,6 +28,9 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+jobpilot = ["ui/*.html", "ui/*.css", "ui/*.js"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

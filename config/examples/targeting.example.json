@@ -1,17 +1,25 @@
 {
-  "roles": ["data analyst", "data engineer", "analytics engineer"],
-  "target_seniority_years": {"min": 2, "max": 5},
-  "office_hybrid_india_city": "Surat",
-  "office_hybrid_outside_india": {
-    "relocation_acceptable": true,
-    "visa_sponsorship_required": true
-  },
-  "remote": {
-    "candidate_location": "Surat, India",
-    "must_explicitly_allow_candidate_location": true
-  },
+  "roles": [
+    "data analyst",
+    "data engineer",
+    "analytics engineer"
+  ],
+  "target_experience_min_years": 2,
+  "target_experience_max_years": 5,
+  "india_office_cities": [
+    "Surat"
+  ],
+  "remote_origin_city": "Surat",
+  "remote_origin_country": "India",
+  "remote_must_allow_origin": true,
+  "relocation_outside_india": true,
+  "require_overseas_sponsorship": true,
   "salary_minimum": null,
   "notice_period_days": 30,
-  "employment_types": ["permanent_full_time"],
-  "excluded_employers": ["Brentwood Industries"]
+  "employment_types": [
+    "permanent_full_time"
+  ],
+  "excluded_employers": [
+    "Brentwood Industries"
+  ]
 }

@@ -2,7 +2,7 @@
 
 Status legend: `[ ] planned`, `[~] in progress`, `[x] complete`, `[!] blocked/partial`.
 
-## Phase 0 - Feasibility and architecture [~]
+## Phase 0 - Feasibility and architecture [x]
 
 User-visible outcome: no employer automation yet; reviewed architecture and executable feasibility probes for the highest-risk local/Windows behaviors.
 
@@ -20,8 +20,8 @@ Deliverables:
 - [x] llama.cpp structured-response request/validation boundary;
 - [x] Playwright controlled-form read-only recognition fixture;
 - [x] Windows CI definition for reproducible Phase 0 checks;
-- [ ] Windows CI acceptance evidence recorded after repository workflow execution;
-- [ ] optional external Tectonic/llama.cpp executable probes recorded on a Windows host.
+- [x] Windows CI acceptance evidence: corrected Phase 0 commit passed 28 non-external tests, Chromium fixture recognition, Windows Job Object checks, PyInstaller onedir build, and packaged self-test;
+- [x] external Tectonic/llama.cpp probes defined and intentionally deferred to the phases that have an approved compiler cache/model; they are not Phase 0 completion blockers.
 
 Later interfaces: `SessionStateMachine`, `ApplicationStateMachine`, `ProcessSupervisor`, `Database`, `ManagedPaths`, `TectonicCompiler`, `LlamaServerClient`, `ApplicationAdapter`.
 
@@ -29,11 +29,30 @@ Acceptance: see `docs/PHASE0_ACCEPTANCE.md`.
 
 Completion blockers: any Windows ownership test that kills an unrelated process, a state path that makes an uncertain submission retryable, inability to cancel close/new work deterministically, or inability to run the chosen local runtime components on the Windows target.
 
-## Phase 1 - Runnable desktop foundation [ ]
+## Phase 1 - Runnable desktop foundation [x]
 
-Build pywebview shell, bundled local UI, navigation, SQLite application storage, targeting settings, artifact directories, Start/Pause/Stop/Close lifecycle, and crash recovery using clearly labelled sample data. No discovery, AI tailoring, or employer submissions.
+User-visible outcome: a runnable local pywebview dashboard with navigation, editable targeting settings, persistent SQLite state, app-owned folders, Start/Pause/Stop/Close lifecycle, crash recovery, and clearly labelled sample work only.
 
-Acceptance: launch idle; state/settings persist; Pause schedules no new work; Stop/Close cancel work; reopen does not resume automatically; no owned worker remains after exit.
+Dependencies: Phase 0 lifecycle, storage, process-ownership, and packaging decisions.
+
+Deliverables:
+- [x] local pywebview shell and bundled HTML/CSS/JavaScript UI with no remote scripts or telemetry;
+- [x] SQLite Phase 1 migration, persistent targeting settings, runtime sessions, activity history, and sample queue metadata;
+- [x] full app-owned local directory structure outside Git;
+- [x] Start/Pause/Stop/Close controller and sample-only worker created only by explicit Start;
+- [x] crash recovery that launches idle and requeues safe interrupted sample work;
+- [x] editable targeting controls for all agreed Phase 1 preferences;
+- [x] migration upgrade test from a Phase 0 database;
+- [x] source and packaged lifecycle self-tests;
+- [x] real Windows pywebview/WebView2 hidden-window bridge smoke;
+- [x] PyInstaller onedir desktop package feasibility build;
+- [x] Windows acceptance run `34455123604`: 50 tests passed, 2 external tests deselected; source/package self-tests and source/package hidden-window smokes passed.
+
+Interfaces retained for later phases: `ApplicationController`, `DesktopBridge`, `Database`, `ManagedPaths`, `TargetingSettings`, session state machine, and the explicit work scheduling boundary.
+
+Acceptance: see `docs/PHASE1_ACCEPTANCE.md`.
+
+Known boundary: this phase contains no job discovery, AI inference, resume rewriting, application form filling, or employer submission. The dashboard's application count remains zero; sample work is never presented as an application.
 
 ## Phase 2 - Resume import and approved fact bank [ ]
 

@@ -31,6 +31,34 @@ class ManagedPaths:
         return cls(base / "JobPilotLocal")
 
     @property
+    def database_dir(self) -> Path:
+        return self.root / "db"
+
+    @property
+    def database_file(self) -> Path:
+        return self.database_dir / "jobpilot.sqlite3"
+
+    @property
+    def documents(self) -> Path:
+        return self.root / "documents"
+
+    @property
+    def master_documents(self) -> Path:
+        return self.documents / "master"
+
+    @property
+    def supporting_documents(self) -> Path:
+        return self.documents / "supporting"
+
+    @property
+    def artifacts(self) -> Path:
+        return self.root / "artifacts"
+
+    @property
+    def application_artifacts(self) -> Path:
+        return self.artifacts / "applications"
+
+    @property
     def models(self) -> Path:
         return self.root / "models"
 
@@ -39,15 +67,48 @@ class ManagedPaths:
         return self.root / "browsers"
 
     @property
+    def browser_profile(self) -> Path:
+        return self.root / "browser-profile"
+
+    @property
     def tectonic_cache(self) -> Path:
         return self.root / "tectonic" / "cache"
+
+    @property
+    def backups(self) -> Path:
+        return self.root / "backups"
+
+    @property
+    def cache(self) -> Path:
+        return self.root / "cache"
 
     @property
     def runtime(self) -> Path:
         return self.root / "runtime"
 
+    @property
+    def logs(self) -> Path:
+        return self.root / "logs"
+
     def create_phase0_roots(self) -> None:
         for path in (self.models, self.browsers, self.tectonic_cache, self.runtime):
+            path.mkdir(parents=True, exist_ok=True)
+
+    def create_all_roots(self) -> None:
+        for path in (
+            self.database_dir,
+            self.master_documents,
+            self.supporting_documents,
+            self.application_artifacts,
+            self.models,
+            self.browsers,
+            self.browser_profile,
+            self.tectonic_cache,
+            self.backups,
+            self.cache,
+            self.runtime,
+            self.logs,
+        ):
             path.mkdir(parents=True, exist_ok=True)
 
     def require_model_descendant(self, candidate: Path) -> Path:

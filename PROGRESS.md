@@ -2,48 +2,58 @@
 
 ## Current phase
 
-Phase 0 - feasibility and architecture.
+Phase 1 - runnable desktop foundation.
 
-Status: implementation in progress on 2026-09-10. Local non-external checks pass; target-Windows CI evidence is still required before this phase can be marked complete.
+Status: **complete** on 2026-09-10. Phase 0 is complete and was merged to `main` through PR #1. Phase 1 is implemented and verified on `phase-1-desktop-foundation`; Phase 2 has not started.
 
 ## Verified repository state at phase start
 
-- GitHub repository: `AaryaMody1301/jobpilot-local`.
-- Default branch: `main`.
-- Repository was empty before Phase 0.
-- No repository-local `AGENTS.md` or inherited project files existed.
+- Read `SPEC.md`, `ROADMAP.md`, `DECISIONS.md`, `PROGRESS.md`, and `AGENTS.md` from the merged repository.
+- `main` commit at Phase 1 start: `e973e9bf3d9067b62d0ad2f4ab6be6b383be5042` (merge of Phase 0 PR #1).
+- The corrected Phase 0 Windows run `34450358935` completed successfully.
+- Phase 0 Windows evidence: **28 passed, 2 deselected**; pinned dependencies and Playwright Chromium installed; PyInstaller 6.22.2 onedir probe built; packaged self-test exited successfully.
 
-## Completed work
+## Phase 1 work completed
 
-- User approved Windows 10/11 x64 v1 target, Stop semantics, starter ATS board registry plus user additions, and MIT licensing.
-- Official documentation/release research performed for Python, pywebview, Playwright, Windows Job Objects, Tectonic, llama.cpp, Greenhouse, Lever, and Ashby.
-- Defined session and application state machines, including terminal `UNCERTAIN` submission outcomes.
-- Added SQLite WAL/migration/recovery primitives that requeue safe pre-submit work and classify interrupted post-submit attempts as `UNCERTAIN`.
-- Added app-owned path guards for future destructive model cleanup.
-- Added cross-platform process-supervisor interface and Windows Job Object implementation that creates the child suspended, assigns it to the owned Job Object, then resumes it.
-- Added Tectonic command policy (`--only-cached`, `--untrusted`) and explicit cache-population opt-in.
-- Added localhost-only llama.cpp request builder plus strict local structured-response validation.
-- Added read-only controlled Playwright form inspection and blocker recognition; it contains no submit action.
-- Added Phase 0 Windows GitHub Actions workflow and PyInstaller desktop self-test probe.
+- Added migration `002_phase1_foundation.sql` for local JSON settings, activity history, and sample-work metadata.
+- Extended `ManagedPaths` to create database, document, artifact, model, browser, Tectonic cache, backup, cache, runtime, and log roots under the app-owned data directory.
+- Serialized SQLite access for pywebview/background threads while preserving WAL, FULL synchronous mode, foreign keys, busy timeout, migrations, and crash classification.
+- Added strict editable targeting settings with every agreed default and local JSON persistence.
+- Added a sample-only lifecycle worker that is created only by Start, schedules no external work, obeys Pause, and is joined/cancelled by Stop or Close.
+- Added thread-safe `ApplicationController` lifecycle and narrow `DesktopBridge` API.
+- Added local bundled HTML/CSS/JavaScript dashboard with navigation, Start/Pause/Stop, sample queue/activity, complete targeting settings, and local-data view. Later-phase features are explicitly unavailable rather than simulated.
+- Added Phase 0-to-Phase 1 migration coverage, crash/reopen coverage, no-worker-after-close coverage, controlled UI bridge coverage, source/package self-tests, and source/package hidden-window WebView2 smokes.
+- Added Phase 1 Windows workflow and PyInstaller onedir specification.
 
 ## Verification evidence
 
-Local host verification on 2026-09-10:
+Local host:
 
-- `PYTHONPATH=src pytest -q -m 'not external'` -> **25 passed, 3 skipped, 2 deselected**.
-- Skips are target-dependent: two controlled Playwright tests because the local Chromium binary is absent, and one Windows Job Object test because this host is not Windows.
-- `PYTHONPATH=src pytest -q -m external` -> **2 skipped, 28 deselected** because no explicitly installed Tectonic executable or approved llama.cpp model/server was supplied.
-- A dependency-install attempt in this container could not reach PyPI, so pywebview/PyInstaller packaging cannot be honestly verified on this host.
-- Windows CI is configured to install the pinned project dependencies and Playwright Chromium, run the non-external suite, package the pywebview probe with PyInstaller, and execute its self-test. That workflow result is required before Phase 0 completion.
+- `PYTHONPATH=src pytest -q -m 'not external'` -> **46 passed, 4 skipped, 2 deselected**.
+- Local skips were environmental: three Playwright checks because the managed Chromium binary is absent in this container and one Windows Job Object check because this host is not Windows.
+- Python bytecode compilation, JavaScript syntax validation, and example targeting JSON validation passed locally.
 
-## Known constraints
+Windows GitHub Actions run `34455123604`, commit `a30df97856d89dd8f9b969eca478d8afa52457bc`:
 
-- This development environment is not the target Windows desktop. Windows Job Object and pywebview/WebView2 behavior must be verified by the Windows CI job and later on a real Windows 10/11 desktop.
-- No user LaTeX resume has been provided; template compatibility belongs to Phase 2 and cannot be claimed yet.
-- No model download has been approved or performed. Phase 0 validates the llama.cpp request/response trust boundary, not model quality. Hardware-specific model selection remains Phase 3.
-- Tectonic 0.17.0 is recorded as the candidate Windows binary, but the optional external compilation probe is not a substitute for testing the user's actual template in Phase 2.
-- No real employer application will be submitted during development.
+- Python **3.13.15** installed successfully.
+- Pinned direct dependencies installed: Playwright 1.62.0, psutil 7.2.2, pypdf 6.18.0, pywebview 6.2.1; development pins PyInstaller 6.22.2 and pytest 9.1.1 also installed.
+- Matching Playwright Chromium revision installed successfully.
+- `pytest -m "not external"` -> **50 passed, 2 deselected in 8.70s**.
+- Source `--self-test` passed: launch idle, app-owned roots created, pywebview imported, reopen did not resume, settings persisted, worker stopped.
+- Source hidden Edge/WebView2 smoke passed: bundled document loaded and `window.pywebview.api` bridge became available.
+- PyInstaller 6.22.2 onedir build completed successfully.
+- Packaged `--self-test` passed with the same lifecycle/persistence assertions.
+- Packaged hidden Edge/WebView2 smoke passed with the local UI and JS bridge.
+- The workflow completed successfully with no real employer or model activity.
+
+## Limitations and boundaries
+
+- GitHub's hosted Windows acceptance runner was Windows Server 2025, not an end-user Windows 10/11 installation. Clean-machine Windows 10/11 distribution testing remains part of Phase 9; Phase 1 nevertheless exercises the Windows x64 pywebview/WebView2, filesystem, SQLite, Playwright, Job Object, and PyInstaller paths.
+- Phase 1 contains no job discovery, AI inference, resume rewriting, application form filling, or employer submission.
+- The displayed confirmed-application count is zero by design; the sample queue is never reported as applications.
+- No cloud inference was used and no employer application was sent.
+- Resume/template compatibility is not evaluated until Phase 2 and requires the user's LaTeX resume source.
 
 ## Exact next step
 
-Publish the Phase 0 branch, collect the Windows workflow result, fix any target-platform failures, update this record with the evidence, then stop at the Phase 0 boundary for review.
+Stop at the Phase 1 boundary. When Phase 2 is requested, first re-read the persistent records and inspect `main`, then begin Phase 2A by importing the user's actual LaTeX resume immutably, establishing its Tectonic baseline/page/layout data, and determining the editable template mapping. Do not enable automatic rewriting or submissions.
