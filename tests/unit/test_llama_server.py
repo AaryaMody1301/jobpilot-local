@@ -10,6 +10,14 @@ def test_llama_endpoint_must_be_localhost() -> None:
         LlamaServerClient("https://example.com")
 
 
+def test_authenticated_client_uses_bearer_header_without_exposing_key_in_payload() -> None:
+    client = LlamaServerClient("http://127.0.0.1:8080", api_key="controlled-secret")
+    headers = client._headers()
+    assert headers["Authorization"] == "Bearer controlled-secret"
+    payload = client.build_resume_edit_request([{"role": "user", "content": "controlled fixture"}])
+    assert "controlled-secret" not in json.dumps(payload)
+
+
 def test_request_contains_release_correct_schema_constraint() -> None:
     payload = LlamaServerClient.build_resume_edit_request([{"role": "user", "content": "controlled fixture"}])
     assert payload["response_format"] == {
