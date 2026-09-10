@@ -79,12 +79,13 @@ class StructuredJsonResponse:
 
 
 class LlamaServerClient:
-    """Small localhost-only client; structural and factual validation remains local."""
+    """Small authenticated localhost-only client; validation remains local."""
 
-    def __init__(self, base_url: str = "http://127.0.0.1:8080") -> None:
+    def __init__(self, base_url: str = "http://127.0.0.1:8080", *, api_key: str | None = None) -> None:
         if not (base_url.startswith("http://127.0.0.1:") or base_url.startswith("http://localhost:")):
             raise ValueError("llama.cpp endpoint must be localhost")
         self.base_url = base_url.rstrip("/")
+        self._api_key = api_key
 
     @staticmethod
     def build_structured_request(
@@ -119,6 +120,12 @@ class LlamaServerClient:
     ) -> dict[str, Any]:
         return cls.build_structured_request(messages, RESUME_EDIT_SCHEMA, temperature=temperature)
 
+    def _headers(self) -> dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        return headers
+
     def request_structured(
         self,
         messages: Sequence[Mapping[str, str]],
@@ -131,7 +138,7 @@ class LlamaServerClient:
         request = urllib.request.Request(
             f"{self.base_url}/v1/chat/completions",
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers=self._headers(),
             method="POST",
         )
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
