@@ -39,11 +39,16 @@ def main() -> int:
             region = second_state["regions"][0]
             controller.set_template_region_editable(str(region["id"]), True)
             controller.confirm_template_map()
-            fact = controller.snapshot()["resume"]["facts"][0]
-            controller.set_fact_status(str(fact["id"]), "approved")
+
+            for fact in controller.snapshot()["resume"]["facts"]:
+                if fact["current_status"] == "candidate":
+                    controller.set_fact_status(str(fact["id"]), "approved")
+
             final_state = controller.snapshot()["resume"]
+            if final_state["fact_counts"]["candidate"] != 0:
+                raise RuntimeError("controlled onboarding left unresolved candidate facts")
             if not final_state["onboarding_ready"]:
-                raise RuntimeError("controlled onboarding did not reach the ready gate after offline compile, mapping, and fact approval")
+                raise RuntimeError("controlled onboarding did not reach the ready gate after offline compile, mapping, and complete fact review")
 
             result = {
                 "tectonic_version": final_state["tectonic"]["version"],
@@ -52,6 +57,7 @@ def main() -> int:
                 "offline_verified": bool(final_state["baseline"]["offline_verified"]),
                 "template_map": final_state["template_map_status"],
                 "approved_facts": final_state["fact_counts"]["approved"],
+                "candidate_facts": final_state["fact_counts"]["candidate"],
                 "onboarding_ready": bool(final_state["onboarding_ready"]),
             }
             print(json.dumps(result, sort_keys=True))
