@@ -80,12 +80,33 @@ class LlamaServerClient:
         self.base_url = base_url.rstrip("/")
 
     @staticmethod
-    def build_resume_edit_request(messages: Sequence[Mapping[str, str]], *, temperature: float = 0.0) -> dict[str, Any]:
-        return {"messages": list(messages), "temperature": temperature, "response_format": {"type": "json_object"}, "json_schema": RESUME_EDIT_SCHEMA}
+    def build_resume_edit_request(
+        messages: Sequence[Mapping[str, str]],
+        *,
+        temperature: float = 0.0,
+    ) -> dict[str, Any]:
+        return {
+            "messages": list(messages),
+            "temperature": temperature,
+            "response_format": {
+                "type": "json_schema",
+                "schema": RESUME_EDIT_SCHEMA,
+            },
+        }
 
-    def request_resume_edits(self, messages: Sequence[Mapping[str, str]], *, timeout_seconds: int = 120) -> ResumeEditEnvelope:
+    def request_resume_edits(
+        self,
+        messages: Sequence[Mapping[str, str]],
+        *,
+        timeout_seconds: int = 120,
+    ) -> ResumeEditEnvelope:
         payload = self.build_resume_edit_request(messages)
-        request = urllib.request.Request(f"{self.base_url}/v1/chat/completions", data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}, method="POST")
+        request = urllib.request.Request(
+            f"{self.base_url}/v1/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
             body = json.loads(response.read().decode("utf-8"))
         try:
