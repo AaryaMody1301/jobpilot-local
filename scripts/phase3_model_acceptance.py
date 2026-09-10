@@ -11,7 +11,7 @@ from jobpilot.runtime.paths import ManagedPaths
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = ROOT / "migrations"
 RUNTIME_ID = "llama-b10809-win-cpu-x64"
-MODEL_ID = "qwen3.5-0.8b-q4_0"
+MODEL_ID = "qwen3-4b-q4_k_m"
 
 
 def main() -> int:
