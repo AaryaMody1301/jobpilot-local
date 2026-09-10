@@ -4,7 +4,7 @@
 
 ## Status
 
-Phase 0 feasibility/architecture is complete. Phase 1 builds the runnable desktop foundation using clearly labelled local sample work. No job discovery, resume rewriting, local-model inference, ATS form filling, or real-employer submission is enabled yet.
+Phase 0 feasibility/architecture and Phase 1 runnable desktop foundation are complete. The current application is deliberately limited to clearly labelled local sample lifecycle work. No job discovery, resume rewriting, local-model inference, ATS form filling, or real-employer submission is enabled yet.
 
 ## Safety and privacy invariants
 
@@ -46,11 +46,15 @@ pyinstaller --clean --noconfirm packaging\jobpilot.spec
 .\dist\jobpilot-local\jobpilot-local.exe --window-smoke
 ```
 
-See `docs/PHASE1_ACCEPTANCE.md` for exact Phase 1 expectations. External Tectonic/llama.cpp feasibility checks remain explicitly opt-in with `pytest -m external`.
+The accepted Phase 1 branch passed 50 non-external Windows tests, the source self-test, the hidden pywebview/WebView2 smoke, the PyInstaller onedir build, the packaged self-test, and the packaged hidden-window smoke. See `docs/PHASE1_ACCEPTANCE.md` and `PROGRESS.md` for the recorded evidence. External Tectonic/llama.cpp feasibility checks remain explicitly opt-in until their later approved phases.
 
 ## Local data
 
 Runtime data is kept outside Git under `%LOCALAPPDATA%\JobPilotLocal`, including the SQLite database and app-owned document, artifact, model, browser, cache, backup, runtime, and log folders. Private candidate data and generated artifacts must never be committed.
+
+## Next phase
+
+Phase 2 imports the user's actual LaTeX resume, establishes an immutable baseline, and builds the approved fact bank. It does not enable automatic rewriting or employer submissions.
 
 ## Project records
 
