@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from typing import Literal
 
 
-CATALOGUE_VERSION = "2026-09-10.1"
+CATALOGUE_VERSION = "2026-09-10.2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +40,7 @@ class ModelArtifact:
     tested_context_tokens: int
     min_total_ram_bytes: int
     preferred_total_ram_bytes: int
-    tier: Literal["bootstrap", "preferred"]
+    tier: Literal["preferred"]
     notes: str
 
     def to_dict(self) -> dict[str, object]:
@@ -75,23 +75,6 @@ RUNTIMES: tuple[RuntimeArtifact, ...] = (
 
 MODELS: tuple[ModelArtifact, ...] = (
     ModelArtifact(
-        id="qwen3.5-0.8b-q4_0",
-        display_name="Qwen3.5 0.8B Q4_0",
-        source_repo="ggml-org/Qwen3.5-0.8B-GGUF",
-        source_revision="main@9447f74; content pinned by SHA-256",
-        filename="Qwen3.5-0.8B-Q4_0.gguf",
-        url="https://huggingface.co/ggml-org/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_0.gguf?download=true",
-        sha256="57d1997790d1744fba5b40a7317df71ea5e2acee28c47e78f0cce39c0703f8cf",
-        display_bytes=563_000_000,
-        quantization="Q4_0",
-        license="Apache-2.0",
-        tested_context_tokens=4096,
-        min_total_ram_bytes=6 * 1024**3,
-        preferred_total_ram_bytes=8 * 1024**3,
-        tier="bootstrap",
-        notes="Small Phase 3 compatibility/evaluation candidate; never auto-approved for tailoring solely because it installs.",
-    ),
-    ModelArtifact(
         id="qwen3-4b-q4_k_m",
         display_name="Qwen3 4B Q4_K_M",
         source_repo="ggml-org/Qwen3-4B-GGUF",
@@ -106,7 +89,7 @@ MODELS: tuple[ModelArtifact, ...] = (
         min_total_ram_bytes=12 * 1024**3,
         preferred_total_ram_bytes=16 * 1024**3,
         tier="preferred",
-        notes="Preferred catalogue candidate when local resources allow; still requires device-local Phase 3 evaluation and later Phase 4 review gate.",
+        notes="Production Phase 3 candidate. Requires device-local structured/factual/resource evaluation and the later Phase 4 five-resume human review gate.",
     ),
 )
 
