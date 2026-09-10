@@ -4,7 +4,6 @@ import json
 import threading
 import urllib.request
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 
 from jobpilot.model.catalogue import CATALOGUE_VERSION, MODELS, RUNTIMES, get_model, get_runtime
@@ -137,7 +136,11 @@ class ModelManager:
                     "details": result.details,
                 }
                 self.store.record_evaluation(payload)
-                self.store.set_model_status(model_install_id, "validated" if result.overall_pass else "failed", None if result.overall_pass else "controlled Phase 3 evaluation failed")
+                self.store.set_model_status(
+                    model_install_id,
+                    "validated" if result.overall_pass else "failed",
+                    None if result.overall_pass else "controlled Phase 3 evaluation failed",
+                )
                 return payload
             except Exception as exc:
                 self.store.set_model_status(model_install_id, "failed", str(exc)[-1000:])
@@ -224,10 +227,16 @@ class ModelManager:
             raw = state.get("last_catalogue_check_json")
             return json.loads(raw) if raw else {"checked": False, "reason": "weekly check not due"}
         with self._exclusive_operation("catalogue update check"):
-            result: dict[str, Any] = {"checked": True, "catalogue_version": CATALOGUE_VERSION, "checked_at": utc_now_text()}
-            result["llama_cpp"] = self._fetch_json("https://api.github.com/repos/ggml-org/llama.cpp/releases/latest").get("tag_name")
-            model_meta = self._fetch_json("https://huggingface.co/api/models/ggml-org/Qwen3.5-0.8B-GGUF")
-            result["qwen3_5_0_8b_upstream_revision"] = model_meta.get("sha")
+            result: dict[str, Any] = {
+                "checked": True,
+                "catalogue_version": CATALOGUE_VERSION,
+                "checked_at": utc_now_text(),
+            }
+            result["llama_cpp"] = self._fetch_json(
+                "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
+            ).get("tag_name")
+            model_meta = self._fetch_json("https://huggingface.co/api/models/ggml-org/Qwen3-4B-GGUF")
+            result["qwen3_4b_upstream_revision"] = model_meta.get("sha")
             self.store.record_catalogue_check(result)
             return result
 
@@ -236,7 +245,7 @@ class ModelManager:
         ram_budget = int(hardware["budget"]["model_ram_budget_bytes"])
         disk_budget = int(hardware["budget"]["model_disk_budget_bytes"])
         pressure = str(hardware["budget"]["memory_pressure"])
-        candidates: list[tuple[int, Any]] = []
+        candidates: list[Any] = []
         for model in MODELS:
             fits = (
                 total_ram >= model.min_total_ram_bytes
@@ -244,26 +253,29 @@ class ModelManager:
                 and disk_budget >= int(model.display_bytes * 1.15)
             )
             if fits:
-                score = (2 if model.tier == "preferred" else 1) * 100 + model.display_bytes // 1_000_000
-                candidates.append((score, model))
+                candidates.append(model)
         if pressure == "critical" or not candidates:
             return {
                 "model_id": None,
                 "runtime_id": None,
-                "reason": "critical memory pressure" if pressure == "critical" else "no catalogue model fits the current reserved RAM/disk budget",
+                "reason": "critical memory pressure" if pressure == "critical" else "no accepted catalogue model fits the current reserved RAM/disk budget",
                 "requires_download_approval": False,
             }
-        model = max(candidates, key=lambda item: item[0])[1]
+        model = max(candidates, key=lambda item: item.display_bytes)
         known_gpu_vram = [
             int(gpu["total_vram_bytes"])
             for gpu in hardware.get("gpus", [])
             if gpu.get("total_vram_bytes") is not None and "vulkan" in gpu.get("backend_candidates", [])
         ]
-        runtime_id = "llama-b10809-win-vulkan-x64" if any(vram >= int(model.display_bytes * 1.20) for vram in known_gpu_vram) else "llama-b10809-win-cpu-x64"
+        runtime_id = (
+            "llama-b10809-win-vulkan-x64"
+            if any(vram >= int(model.display_bytes * 1.20) for vram in known_gpu_vram)
+            else "llama-b10809-win-cpu-x64"
+        )
         return {
             "model_id": model.id,
             "runtime_id": runtime_id,
-            "reason": "highest-tier catalogue candidate that fits the conservative local resource budget",
+            "reason": "accepted catalogue candidate fits the conservative local resource budget",
             "requires_download_approval": True,
             "must_pass_device_evaluation": True,
             "phase4_five_resume_gate_required": True,
