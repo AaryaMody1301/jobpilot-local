@@ -45,15 +45,33 @@ def local_ui_server():
         server.server_close()
 
 
+def _resume_state() -> dict:
+    return {
+        "master": None,
+        "integrity": "missing",
+        "baseline": None,
+        "template_map_status": "missing",
+        "regions": [],
+        "facts": [],
+        "fact_counts": {"candidate": 0, "approved": 0, "rejected": 0},
+        "fact_bank_revision": 0,
+        "fact_categories": ["experience_bullet", "other", "skill"],
+        "supporting_documents": [],
+        "tectonic": {"installed": False, "managed": True, "version": "0.17.0", "integrity": "not installed", "download_bytes": 21060223},
+        "onboarding_ready": False,
+    }
+
+
 def _state() -> dict:
     return {
-        "phase": 1,
+        "phase": 2,
         "development_mode": True,
         "session_id": "fixture-session",
         "session_state": "idle",
         "worker_alive": False,
         "target_confirmed_applications": 50,
         "confirmed_applications_today": 0,
+        "onboarding_busy": None,
         "targeting": {
             "roles": ["data analyst", "data engineer", "analytics engineer"],
             "target_experience_min_years": 2,
@@ -76,6 +94,7 @@ def _state() -> dict:
         "recovery": {"crashed_sessions": 0, "requeued_work": 0, "uncertain_applications": 0},
         "activity": [],
         "data_root": "C:\\fixture\\JobPilotLocal",
+        "resume": _resume_state(),
     }
 
 
@@ -100,7 +119,7 @@ def test_local_ui_navigation_and_bridge_contract(chromium_page) -> None:
         chromium_page.evaluate("window.dispatchEvent(new Event('pywebviewready'))")
         chromium_page.wait_for_function("document.getElementById('session-badge').textContent === 'idle'")
 
-        assert chromium_page.locator("text=Safe foundation mode.").is_visible()
+        assert chromium_page.locator("text=Onboarding mode.").is_visible()
         chromium_page.locator("button[data-view='settings']").click()
         assert chromium_page.locator("#page-title").inner_text() == "Targeting"
         assert chromium_page.locator("#notice-days").input_value() == "30"

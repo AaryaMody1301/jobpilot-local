@@ -1,0 +1,64 @@
+from __future__ import annotations
+
+import json
+import tempfile
+from pathlib import Path
+
+from jobpilot.app.controller import ApplicationController
+from jobpilot.runtime.paths import ManagedPaths
+
+ROOT = Path(__file__).resolve().parents[1]
+MIGRATIONS = ROOT / "migrations"
+FIXTURE = ROOT / "tests" / "fixtures" / "phase2_resume.tex"
+
+
+def main() -> int:
+    if not FIXTURE.is_file():
+        raise RuntimeError(f"controlled resume fixture is missing: {FIXTURE}")
+
+    with tempfile.TemporaryDirectory(prefix="jobpilot-phase2-tectonic-") as temp_dir:
+        paths = ManagedPaths(Path(temp_dir) / "JobPilotLocal")
+        controller = ApplicationController(paths, MIGRATIONS, sample_item_seconds=0.05)
+        try:
+            controller.import_master_resume(FIXTURE)
+            controller.install_tectonic()
+
+            first = controller.compile_master_resume(allow_package_downloads=True)["resume"]["baseline"]
+            if first["status"] != "compiled" or bool(first["offline_verified"]):
+                raise RuntimeError("network-enabled cache population compile did not record the expected baseline state")
+
+            second_state = controller.compile_master_resume(allow_package_downloads=False)["resume"]
+            second = second_state["baseline"]
+            if second["status"] != "compiled" or not bool(second["offline_verified"]):
+                raise RuntimeError("cached-only Tectonic compile did not establish offline verification")
+            if int(second["page_count"]) != 1:
+                raise RuntimeError(f"controlled baseline expected one page, got {second['page_count']}")
+            if not second.get("pdf_sha256") or not second.get("text_sha256"):
+                raise RuntimeError("baseline PDF/text hashes were not recorded")
+
+            region = second_state["regions"][0]
+            controller.set_template_region_editable(str(region["id"]), True)
+            controller.confirm_template_map()
+            fact = controller.snapshot()["resume"]["facts"][0]
+            controller.set_fact_status(str(fact["id"]), "approved")
+            final_state = controller.snapshot()["resume"]
+            if not final_state["onboarding_ready"]:
+                raise RuntimeError("controlled onboarding did not reach the ready gate after offline compile, mapping, and fact approval")
+
+            result = {
+                "tectonic_version": final_state["tectonic"]["version"],
+                "tectonic_integrity": final_state["tectonic"]["integrity"],
+                "page_count": final_state["baseline"]["page_count"],
+                "offline_verified": bool(final_state["baseline"]["offline_verified"]),
+                "template_map": final_state["template_map_status"],
+                "approved_facts": final_state["fact_counts"]["approved"],
+                "onboarding_ready": bool(final_state["onboarding_ready"]),
+            }
+            print(json.dumps(result, sort_keys=True))
+        finally:
+            controller.close()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

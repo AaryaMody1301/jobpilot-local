@@ -11,7 +11,11 @@ MIGRATIONS = ROOT / "migrations"
 def test_phase1_settings_and_session_persist(tmp_path: Path) -> None:
     database_path = tmp_path / "jobpilot.sqlite3"
     with Database(database_path, MIGRATIONS) as db:
-        assert db.apply_migrations() == ["001_phase0_runtime.sql", "002_phase1_foundation.sql"]
+        assert db.apply_migrations() == [
+            "001_phase0_runtime.sql",
+            "002_phase1_foundation.sql",
+            "003_phase2_resume_fact_bank.sql",
+        ]
         db.set_json_setting("targeting", {"notice_period_days": 30})
         db.create_runtime_session("session-1")
         db.set_runtime_session_state("session-1", SessionState.RUNNING)
@@ -52,7 +56,7 @@ def test_phase1_migration_upgrades_existing_phase0_database(tmp_path: Path) -> N
         )
 
     with Database(database_path, MIGRATIONS) as db:
-        assert db.apply_migrations() == ["002_phase1_foundation.sql"]
+        assert db.apply_migrations() == ["002_phase1_foundation.sql", "003_phase2_resume_fact_bank.sql"]
         columns = {row["name"] for row in db.connection.execute("PRAGMA table_info(work_items)")}
         assert {"label", "is_sample"}.issubset(columns)
         old = db.connection.execute("SELECT state, is_sample FROM work_items WHERE id = 'old-work'").fetchone()

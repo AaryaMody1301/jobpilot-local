@@ -35,13 +35,48 @@ def create_controller(paths: ManagedPaths | None = None, *, sample_item_seconds:
 def run_self_test() -> dict[str, object]:
     import webview  # noqa: F401 - verifies packaged pywebview import
 
-    with tempfile.TemporaryDirectory(prefix="jobpilot-phase1-") as temp_dir:
-        paths = ManagedPaths(Path(temp_dir) / "JobPilotLocal")
+    with tempfile.TemporaryDirectory(prefix="jobpilot-phase2-") as temp_dir:
+        temp = Path(temp_dir)
+        paths = ManagedPaths(temp / "JobPilotLocal")
+        source = temp / "resume.tex"
+        source.write_text(
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\section{Experience}\n"
+            "\\begin{itemize}\n"
+            "\\item Built a local analytics pipeline with documented source evidence.\n"
+            "\\end{itemize}\n"
+            "\\end{document}\n",
+            encoding="utf-8",
+        )
+        supporting = temp / "evidence.txt"
+        supporting.write_text("Supporting evidence fixture.\n", encoding="utf-8")
+
         controller = create_controller(paths, sample_item_seconds=0.05)
         initial = controller.snapshot()
         assert initial["session_state"] == "idle"
         assert initial["worker_alive"] is False
         assert initial["confirmed_applications_today"] == 0
+        assert initial["phase"] == 2
+
+        controller.import_master_resume(source)
+        imported = controller.snapshot()["resume"]
+        assert imported["integrity"] == "verified"
+        assert len(imported["regions"]) == 1
+        assert len(imported["facts"]) == 1
+        stored_path = paths.root / imported["master"]["stored_relpath"]
+        stored_before = stored_path.read_bytes()
+        source.write_text("changed outside JobPilot\n", encoding="utf-8")
+        assert stored_path.read_bytes() == stored_before
+
+        region_id = imported["regions"][0]["id"]
+        controller.set_template_region_editable(region_id, True)
+        controller.confirm_template_map()
+        fact = controller.snapshot()["resume"]["facts"][0]
+        controller.revise_fact(fact["id"], fact["value_text"] + " Verified.", "experience_bullet")
+        controller.set_fact_status(fact["id"], "approved")
+        controller.import_supporting_document(supporting)
+
         controller.start()
         controller.pause()
         controller.start()
@@ -56,7 +91,11 @@ def run_self_test() -> dict[str, object]:
         assert reopened_state["session_state"] == "idle"
         assert reopened_state["worker_alive"] is False
         assert reopened_state["targeting"]["notice_period_days"] == 45
-        data_root_exists = paths.database_file.exists() and paths.application_artifacts.exists()
+        assert reopened_state["resume"]["integrity"] == "verified"
+        assert reopened_state["resume"]["template_map_status"] == "confirmed"
+        assert reopened_state["resume"]["fact_counts"]["approved"] == 1
+        assert len(reopened_state["resume"]["supporting_documents"]) == 1
+        data_root_exists = paths.database_file.exists() and paths.application_artifacts.exists() and paths.tools.exists()
         reopened.close()
 
     return {
@@ -66,6 +105,10 @@ def run_self_test() -> dict[str, object]:
         "worker_stops": True,
         "managed_roots_created": data_root_exists,
         "pywebview_imported": True,
+        "immutable_resume_import": True,
+        "template_map_persists": True,
+        "fact_versioning_persists": True,
+        "supporting_source_registry": True,
     }
 
 
@@ -94,6 +137,7 @@ def run_window_smoke() -> dict[str, object]:
             height=680,
             hidden=True,
         )
+        bridge.bind_window(window)
         window.events.loaded += lambda: loaded.set()
         window.events.closed += lambda: controller.close()
 
@@ -102,17 +146,23 @@ def run_window_smoke() -> dict[str, object]:
                 if not loaded.wait(15):
                     raise TimeoutError("pywebview UI did not load")
                 bridge_ready = False
+                phase2_bridge_ready = False
                 for _ in range(50):
                     bridge_ready = bool(window.evaluate_js(
                         "typeof window.pywebview !== 'undefined' && typeof window.pywebview.api.get_state === 'function'"
                     ))
                     if bridge_ready:
-                        break
+                        phase2_bridge_ready = bool(window.evaluate_js(
+                            "typeof window.pywebview.api.choose_master_resume === 'function' && typeof window.pywebview.api.set_fact_status === 'function'"
+                        ))
+                        if phase2_bridge_ready:
+                            break
                     time.sleep(0.1)
                 checks["bridge_ready"] = bridge_ready
+                checks["phase2_bridge_ready"] = phase2_bridge_ready
                 checks["document_title"] = window.evaluate_js("document.title")
-                if not bridge_ready:
-                    raise RuntimeError("pywebview JS bridge was not exposed")
+                if not bridge_ready or not phase2_bridge_ready:
+                    raise RuntimeError("pywebview Phase 2 JS bridge was not exposed")
                 if checks["document_title"] != "JobPilot Local":
                     raise RuntimeError("bundled UI did not load expected document")
             except Exception as exc:
@@ -151,6 +201,7 @@ def run_desktop() -> None:
         background_color="#f4f6f8",
         text_select=True,
     )
+    bridge.bind_window(window)
 
     def on_closing() -> bool:
         return bridge.close_for_window_event()
@@ -165,7 +216,7 @@ def run_desktop() -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="JobPilot Local desktop application")
-    parser.add_argument("--self-test", action="store_true", help="run local Phase 1 packaged acceptance checks")
+    parser.add_argument("--self-test", action="store_true", help="run local Phase 2 packaged acceptance checks")
     parser.add_argument("--window-smoke", action="store_true", help="open a hidden Windows pywebview smoke window and exit")
     args = parser.parse_args(argv)
     if args.self_test:

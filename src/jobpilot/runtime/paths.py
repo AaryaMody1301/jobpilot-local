@@ -63,6 +63,22 @@ class ManagedPaths:
         return self.root / "models"
 
     @property
+    def tools(self) -> Path:
+        return self.root / "tools"
+
+    @property
+    def tectonic_tool_dir(self) -> Path:
+        return self.tools / "tectonic" / "0.17.0"
+
+    @property
+    def tectonic_executable(self) -> Path:
+        return self.tectonic_tool_dir / "tectonic.exe"
+
+    @property
+    def tectonic_metadata(self) -> Path:
+        return self.tectonic_tool_dir / "install.json"
+
+    @property
     def browsers(self) -> Path:
         return self.root / "browsers"
 
@@ -101,6 +117,7 @@ class ManagedPaths:
             self.supporting_documents,
             self.application_artifacts,
             self.models,
+            self.tools,
             self.browsers,
             self.browser_profile,
             self.tectonic_cache,
