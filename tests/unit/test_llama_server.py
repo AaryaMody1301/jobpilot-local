@@ -12,8 +12,11 @@ def test_llama_endpoint_must_be_localhost() -> None:
 
 def test_request_contains_schema_constraint() -> None:
     payload = LlamaServerClient.build_resume_edit_request([{"role": "user", "content": "controlled fixture"}])
-    assert payload["response_format"] == {"type": "json_object"}
-    assert payload["json_schema"] == RESUME_EDIT_SCHEMA
+    assert payload["response_format"] == {
+        "type": "json_schema",
+        "schema": RESUME_EDIT_SCHEMA,
+    }
+    assert "json_schema" not in payload
     assert payload["temperature"] == 0.0
 
 
