@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file: data:; script-src 'self' file:; style-src 'self' file:; connect-src 'none'; object-src 'none'; frame-src 'none'">
+  <title>JobPilot Local</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">JP</div>
+        <div><strong>JobPilot Local</strong><span>Private desktop workspace</span></div>
+      </div>
+      <nav id="nav">
+        <button class="nav-item active" data-view="dashboard">Dashboard</button>
+        <button class="nav-item" data-view="jobs">Jobs</button>
+        <button class="nav-item" data-view="settings">Targeting</button>
+        <button class="nav-item" data-view="history">History</button>
+        <button class="nav-item" data-view="system">Local data</button>
+      </nav>
+      <div class="privacy-note">No telemetry. No cloud AI. No employer submissions in Phase 1.</div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">PHASE 1 · SAMPLE MODE</div>
+          <h1 id="page-title">Dashboard</h1>
+        </div>
+        <div class="session-controls">
+          <span id="session-badge" class="status idle">Idle</span>
+          <button id="start-button" class="primary">Start</button>
+          <button id="pause-button">Pause</button>
+          <button id="stop-button">Stop</button>
+        </div>
+      </header>
+
+      <section id="dashboard" class="view active">
+        <div class="banner"><strong>Safe foundation mode.</strong> Start only advances local sample lifecycle items. Discovery, resume tailoring, AI inference, browsers, and applications are not enabled.</div>
+        <div class="metrics">
+          <article class="metric"><span>Confirmed today</span><strong>0</strong><small>Target 50 · not a ceiling</small></article>
+          <article class="metric"><span>Sample completed</span><strong id="done-count">0</strong><small id="sample-total">of 4 local checks</small></article>
+          <article class="metric"><span>Recovery</span><strong id="recovery-count">0</strong><small>items recovered this launch</small></article>
+        </div>
+        <div class="grid two">
+          <article class="card">
+            <div class="card-heading"><div><h2>Session lifecycle</h2><p>Visible proof of Start, Pause, Stop, and persistence.</p></div><button id="reset-sample" class="secondary">Reset sample</button></div>
+            <div id="sample-work" class="work-list"></div>
+          </article>
+          <article class="card">
+            <h2>Recent local activity</h2>
+            <p>Stored in the local SQLite database.</p>
+            <div id="activity" class="activity-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="jobs" class="view">
+        <div class="empty-state"><h2>Job discovery is not enabled yet</h2><p>Phase 5 will add Greenhouse, Lever, Ashby, and manual imports after resume tailoring is proven. This view intentionally contains no portal bots or external requests.</p></div>
+      </section>
+
+      <section id="settings" class="view">
+        <div class="card settings-card">
+          <div class="card-heading"><div><h2>Targeting preferences</h2><p>Saved only to the local SQLite database.</p></div><span id="save-state" class="muted"></span></div>
+          <form id="targeting-form">
+            <label>Roles<input id="roles" type="text" autocomplete="off"><small>Comma-separated</small></label>
+            <div class="form-row"><label>Target experience from<input id="min-years" type="number" min="0" step="1"></label><label>to<input id="max-years" type="number" min="0" step="1"></label></div>
+            <label>India office / hybrid cities<input id="india-cities" type="text" autocomplete="off"><small>Default is Surat only</small></label>
+            <div class="form-row"><label>Remote work origin city<input id="remote-city" type="text"></label><label>Country<input id="remote-country" type="text"></label></div>
+            <label class="checkbox"><input id="remote-origin-required" type="checkbox"><span>Remote roles must explicitly permit working from this origin</span></label>
+            <div class="form-row"><label>Salary minimum<input id="salary-minimum" type="number" min="0" step="1" placeholder="No minimum"><small>Leave blank for no minimum</small></label><label>Notice period (days)<input id="notice-days" type="number" min="0" step="1"></label></div>
+            <label>Employment types<input id="employment-types" type="text" autocomplete="off"><small>Comma-separated; default is permanent_full_time</small></label>
+            <label>Excluded employers<input id="excluded-employers" type="text" autocomplete="off"><small>Exclusion affects discovery/submission later; employment history remains unchanged.</small></label>
+            <label class="checkbox"><input id="relocation" type="checkbox"><span>Relocation outside India is acceptable</span></label>
+            <label class="checkbox"><input id="sponsorship" type="checkbox"><span>Require employer visa sponsorship for office/hybrid roles outside India</span></label>
+            <button type="submit" class="primary">Save targeting</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="history" class="view">
+        <div class="empty-state"><h2>No application history yet</h2><p>Real application states are deliberately inactive. Later phases will distinguish confirmed, blocked, failed, and uncertain outcomes.</p></div>
+      </section>
+
+      <section id="system" class="view">
+        <div class="card"><h2>Local storage</h2><p id="data-root" class="path"></p><div class="facts"><span>SQLite persistence</span><span>App-owned artifact folders</span><span>Local bundled UI</span><span>No remote scripts</span></div></div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
