@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
+import re
 import subprocess
 from pathlib import Path
 from threading import Event
@@ -12,6 +12,30 @@ from jobpilot.model.catalogue import ModelArtifact, RuntimeArtifact
 from jobpilot.model.downloads import download_verified, extract_zip_verified, sha256_file, write_install_metadata
 from jobpilot.model.store import ModelStore
 from jobpilot.runtime.paths import ManagedPaths
+
+_DEVICE_RE = re.compile(
+    r"^(?P<id>[A-Za-z][A-Za-z0-9_-]*\d+):\s*(?P<name>.+?)\s*\((?P<total>\d+)\s+MiB,\s*(?P<free>\d+)\s+MiB\s+free\)\s*$"
+)
+_MIB = 1024**2
+
+
+def parse_llama_devices(raw: str) -> list[dict[str, Any]]:
+    devices: list[dict[str, Any]] = []
+    for original in raw.splitlines():
+        line = original.strip()
+        match = _DEVICE_RE.match(line)
+        if not match:
+            continue
+        devices.append(
+            {
+                "id": match.group("id"),
+                "name": match.group("name").strip(),
+                "total_memory_bytes": int(match.group("total")) * _MIB,
+                "free_memory_bytes": int(match.group("free")) * _MIB,
+                "evidence": line,
+            }
+        )
+    return devices
 
 
 class RuntimeInstallService:
@@ -24,7 +48,7 @@ class RuntimeInstallService:
             raise RuntimeError("llama.cpp managed runtime installation is supported on Windows x64 only")
         if artifact.platform != "windows-x64":
             raise RuntimeError(f"unsupported runtime platform: {artifact.platform}")
-        root = self.paths.tools / "llama.cpp" / artifact.id
+        root = self.paths.require_tool_descendant(self.paths.tools / "llama.cpp" / artifact.id)
         archive = self.paths.cache / "downloads" / artifact.archive_name
         install_dir = root / "bin"
         try:
@@ -68,7 +92,7 @@ class RuntimeInstallService:
             return self.status(install_id, verify_hash=True)
         except Exception as exc:
             if root.exists():
-                shutil.rmtree(root, ignore_errors=True)
+                self.paths.delete_tool_path(root)
             self.store.upsert_runtime_install(
                 install_id=artifact.id,
                 catalogue_id=artifact.id,
@@ -125,8 +149,11 @@ class RuntimeInstallService:
         except (OSError, subprocess.SubprocessError) as exc:
             return {"ok": False, "devices": [], "raw": str(exc)}
         raw = (result.stdout + "\n" + result.stderr).strip()
-        lines = [line.strip() for line in raw.splitlines() if line.strip()]
-        return {"ok": result.returncode == 0, "devices": lines[-20:], "raw": raw[-6000:]}
+        return {
+            "ok": result.returncode == 0,
+            "devices": parse_llama_devices(raw),
+            "raw": raw[-6000:],
+        }
 
 
 class ModelInstallService:
@@ -135,20 +162,23 @@ class ModelInstallService:
         self.store = store
 
     def install(self, artifact: ModelArtifact, cancel_event: Event) -> dict[str, Any]:
-        root = self.paths.models / artifact.id
-        self.paths.require_model_descendant(root)
+        install_id = artifact.install_id
+        root = self.paths.require_model_descendant(
+            self.paths.models / artifact.id / artifact.source_revision[:12]
+        )
         model_path = root / artifact.filename
         try:
             written = download_verified(
                 url=artifact.url,
                 destination=model_path,
                 expected_sha256=artifact.sha256,
-                expected_bytes=None,
+                expected_bytes=artifact.bytes,
                 cancel_event=cancel_event,
             )
             if cancel_event.is_set():
                 raise RuntimeError("model installation cancelled")
             metadata = {
+                "install_id": install_id,
                 "catalogue_id": artifact.id,
                 "display_name": artifact.display_name,
                 "source_repo": artifact.source_repo,
@@ -159,23 +189,25 @@ class ModelInstallService:
                 "quantization": artifact.quantization,
                 "license": artifact.license,
                 "tested_context_tokens": artifact.tested_context_tokens,
+                "app_managed": True,
             }
             write_install_metadata(root / "install.json", metadata)
             self.store.upsert_model_install(
-                install_id=artifact.id,
+                install_id=install_id,
                 catalogue_id=artifact.id,
                 source_revision=artifact.source_revision,
                 model_relpath=str(model_path.relative_to(self.paths.root)),
                 artifact_sha256=artifact.sha256,
                 artifact_bytes=written,
                 status="installed",
+                app_managed=True,
             )
-            return self.status(artifact.id, verify_hash=True)
+            return self.status(install_id, verify_hash=True)
         except Exception as exc:
-            if model_path.exists():
-                model_path.unlink(missing_ok=True)
+            if root.exists():
+                self.paths.delete_model_path(root)
             self.store.upsert_model_install(
-                install_id=artifact.id,
+                install_id=install_id,
                 catalogue_id=artifact.id,
                 source_revision=artifact.source_revision,
                 model_relpath=str(model_path.relative_to(self.paths.root)),
@@ -183,6 +215,7 @@ class ModelInstallService:
                 artifact_bytes=0,
                 status="failed",
                 failure_message=str(exc)[-1000:],
+                app_managed=True,
             )
             raise
 
@@ -192,6 +225,7 @@ class ModelInstallService:
             raise KeyError(install_id)
         path = self.paths.root / row["model_relpath"]
         result = dict(row)
+        result["app_managed"] = bool(result.get("app_managed", 0))
         result["present"] = path.is_file()
         if verify_hash and path.is_file():
             result["integrity"] = "verified" if sha256_file(path) == row["artifact_sha256"] else "failed"
