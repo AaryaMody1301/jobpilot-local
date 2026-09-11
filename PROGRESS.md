@@ -2,95 +2,114 @@
 
 ## Current phase
 
-Phase 2 - resume import and approved fact bank.
+Phase 3 - Local AI and resource manager.
 
-Status: **complete pending merge of PR #4** as of 2026-09-11. Phase 0 and Phase 1 are complete and merged to `main`. Phase 3 has not started.
+Status: **in progress; implementation audited and staged, final combined Windows acceptance pending** as of 2026-09-11. Phases 0, 1 and 2 are complete. Phase 4 has not started.
 
-## Verified repository state at phase start
+## Verified repository state at Phase 3 start
 
-- Re-read `SPEC.md`, `ROADMAP.md`, `DECISIONS.md`, `PROGRESS.md`, and `AGENTS.md` from the merged repository.
-- `main` at Phase 2 start: `273b49fa4fe73e3900b11c96e8d965cee769ecaf`, merge of Phase 1 PR #2.
-- Original Phase 2 branch: `phase-2-resume-fact-bank`, merged through PR #3.
-- Real-resume finalization branch: `phase-2-real-resume-finalization`, PR #4.
-- Existing Phase 0/1 lifecycle, SQLite recovery, Windows Job Object, bundled pywebview UI, targeting settings, and packaging boundaries were preserved.
+- Re-read `SPEC.md`, `ROADMAP.md`, `DECISIONS.md`, `PROGRESS.md`, and `AGENTS.md` instead of relying on memory alone.
+- Verified Phase 2 finalization PR #4 merged into `main` at `71ea2265a515cbba9ff6c99b80ab1b0a34ae540e`.
+- Verified Phase 2 is `[x] complete`: the user's actual LaTeX structure was privately validated, a sanitized two-page template-shape fixture passed cached-only Tectonic on Windows, and the user explicitly approved all factual claims in the supplied resume exactly as written. Personal resume/fact text remains outside Git.
+- Found an existing `phase-3-local-ai-resource-manager` branch at `536a12555e1983d46bb80820e0154c82e658df19`. It contained substantial Phase 3 work but was 15 commits behind the Phase 2 finalization. It was not reset or discarded.
+- Merged current `main` into that Phase 3 branch through internal sync PR #5, producing `7f849b0722147145ea10ef54409f253ef7e99be2`. This preserves both histories and makes the Phase 3 work include every Phase 2 finalization fix.
+- Continued audit/fixes on staging branch `phase-3-stage` so the large external model acceptance is triggered only after a cohesive review.
 
-## Phase 2 work completed
+## Recalled requirements that govern Phase 3
 
-- Added migration `003_phase2_resume_fact_bank.sql` for source documents, template maps/regions, resume baselines, facts/fact versions, and fact-bank revision.
-- Added immutable master-resume and supporting-document imports. Files are copied byte-for-byte into `%LOCALAPPDATA%\JobPilotLocal`, SHA-256 verified, deduplicated by content, and never written back to the user's original source path.
-- A changed master creates a new retained source version instead of mutating/deleting an older master.
-- Added conservative candidate mapping for standard LaTeX `\item` bullets. Each region keeps source line range and raw-text SHA. Regions start non-editable; any mapping change invalidates a previous confirmation.
-- Added versioned facts with stable fact IDs, source-document ID, source locator, source SHA, candidate/approved/rejected status, correction history, and fact-bank revision.
-- Fact approval re-hashes its backing source first and is refused if the app-owned source is missing or modified.
-- Added protected non-bullet fact extraction after testing the real template shape. Structured `\role{title}{dates}{employer}{location}` fields, summary/skills/education/project-stack/language/professional-development text are now review candidates even when they are not editable bullets.
-- Fixed LaTeX-to-display conversion so layout commands adjacent to factual text cannot swallow labels such as GPA.
-- Historical inactive master facts remain retained for provenance but no longer block onboarding readiness for the active resume.
-- Added an explicit app-managed Tectonic 0.17.0 installer for Windows x64. The release archive is size/SHA-256 pinned and unpacked only into the app-owned tool directory.
-- Added original-template baseline compilation through the app-owned process supervisor. Network-enabled cache population is an explicit action; offline readiness requires a later `--only-cached --untrusted` compile.
-- Added pypdf baseline inspection for page count/page geometry plus PDF/text hashes. Extracted PDF text is a validation signal only; it is not the source of factual truth or assumed to preserve reading order.
-- Added source metrics for section order, bullet count, document class, local external references, and shell-escape/write18 signal.
-- Added Phase 2 UI for master/supporting import, compiler status, explicit cache actions, baseline state, editable-region confirmation, and fact correction/approval.
-- File-system selection stays native: the webview bridge accepts paths only from the native file dialog, not arbitrary JavaScript strings.
-- Resume onboarding changes are limited to Idle. Tectonic install/compile operations are cancellable on Close through the app-owned process boundary.
-- `onboarding_ready` requires verified master integrity, compiled + cached-only verified baseline, confirmed template map, zero active candidate facts, and at least one approved active fact.
-- Added controlled LaTeX fixtures, migration regression tests, source tamper tests, fact-history tests, protected-fact tests, active-master scoping tests, controlled UI tests, and real Windows Tectonic acceptance.
+- Everything remains local; no cloud AI, hosted database, paid API/proxy, telemetry, remote UI script, or cloud sign-in.
+- Model/runtime download requires an explicit user action and exact source/license/checksum metadata.
+- Hardware recommendation must be based on the actual running machine; CI hardware must never be presented as the user's GPU/RAM profile.
+- Detect RAM, available memory, CPU capabilities, disk, GPU evidence, and reserve resources for Windows/browser/JobPilot.
+- Initial catalogue is small, versioned, quantized and tested. Newest does not automatically mean trusted or selected.
+- One inference operation at a time. No unnecessary vision. Resource pressure must reduce/block/cancel rather than cause unsafe memory exhaustion.
+- Every usable configuration must pass structured-output, factual/malicious-JD and controlled-tailoring quality checks plus resource checks; speed is measured only among passing configurations.
+- Switching is allowed only to installed/validated weights. A replacement repeats the later five-distinct-resume human review gate.
+- Old weights may be deleted only if JobPilot proves they are app-managed, inside the model root, not in use, and a replacement has satisfied all gates; metadata remains.
+- Update checks may occur at most weekly while open, never download/switch automatically, and still require approval/evaluation.
+- If no local candidate fits safely, report that result. Never use cloud inference or weaken factual requirements.
+- Phase 3 must not start JD-driven tailoring, discovery, form filling, or employer submission.
 
-## Real resume acceptance
+## Current official dependency/model verification
 
-The user supplied the actual LaTeX source in chat on 2026-09-11. It was treated as ephemeral private input and was **not committed to Git**.
+Research was rechecked on 2026-09-11 against project-owned/official sources before freezing Phase 3:
 
-Observed structure and layout validation:
+- llama.cpp stable release baseline: `v0.4.0`; tested Windows binary build `b10809`.
+- b10809 server docs expose `--list-devices`, explicit `--device`, `--offline`, `--no-mmproj`, and schema-constrained `response_format`. `--device none` is the explicit no-offload CPU path.
+- llama.cpp b10809 chat schema shape is `response_format={"type":"json_schema","schema":...}`. JobPilot uses that native form and independently parses/validates the returned JSON.
+- Runtime catalogue pins b10809 Windows x64 CPU and Vulkan archives by exact byte count and SHA-256.
+- Model catalogue pins `ggml-org/Qwen3-4B-GGUF`, revision `2f3b082b1356a6123f7ed71e65aea340da25d53c`, `Qwen3-4B-Q4_K_M.gguf`, exact size 2,497,280,640 bytes, SHA-256 `ab27b9bfa375a178d6cba48f3ad892b94b7739659dcc7aae8058ce0ffed6b328`, Apache-2.0.
+- GitHub Actions acceptance was updated from deprecated Node-runtime action majors to official `actions/checkout@v7` and `actions/setup-python@v7`.
 
-- `article` class, A4, 11 pt, 0.6 inch margins;
-- self-contained source with no custom local `.cls`, `.sty`, image, bibliography, or extra `.tex` dependency references;
-- seven sections;
-- three `\role` calls;
-- 23 standard `\item` bullet regions;
-- two A4 pages in the local validation render;
-- no `\write18`/shell-escape request;
-- no overfull or underfull box warnings after the final local validation pass.
+## Pre-existing Phase 3 evidence retained
 
-A sanitized fixture preserving the real template's package/font/layout/custom-command shape was committed instead of personal data. Windows CI used Tectonic 0.17.0 to populate its support cache and then recompiled that sanitized template with `--only-cached --untrusted`, producing two pages successfully.
+Before the Phase 2 finalization merge, the old Phase 3 branch already had a successful Windows run `34478348579` / job `102874581087` using the pinned CPU runtime and Qwen3 4B Q4_K_M. It measured approximately 5,016,252,416 bytes peak RSS and passed its structured, factual/malicious-JD, controlled-tailoring and resource checks while leaving automatic tailoring disabled. Generation in the log was roughly 11 tokens/second at the controlled 4096-token context.
 
-The real template review exposed and fixed three correctness issues before completion:
+That run is useful empirical input for conservative RAM policy, but **is not Phase 3 completion evidence** because it predates the merged real-resume finalization and the safety fixes below.
 
-1. non-bullet protected facts were absent from the candidate fact bank;
-2. adjacent LaTeX layout commands could corrupt display/provenance text;
-3. unresolved candidates from inactive historical master versions could block the active resume.
+## Phase 3 audit findings fixed before final acceptance
 
-The user explicitly approved **all factual claims in the supplied resume exactly as written** on 2026-09-11. This approval closes the Phase 2 fact-review gate. The personal claim text itself remains private runtime/chat data and is not reproduced in repository records.
+The existing branch was not accepted as-is. The audit found and corrected these material gaps:
 
-## Verification evidence
+1. Acceptance documentation named the wrong model size even though the actual script used Qwen3 4B.
+2. Model revisions shared one logical install identity/path, so a future revision could overwrite old weights before replacement review.
+3. Replacement activation accepted a caller-supplied review boolean rather than persisted evidence of five distinct approved resumes.
+4. CPU mode relied on `-ngl 0`; b10809 docs explicitly support `--device none`, which is now required to prove CPU-only evaluation.
+5. OS GPU detection was not enough to bind inference to an actual llama.cpp device. The runtime now enumerates `--list-devices`, and Vulkan evaluation requires an exact discovered `VulkanN` ID.
+6. Resource pressure was checked before/after inference but not continuously. A live watcher now records pressure and terminates the owned local server if memory becomes critical.
+7. Evaluation did not persist enough performance/configuration evidence to choose the fastest passing CPU/GPU configuration. It now stores exact device, context, throughput, elapsed time, peak RSS and pressure evidence.
+8. llama.cpp response schema used an OpenAI-nested wrapper. b10809's own server docs use direct `response_format.schema`; the request was corrected while retaining strict application-side validation.
+9. ZIP extraction allowed a symlink entry; runtime extraction now rejects both traversal and symlink members.
+10. Destructive tool cleanup lacked the same explicit managed-root proof used for model cleanup. Managed tool/model deletion boundaries are now separate and enforced.
+11. Replacement cleanup could discover an ownership problem after activation. Ownership/in-use/path checks now occur before changing the active model state.
+12. Old GitHub Actions majors emitted Node runtime deprecation warnings; acceptance workflows now use current official majors.
 
-Original Phase 2 Windows GitHub Actions run `34467708811`, commit `5d1f54c20c4ff224caaa2b5206ffbad0aabf61d4`:
+## Phase 3 implementation staged
 
-- Python **3.13.15** and all pinned project dependencies installed successfully.
-- Matching Playwright Chromium installed successfully.
-- Python bytecode compilation and `node --check src/jobpilot/ui/app.js` passed.
-- `pytest -m "not external"` -> **67 passed, 1 skipped, 2 deselected**.
-- Real Tectonic network→cache→offline acceptance passed.
-- Source/package lifecycle self-tests and hidden WebView2 smokes passed.
+- Migration `004_phase3_local_ai.sql` stores hardware snapshots, runtime/model installs, per-configuration evaluations, selected runtime/device, persisted five-resume review gates/approvals, cleanup state and weekly update state.
+- Qwen model revisions have unique install IDs and directories based on pinned source revision, so evaluation is side-by-side rather than in-place replacement.
+- Download code is atomic and checks exact expected byte count plus SHA-256. Runtime ZIP extraction rejects traversal and symbolic links.
+- Runtime executable integrity is rechecked before device enumeration/inference; model weights are rehashed before use.
+- Hardware probe records current RAM, available RAM, CPU topology/features, disk, OS GPU evidence and conservative reserves. Unknown VRAM remains unknown.
+- llama.cpp `--list-devices` output is parsed into exact runtime device IDs. CPU forces `none`; Vulkan never guesses among multiple devices.
+- The server binds `127.0.0.1`, uses a random per-session API key, runs `--offline`, one slot, `--no-ui`, `--no-mmproj`, and is owned by the Windows process supervisor.
+- One model operation is allowed at a time. Critical pressure blocks startup; constrained pressure reduces controlled context; live critical pressure closes the owned server.
+- Controlled evaluation includes deterministic schema adherence, malicious JD injection resistance, evidence-only factual selection and controlled resume-bullet wording. Model output never sets its own pass criteria.
+- Per-configuration evidence includes backend/device/context/threads, elapsed time, generation and prompt throughput when available, peak process-tree RSS, live pressure, each quality gate and overall result.
+- Selection chooses the fastest measured configuration among those that passed every gate and whose model/runtime files still verify.
+- Phase 3 selection creates a persisted 0/5 distinct-resume review gate. There is no Phase 3 JS bridge method for adding approvals or activating automatic tailoring.
+- Future activation/cleanup/rollback primitives are implemented as guarded internal boundaries for Phase 4: five distinct persisted approvals required; no caller boolean; no shared/non-app-managed or in-use deletion; all deletion remains beneath the model root; retired metadata stays in SQLite.
+- User-triggered upstream metadata check is capped at once every seven days and never downloads or activates a new version.
+- UI displays resource evidence, exact download size/license/revision/checksum, runtime devices, per-configuration evaluation results and the pending 0/5 review gate. JavaScript still has no network API.
 
-Real-resume finalization Windows run `34568832244`, head `82713e3393ca29104394059bac222d4bd7c9d065`:
+## Tests staged before final Windows run
 
-- syntax validation passed;
-- `pytest -m "not external"` -> **70 passed, 1 intentional platform-guard skip, 2 external tests deselected**;
-- Tectonic 0.17.0 package-cache population passed;
-- sanitized real-template shape recompiled successfully with cached resources only and produced **2 pages**;
-- source self-test passed;
-- source hidden Edge/WebView2 smoke passed;
-- PyInstaller 6.22.2 onedir build passed;
-- packaged self-test passed;
-- packaged hidden Edge/WebView2 smoke passed;
-- Phase 0 and Phase 1 regression workflows on the same finalization head also passed.
+Unit/integration coverage now includes:
 
-## Limitations and boundaries
+- Phase 2→3 migration preservation and review-gate tables;
+- no download or auto-inference on snapshot/launch;
+- explicit weekly update interval;
+- exclusive one-operation lock;
+- CPU device `none` and explicit/multiple Vulkan device behavior;
+- conservative no-candidate result instead of cloud/unsafe fallback;
+- exact catalogue size/hash/revision identity;
+- pressure thresholds and live critical callback;
+- atomic checksum/size downloads and cancellation;
+- ZIP traversal and symlink rejection;
+- revision-specific installs;
+- runtime/model integrity rechecks;
+- fastest passing configuration selection;
+- duplicate resume review approval counting only once;
+- refusal to activate before five distinct approvals;
+- refusal to delete shared/non-app-managed weights;
+- safe old-revision cleanup after the complete persisted gate;
+- rollback to previous validated weights;
+- llama.cpp-native schema request and strict local validation;
+- Phase 3 UI no-network/explicit-download/device/review-gate controls;
+- previous Phase 0/1/2 lifecycle, Windows Job Object, resume/fact and Tectonic tests.
 
-- The approved facts are represented in runtime by explicit fact statuses; the public repository intentionally does not contain the user's personal resume or its factual claims.
-- Exact visual comparison of future tailored resumes against the real two-page baseline belongs to Phase 4; Phase 2 establishes the immutable baseline and approval/provenance inputs only.
-- GitHub-hosted Windows acceptance uses Windows Server 2025 rather than an end-user Windows 10/11 installation. Clean-machine Windows 10/11 distribution testing remains Phase 9.
-- No AI inference, job discovery, resume rewriting, browser form filling, or employer submission is enabled in Phase 2.
+## Current boundary / exact next step
 
-## Exact next step
+Fast-forward the audited staging head into `phase-3-local-ai-resource-manager` and run its Windows Phase 3 workflow. The final acceptance must include syntax/tests, preserved Phase 2 cached-only Tectonic acceptance, a real checksum-pinned CPU llama.cpp/Qwen3 4B evaluation, source WebView2 smoke, PyInstaller onedir build, packaged self-test and packaged WebView2 smoke. If any check fails, fix the implementation rather than weakening the gate.
 
-Merge PR #4. After the finalization changes are present on `main`, Phase 3 - Local AI and resource manager - is the first incomplete approved phase. Start it only from that merged `main` state. Phase 3 must implement hardware/resource detection, approved app-managed llama.cpp/model installation, checksum/license metadata, one-inference-at-a-time execution, resource-pressure handling, quality/structured-output evaluation, replacement review gating, and safe deletion/rollback without starting Phase 4.
+Only after that combined tree passes may `ROADMAP.md` be changed from `[~]` to `[x]` and a Phase 3 PR to `main` be marked ready. Phase 4 must remain untouched.
