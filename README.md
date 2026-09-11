@@ -4,7 +4,7 @@
 
 ## Status
 
-Phases 0-2 are complete. Phase 3 - **Local AI and resource manager** - has passed its combined Windows code-head acceptance and is in final record-head/PR verification.
+Phases 0-3 are complete on the Phase 3 branch. Phase 3 - **Local AI and resource manager** - has passed the complete Windows branch-head acceptance and is awaiting pull-request merge verification. Phase 4 has not started.
 
 Phase 3 adds local hardware/resource detection, explicit app-managed llama.cpp/model installation, local quality/resource evaluation, per-device performance evidence, revision-safe replacement primitives, and a persisted five-distinct-resume review gate for the later tailoring phase. It does **not** enable job discovery, JD-driven resume rewriting, browser form filling, or employer submission.
 
@@ -69,6 +69,8 @@ Combined Phase 3 code-head run `34575604480` passed:
 - **12.789 generated tokens/second**, **5,021,855,744 bytes peak process-tree RSS**, normal live memory pressure;
 - 0/5 future review approvals and automatic tailoring disabled;
 - source/package self-tests, WebView2 smokes and PyInstaller onedir build.
+
+Exact record-head run `34576262983` then repeated the complete workflow successfully before Phase 3 was marked complete.
 
 This is a CI CPU compatibility baseline, not a claim about the user's own hardware. The application must probe and evaluate the actual local CPU/Vulkan configuration before selection.
 
