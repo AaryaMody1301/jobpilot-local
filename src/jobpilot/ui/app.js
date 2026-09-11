@@ -7,7 +7,7 @@ function toast(message) { const el = document.getElementById('toast'); el.textCo
 function escapeHtml(value) { const div = document.createElement('div'); div.textContent = String(value ?? ''); return div.innerHTML; }
 function escapeAttr(value) { return escapeHtml(value).replaceAll('"', '&quot;').replaceAll("'", '&#39;'); }
 function shortHash(value) { return value ? `${String(value).slice(0, 12)}…` : '—'; }
-function formatBytes(value) { const n = Number(value || 0); if (!n) return '0 B'; if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(1)} GB`; if (n >= 1024 ** 2) return `${(n / 1024 ** 2).toFixed(0)} MB`; return `${Math.round(n / 1024)} KB`; }
+function formatBytes(value) { const n = Number(value || 0); if (!n) return '0 B'; if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(2)} GB`; if (n >= 1024 ** 2) return `${(n / 1024 ** 2).toFixed(0)} MB`; return `${Math.round(n / 1024)} KB`; }
 function setBusy(message) { document.getElementById('fact-bank-status').textContent = message || ''; }
 
 async function invoke(name, ...args) {
@@ -39,7 +39,7 @@ function render(state) {
 
   const resume = state.resume;
   document.getElementById('resume-ready').textContent = resume.onboarding_ready ? 'Ready' : 'Not ready';
-  document.getElementById('resume-ready-detail').textContent = resume.onboarding_ready ? 'Baseline, mapping, and facts resolved' : 'Real-resume gate remains required';
+  document.getElementById('resume-ready-detail').textContent = resume.onboarding_ready ? 'Baseline, mapping, and facts resolved' : 'Local private resume onboarding required';
   renderResume(resume, session, busy);
   if (state.model) renderModel(state.model, session, busy);
 
@@ -99,40 +99,68 @@ function renderResume(resume, session, busy) {
   document.querySelector('#fact-form button[type="submit"]').disabled = !idle || sources.length === 0;
 }
 
+function modelConfigurations(model) {
+  const configs = [];
+  for (const runtime of model.catalogue.runtimes) {
+    if (!runtime.install || runtime.install.status !== 'installed') continue;
+    if (runtime.backend === 'cpu') {
+      configs.push({ runtimeId: runtime.id, deviceId: 'none', label: `${runtime.id} · CPU only` });
+      continue;
+    }
+    for (const device of runtime.devices || []) {
+      configs.push({ runtimeId: runtime.id, deviceId: device.id, label: `${runtime.id} · ${device.id} · ${device.name}` });
+    }
+  }
+  return configs;
+}
+
 function renderModel(model, session, busy) {
   const idle = session === 'idle' && !busy;
   const hardware = model.hardware;
   const selected = model.selection.selected_model_install_id;
+  const gate = model.review_gate;
   document.getElementById('model-ready').textContent = selected ? 'Selected for review' : 'Not selected';
-  document.getElementById('model-ready-detail').textContent = model.auto_tailoring_enabled ? 'Auto-tailoring gate active' : 'Auto-tailoring disabled · five-resume gate required';
+  document.getElementById('model-ready-detail').textContent = model.auto_tailoring_enabled
+    ? 'Automatic tailoring model activated after persisted review gate'
+    : selected ? `${gate?.approved_distinct_resumes || 0}/5 distinct resume approvals · auto-tailoring disabled` : 'Auto-tailoring disabled · device evaluation required';
   document.getElementById('refresh-hardware').disabled = !idle;
   document.getElementById('check-model-updates').disabled = !idle || !model.update_check_due;
 
-  const gpus = hardware.gpus.length ? hardware.gpus.map(gpu => `${escapeHtml(gpu.name)} · VRAM ${gpu.total_vram_bytes ? formatBytes(gpu.total_vram_bytes) : 'unknown'} · ${escapeHtml(gpu.evidence)}`).join('<br>') : 'No supported GPU evidence detected';
-  document.getElementById('hardware-summary').innerHTML = `<div><strong>${formatBytes(hardware.memory.total_bytes)} RAM</strong><span>Available now: ${formatBytes(hardware.memory.available_bytes)}</span><span>Reserved model RAM budget: ${formatBytes(hardware.budget.model_ram_budget_bytes)}</span><span>Model disk budget: ${formatBytes(hardware.budget.model_disk_budget_bytes)}</span><span>Memory pressure: ${escapeHtml(hardware.budget.memory_pressure)}</span><span>CPU: ${escapeHtml(hardware.cpu.physical_cores)} physical / ${escapeHtml(hardware.cpu.logical_cores)} logical cores · ${escapeHtml((hardware.cpu.features || []).join(', ') || 'features unavailable')}</span><span>GPU: ${gpus}</span></div>`;
+  const gpus = hardware.gpus.length
+    ? hardware.gpus.map(gpu => `${escapeHtml(gpu.name)} · VRAM ${gpu.total_vram_bytes ? formatBytes(gpu.total_vram_bytes) : 'unknown'} · ${escapeHtml(gpu.evidence)}`).join('<br>')
+    : 'No supported GPU evidence detected';
+  const runtimeDevices = Object.entries(hardware.runtime_devices || {}).flatMap(([runtimeId, devices]) => (devices || []).map(device => `${runtimeId}: ${device.id} ${device.name} · free ${formatBytes(device.free_memory_bytes)}`));
+  document.getElementById('hardware-summary').innerHTML = `<div><strong>${formatBytes(hardware.memory.total_bytes)} RAM</strong><span>Available now: ${formatBytes(hardware.memory.available_bytes)}</span><span>Reserved model RAM budget: ${formatBytes(hardware.budget.model_ram_budget_bytes)}</span><span>Model disk budget: ${formatBytes(hardware.budget.model_disk_budget_bytes)}</span><span>Memory pressure: ${escapeHtml(hardware.budget.memory_pressure)}</span><span>CPU: ${escapeHtml(hardware.cpu.physical_cores)} physical / ${escapeHtml(hardware.cpu.logical_cores)} logical cores · ${escapeHtml((hardware.cpu.features || []).join(', ') || 'features unavailable')}</span><span>OS GPU evidence: ${gpus}</span><span>llama.cpp devices: ${runtimeDevices.length ? runtimeDevices.map(escapeHtml).join('<br>') : 'none discovered from an installed runtime'}</span></div>`;
 
   const rec = model.recommendation;
-  document.getElementById('model-recommendation').innerHTML = `<div><strong>${rec.model_id ? escapeHtml(rec.model_id) : 'No safe candidate'}</strong><span>Runtime: ${escapeHtml(rec.runtime_id || '—')}</span><span>${escapeHtml(rec.reason)}</span><span>Catalogue: ${escapeHtml(model.catalogue_version)}</span><span>Update check: ${model.update_check_due ? 'due' : 'checked within seven days'}</span><span>Downloads: explicit approval only</span></div>`;
+  document.getElementById('model-recommendation').innerHTML = `<div><strong>${rec.model_id ? escapeHtml(rec.model_id) : 'No safe candidate'}</strong><span>Compatibility baseline: ${escapeHtml(rec.runtime_id || '—')}</span><span>Optional backend to evaluate: ${escapeHtml(rec.alternative_runtime_id || 'none')}</span><span>${escapeHtml(rec.reason)}</span><span>Catalogue: ${escapeHtml(model.catalogue_version)}</span><span>Update check: ${model.update_check_due ? 'due' : 'checked within seven days'}</span><span>Downloads: explicit approval only</span></div>`;
 
   document.getElementById('runtime-catalogue').innerHTML = model.catalogue.runtimes.map(runtime => {
     const installed = runtime.install && runtime.install.status === 'installed';
-    return `<div class="fact-item" data-runtime-id="${escapeHtml(runtime.id)}"><div class="fact-meta"><code>${escapeHtml(runtime.id)}</code><span class="pill">${installed ? 'installed' : 'not installed'}</span></div><div class="fact-source">llama.cpp ${escapeHtml(runtime.version)} / ${escapeHtml(runtime.build)} · ${escapeHtml(runtime.backend)} · ${formatBytes(runtime.bytes)} · SHA ${escapeHtml(shortHash(runtime.sha256))}</div><div class="button-row"><button data-runtime-action="install" ${idle && !installed ? '' : 'disabled'}>Install verified runtime</button></div></div>`;
+    const devices = runtime.backend === 'cpu' ? 'device none (forced)' : ((runtime.devices || []).map(device => `${device.id}: ${device.name} · ${formatBytes(device.free_memory_bytes)} free`).join('; ') || 'no Vulkan device reported yet');
+    return `<div class="fact-item" data-runtime-id="${escapeAttr(runtime.id)}"><div class="fact-meta"><code>${escapeHtml(runtime.id)}</code><span class="pill">${installed ? 'installed' : 'not installed'}</span></div><div class="fact-source">llama.cpp ${escapeHtml(runtime.version)} / ${escapeHtml(runtime.build)} · ${escapeHtml(runtime.backend)} · ${formatBytes(runtime.bytes)} · SHA ${escapeHtml(shortHash(runtime.sha256))}<br>Devices: ${escapeHtml(devices)}</div><div class="button-row"><button data-runtime-action="install" ${idle && !installed ? '' : 'disabled'}>Install verified runtime</button></div></div>`;
   }).join('');
 
-  const installedRuntimes = model.runtime_installs.filter(item => item.status === 'installed');
+  const configs = modelConfigurations(model);
   document.getElementById('model-catalogue').innerHTML = model.catalogue.models.map(item => {
     const install = item.install;
     const status = install ? install.status : 'not installed';
-    const latestEval = model.evaluations.find(ev => ev.model_install_id === item.id && ev.overall_pass);
-    const runtimeForEval = latestEval ? latestEval.runtime_install_id : (model.recommendation.runtime_id && installedRuntimes.some(r => r.id === model.recommendation.runtime_id) ? model.recommendation.runtime_id : installedRuntimes[0]?.id);
+    const passing = install ? model.evaluations.filter(ev => ev.model_install_id === install.id && ev.overall_pass) : [];
     const canInstall = idle && (!install || status === 'failed' || status === 'retired');
-    const canEval = idle && install && ['installed', 'validated', 'failed'].includes(status) && Boolean(runtimeForEval);
-    const canSelect = idle && status === 'validated' && Boolean(latestEval);
-    return `<div class="fact-item" data-model-id="${escapeHtml(item.id)}"><div class="fact-meta"><code>${escapeHtml(item.id)}</code><span class="pill ${escapeHtml(status)}">${escapeHtml(status)}</span></div><strong>${escapeHtml(item.display_name)}</strong><div class="fact-source">${escapeHtml(item.quantization)} · ${formatBytes(item.display_bytes)} · ${escapeHtml(item.license)} · SHA ${escapeHtml(shortHash(item.sha256))}<br>${escapeHtml(item.notes)}</div><div class="button-row"><button data-model-action="install" ${canInstall ? '' : 'disabled'}>Download & verify</button><button data-model-action="evaluate" data-runtime-id="${escapeHtml(runtimeForEval || '')}" ${canEval ? '' : 'disabled'}>Evaluate locally</button><button data-model-action="select" data-runtime-id="${escapeHtml(latestEval?.runtime_install_id || '')}" ${canSelect ? '' : 'disabled'}>Select for Phase 4 review</button></div></div>`;
+    const canEval = idle && install && ['installed', 'validated', 'failed'].includes(status) && configs.length > 0;
+    const canSelect = idle && status === 'validated' && passing.length > 0;
+    const configOptions = configs.length
+      ? `<select class="model-config" ${canEval ? '' : 'disabled'}>${configs.map(config => `<option value="${escapeAttr(`${config.runtimeId}|${config.deviceId}`)}">${escapeHtml(config.label)}</option>`).join('')}</select>`
+      : '<span class="muted">Install a runtime; Vulkan also needs a discovered device.</span>';
+    return `<div class="fact-item" data-model-id="${escapeAttr(item.id)}"><div class="fact-meta"><code>${escapeHtml(item.id)}</code><span class="pill ${escapeHtml(status)}">${escapeHtml(status)}</span></div><strong>${escapeHtml(item.display_name)}</strong><div class="fact-source">${escapeHtml(item.quantization)} · exact ${formatBytes(item.bytes)} · ${escapeHtml(item.license)} · revision ${escapeHtml(shortHash(item.source_revision))} · SHA ${escapeHtml(shortHash(item.sha256))}<br>Suitability: ${escapeHtml(item.suitability)}<br>${escapeHtml(item.notes)}</div><div class="button-row">${configOptions}<button data-model-action="install" ${canInstall ? '' : 'disabled'}>Download & verify</button><button data-model-action="evaluate" ${canEval ? '' : 'disabled'}>Evaluate selected config</button><button data-model-action="select" ${canSelect ? '' : 'disabled'}>Select fastest passing config</button></div></div>`;
   }).join('');
 
+  document.getElementById('model-review-gate').innerHTML = selected && gate
+    ? `<div><strong>${escapeHtml(selected)}</strong><span>Selected runtime: ${escapeHtml(model.selection.selected_runtime_install_id || '—')}</span><span>Selected device: ${escapeHtml(model.selection.selected_device_id || '—')}</span><span>Distinct approvals: ${gate.approved_distinct_resumes}/${gate.required_distinct_resumes}</span><span>Remaining: ${gate.remaining}</span><span>Status: ${gate.complete ? 'complete' : gate.invalidated ? `invalidated · ${escapeHtml(gate.invalidation_reason || '')}` : 'pending Phase 4 human review'}</span><span>Automatic tailoring: ${model.auto_tailoring_enabled ? 'enabled after gate' : 'disabled'}</span></div>`
+    : '<p>No validated configuration has been selected. Phase 4 review cannot begin.</p>';
+
   document.getElementById('model-evaluations').innerHTML = model.evaluations.length
-    ? model.evaluations.map(ev => `<div class="activity-item"><strong>${escapeHtml(ev.model_install_id)} · ${ev.overall_pass ? 'PASS' : 'FAIL'}</strong><span>${escapeHtml(ev.backend)} · ${(ev.elapsed_ms / 1000).toFixed(1)}s · peak ${ev.peak_rss_bytes ? formatBytes(ev.peak_rss_bytes) : 'unknown'}</span><br><span>structured ${ev.structured_pass ? '✓' : '✗'} · factual ${ev.factual_pass ? '✓' : '✗'} · tailoring ${ev.tailoring_pass ? '✓' : '✗'} · resource ${ev.resource_pass ? '✓' : '✗'}</span><br><time>${escapeHtml(ev.created_at)}</time></div>`).join('')
+    ? model.evaluations.map(ev => `<div class="activity-item"><strong>${escapeHtml(ev.model_install_id)} · ${ev.overall_pass ? 'PASS' : 'FAIL'}</strong><span>${escapeHtml(ev.backend)}/${escapeHtml(ev.device_id)} · ctx ${escapeHtml(ev.context_tokens)} · ${(ev.elapsed_ms / 1000).toFixed(1)}s · ${ev.generation_tokens_per_second ? `${Number(ev.generation_tokens_per_second).toFixed(2)} tok/s` : 'speed unavailable'} · peak ${ev.peak_rss_bytes ? formatBytes(ev.peak_rss_bytes) : 'unknown'}</span><br><span>structured ${ev.structured_pass ? '✓' : '✗'} · factual ${ev.factual_pass ? '✓' : '✗'} · tailoring ${ev.tailoring_pass ? '✓' : '✗'} · resource ${ev.resource_pass ? '✓' : '✗'} · pressure ${escapeHtml(ev.pressure?.worst_pressure || 'unknown')}</span><br><time>${escapeHtml(ev.created_at)}</time></div>`).join('')
     : '<p>No local model evaluation has run yet.</p>';
 }
 
@@ -175,10 +203,10 @@ document.getElementById('confirm-template-map').addEventListener('click', async 
 document.getElementById('template-regions').addEventListener('change', async e => { const id = e.target.dataset.regionId; if (id) await invoke('set_template_region_editable', id, e.target.checked); });
 document.getElementById('fact-list').addEventListener('click', async e => { const action = e.target.dataset.factAction; if (!action) return; const item = e.target.closest('.fact-item'); const factId = item.dataset.factId; if (action === 'save') { await invoke('revise_fact', factId, item.querySelector('.fact-value').value, item.querySelector('.fact-category').value); toast('New candidate fact version saved'); } else { await invoke('set_fact_status', factId, action); toast(`Fact marked ${action}`); } });
 document.getElementById('fact-form').addEventListener('submit', async e => { e.preventDefault(); const payload = { source_document_id: document.getElementById('fact-source').value, category: document.getElementById('fact-category').value, locator: document.getElementById('fact-locator').value.trim(), value: document.getElementById('fact-value').value.trim() }; await invoke('create_fact', payload); document.getElementById('fact-locator').value = ''; document.getElementById('fact-value').value = ''; toast('Candidate fact added'); });
-document.getElementById('refresh-hardware').addEventListener('click', async () => { await invoke('refresh_model_hardware'); toast('Hardware and resource budget refreshed'); });
+document.getElementById('refresh-hardware').addEventListener('click', async () => { await invoke('refresh_model_hardware'); toast('Hardware, resource budget, and runtime devices refreshed'); });
 document.getElementById('check-model-updates').addEventListener('click', async () => { if (!window.confirm('Check GitHub and Hugging Face metadata for configured runtime/model revisions? This does not download software or model weights.')) return; await invoke('check_model_updates'); toast('Update metadata checked'); });
-document.getElementById('runtime-catalogue').addEventListener('click', async e => { if (e.target.dataset.runtimeAction !== 'install') return; const item = e.target.closest('[data-runtime-id]'); const runtime = latestState.model.catalogue.runtimes.find(r => r.id === item.dataset.runtimeId); if (!runtime) return; if (!window.confirm(`Download ${runtime.id} (${formatBytes(runtime.bytes)}) from the pinned llama.cpp release and verify SHA-256 before installation?`)) return; await invoke('install_model_runtime', runtime.id); toast('Local runtime installed and verified'); });
-document.getElementById('model-catalogue').addEventListener('click', async e => { const action = e.target.dataset.modelAction; if (!action) return; const item = e.target.closest('[data-model-id]'); const model = latestState.model.catalogue.models.find(m => m.id === item.dataset.modelId); if (!model) return; if (action === 'install') { if (!window.confirm(`Download ${model.display_name} (${formatBytes(model.display_bytes)}, ${model.license}) from ${model.source_repo} and require the pinned SHA-256? No cloud inference is used.`)) return; await invoke('install_local_model', model.id); toast('Local model downloaded and checksum verified'); } else if (action === 'evaluate') { const runtimeId = e.target.dataset.runtimeId; if (!runtimeId) return; await invoke('evaluate_local_model', model.id, runtimeId); toast('Device-local model evaluation finished'); } else if (action === 'select') { const runtimeId = e.target.dataset.runtimeId; if (!runtimeId) return; await invoke('select_model_for_phase4_review', model.id, runtimeId); toast('Validated model selected for the future five-resume review gate'); } });
+document.getElementById('runtime-catalogue').addEventListener('click', async e => { if (e.target.dataset.runtimeAction !== 'install') return; const item = e.target.closest('[data-runtime-id]'); const runtime = latestState.model.catalogue.runtimes.find(r => r.id === item.dataset.runtimeId); if (!runtime) return; if (!window.confirm(`Download ${runtime.id} (${formatBytes(runtime.bytes)}) from the pinned llama.cpp release and verify SHA-256 before installation?`)) return; await invoke('install_model_runtime', runtime.id); toast('Local runtime installed, verified, and device-probed'); });
+document.getElementById('model-catalogue').addEventListener('click', async e => { const action = e.target.dataset.modelAction; if (!action) return; const item = e.target.closest('[data-model-id]'); const model = latestState.model.catalogue.models.find(m => m.id === item.dataset.modelId); if (!model) return; if (action === 'install') { if (!window.confirm(`Download ${model.display_name} (${formatBytes(model.bytes)}, ${model.license}) from pinned revision ${shortHash(model.source_revision)} and require its exact SHA-256 and byte size? No cloud inference or vision component is used.`)) return; await invoke('install_local_model', model.id); toast('Local model revision downloaded and checksum verified'); } else if (action === 'evaluate') { if (!model.install) return; const config = item.querySelector('.model-config')?.value || ''; const separator = config.indexOf('|'); if (separator < 1) return; const runtimeId = config.slice(0, separator); const deviceId = config.slice(separator + 1); await invoke('evaluate_local_model', model.install.id, runtimeId, deviceId); toast('Device-local model evaluation finished'); } else if (action === 'select') { if (!model.install) return; await invoke('select_model_for_phase4_review', model.install.id); toast('Fastest passing configuration selected; five-resume review gate remains pending'); } });
 document.getElementById('targeting-form').addEventListener('submit', async e => { e.preventDefault(); const save = document.getElementById('save-state'); save.textContent = 'Saving...'; try { await invoke('save_targeting', targetingFromForm()); save.textContent = 'Saved locally'; toast('Targeting saved'); } catch { save.textContent = 'Not saved'; } });
 
 window.addEventListener('pywebviewready', async () => {
