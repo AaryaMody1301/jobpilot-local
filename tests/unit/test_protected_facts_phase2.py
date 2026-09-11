@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+from jobpilot.app.controller import ApplicationController
 from jobpilot.resume.documents import DocumentWorkspace
 from jobpilot.resume.facts import extract_protected_facts
 from jobpilot.resume.store import ResumeStore
@@ -55,3 +56,34 @@ def test_document_import_adds_protected_and_bullet_facts(tmp_path: Path) -> None
         assert all(fact["source_ref"]["source_sha256"] == store.get_active_master()["sha256"] for fact in facts)
     finally:
         database.close()
+
+
+def test_current_fact_gate_excludes_inactive_master_versions(tmp_path: Path) -> None:
+    paths = ManagedPaths(tmp_path / "JobPilotLocal")
+    controller = ApplicationController(paths, MIGRATIONS, sample_item_seconds=0.01)
+    try:
+        first = tmp_path / "first.tex"
+        first.write_text(
+            "\\documentclass{article}\n\\begin{document}\n\\section{Experience}\n"
+            "\\begin{itemize}\n\\item First source fact.\n\\end{itemize}\n\\end{document}\n",
+            encoding="utf-8",
+        )
+        controller.import_master_resume(first)
+        first_state = controller.snapshot()["resume"]
+        first_master_id = str(first_state["master"]["id"])
+        assert first_state["fact_counts"]["candidate"] == 1
+
+        second = tmp_path / "second.tex"
+        second.write_text(
+            "\\documentclass{article}\n\\begin{document}\n\\section{Experience}\n"
+            "\\begin{itemize}\n\\item Second source fact.\n\\end{itemize}\n\\end{document}\n",
+            encoding="utf-8",
+        )
+        second_state = controller.import_master_resume(second)["resume"]
+        second_master_id = str(second_state["master"]["id"])
+        assert second_master_id != first_master_id
+        assert second_state["fact_counts"]["candidate"] == 1
+        assert {str(fact["source_document_id"]) for fact in second_state["facts"]} == {second_master_id}
+        assert len(controller.resume_store.list_facts()) == 2
+    finally:
+        controller.close()
