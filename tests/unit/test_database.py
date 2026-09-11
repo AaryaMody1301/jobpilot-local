@@ -25,6 +25,7 @@ def test_migration_is_idempotent_and_enables_safety_pragmas(tmp_path: Path) -> N
             "002_phase1_foundation.sql",
             "003_phase2_resume_fact_bank.sql",
             "004_phase3_local_ai.sql",
+            "005_phase4_tailoring.sql",
         ]
         assert db.apply_migrations() == []
         assert db.connection.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"
