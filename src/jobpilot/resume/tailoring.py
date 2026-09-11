@@ -155,6 +155,26 @@ def _replacement_is_evidence_only(replacement: str, original: str, facts: Sequen
     return not unsupported, sorted(set(unsupported), key=str.casefold)
 
 
+def _keyword_stuffing_terms(replacement: str, original: str, facts: Sequence[Mapping[str, Any]]) -> list[str]:
+    evidence_text = " ".join([original, *(str(fact["value_text"]) for fact in facts)])
+    evidence_counts: dict[str, int] = {}
+    replacement_counts: dict[str, int] = {}
+    display_token: dict[str, str] = {}
+    for token in _content_tokens(evidence_text):
+        stem = _stem(token)
+        evidence_counts[stem] = evidence_counts.get(stem, 0) + 1
+    for token in _content_tokens(replacement):
+        stem = _stem(token)
+        replacement_counts[stem] = replacement_counts.get(stem, 0) + 1
+        display_token.setdefault(stem, token)
+    repeated: list[str] = []
+    for stem, count in replacement_counts.items():
+        allowed = max(2, evidence_counts.get(stem, 0) + 1)
+        if count > allowed:
+            repeated.append(display_token[stem])
+    return sorted(repeated, key=str.casefold)
+
+
 def _region_fact_ids(field_id: str, approved_facts: Mapping[str, Mapping[str, Any]]) -> set[str]:
     result: set[str] = set()
     for fact_id, fact in approved_facts.items():
@@ -207,8 +227,8 @@ def validate_tailoring_plan(
             raise StructuredOutputError(f"field {edit.field_id!r} cites a fact that is not approved/current")
         if "\n" in edit.replacement or "\r" in edit.replacement:
             raise StructuredOutputError(f"field {edit.field_id!r} replacement must be one plain-text line")
-        if any(ord(ch) < 32 and ch not in "\t" for ch in edit.replacement):
-            raise StructuredOutputError(f"field {edit.field_id!r} replacement contains control characters")
+        if any(not ch.isprintable() for ch in edit.replacement):
+            raise StructuredOutputError(f"field {edit.field_id!r} replacement contains non-printable or hidden Unicode characters")
 
         field_fact_ids = _region_fact_ids(edit.field_id, approved_facts)
         if not field_fact_ids or not set(edit.fact_ids).intersection(field_fact_ids):
@@ -221,6 +241,11 @@ def validate_tailoring_plan(
         if not supported:
             raise StructuredOutputError(
                 f"field {edit.field_id!r} introduces unsupported content token(s): {', '.join(unsupported[:12])}"
+            )
+        stuffing_terms = _keyword_stuffing_terms(edit.replacement, original, field_facts)
+        if stuffing_terms:
+            raise StructuredOutputError(
+                f"field {edit.field_id!r} repeats evidence terms beyond the anti-keyword-stuffing limit: {', '.join(stuffing_terms[:12])}"
             )
         replacement_folded = " ".join(edit.replacement.split()).casefold()
         missing_literals = [literal for literal in _protected_literals(original) if literal not in replacement_folded]
@@ -267,7 +292,7 @@ def build_tailoring_messages(
         "Do not invent skills, tools, years, employers, titles, dates, metrics, qualifications, leadership, authorization, sponsorship, salary, or responsibilities. "
         "Return only the requested JSON schema. Replacements are plain text, not LaTeX. Prefer no edit when evidence is insufficient. "
         "Rewrite an existing field only from the approved fact linked to that field; do not merge claims from different resume bullets. "
-        "Preserve every numeric/date/metric literal already present in an edited field. "
+        "Preserve every numeric/date/metric literal already present in an edited field. Never add hidden text or repeat supported terms for emphasis or keyword stuffing. "
         "A JD keyword may be mapped only when the same concept is explicitly supported by the cited approved facts."
     )
     payload = {
