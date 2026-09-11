@@ -64,7 +64,7 @@ def _resume_state() -> dict:
 
 def _state() -> dict:
     return {
-        "phase": 2,
+        "phase": 4,
         "development_mode": True,
         "session_id": "fixture-session",
         "session_state": "idle",
@@ -95,6 +95,29 @@ def _state() -> dict:
         "activity": [],
         "data_root": "C:\\fixture\\JobPilotLocal",
         "resume": _resume_state(),
+        "model": {
+            "hardware": None,
+            "runtime_catalogue": [],
+            "model_catalogue": [],
+            "runtime_installs": [],
+            "model_installs": [],
+            "evaluations": [],
+            "selected": {},
+            "review_gate": None,
+            "operation_busy": None,
+            "recommendation": {},
+            "catalogue_update": {},
+            "phase4_auto_tailoring_enabled": False,
+        },
+        "tailoring": {
+            "manual_jds": [],
+            "runs": [],
+            "selected_model_install_id": None,
+            "review_gate": None,
+            "auto_tailoring_enabled": False,
+            "phase5_discovery_enabled": False,
+            "employer_submission_enabled": False,
+        },
     }
 
 
@@ -119,7 +142,7 @@ def test_local_ui_navigation_and_bridge_contract(chromium_page) -> None:
         chromium_page.evaluate("window.dispatchEvent(new Event('pywebviewready'))")
         chromium_page.wait_for_function("document.getElementById('session-badge').textContent === 'idle'")
 
-        assert chromium_page.locator("text=Local evaluation mode.").is_visible()
+        assert chromium_page.locator("text=Local tailoring review mode.").is_visible()
         assert chromium_page.locator("text=SAMPLE - lifecycle").is_visible()
         assert chromium_page.locator("text=Confirmed today").is_visible()
         chromium_page.locator("button[data-view='settings']").click()
