@@ -20,10 +20,7 @@ Deliverables:
 - [x] llama.cpp structured-response request/validation boundary;
 - [x] Playwright controlled-form read-only recognition fixture;
 - [x] Windows CI definition for reproducible Phase 0 checks;
-- [x] Windows CI acceptance evidence: corrected Phase 0 commit passed 28 non-external tests, Chromium fixture recognition, Windows Job Object checks, PyInstaller onedir build, and packaged self-test;
-- [x] external Tectonic/llama.cpp probes defined and intentionally deferred to the phases that have an approved compiler cache/model; they are not Phase 0 completion blockers.
-
-Later interfaces: `SessionStateMachine`, `ApplicationStateMachine`, `ProcessSupervisor`, `Database`, `ManagedPaths`, `TectonicCompiler`, `LlamaServerClient`, `ApplicationAdapter`.
+- [x] Windows CI acceptance evidence: corrected Phase 0 commit passed 28 non-external tests, Chromium fixture recognition, Windows Job Object checks, PyInstaller onedir build, and packaged self-test.
 
 Acceptance: see `docs/PHASE0_ACCEPTANCE.md`.
 
@@ -31,50 +28,42 @@ Acceptance: see `docs/PHASE0_ACCEPTANCE.md`.
 
 User-visible outcome: a runnable local pywebview dashboard with navigation, editable targeting settings, persistent SQLite state, app-owned folders, Start/Pause/Stop/Close lifecycle, crash recovery, and clearly labelled sample work only.
 
-Dependencies: Phase 0 lifecycle, storage, process-ownership, and packaging decisions.
-
 Deliverables:
-- [x] local pywebview shell and bundled HTML/CSS/JavaScript UI with no remote scripts or telemetry;
-- [x] SQLite Phase 1 migration, persistent targeting settings, runtime sessions, activity history, and sample queue metadata;
-- [x] full app-owned local directory structure outside Git;
+- [x] bundled local pywebview UI with no remote scripts or telemetry;
+- [x] SQLite settings/runtime/activity/sample-queue persistence;
 - [x] Start/Pause/Stop/Close controller and sample-only worker created only by explicit Start;
-- [x] crash recovery that launches idle and requeues safe interrupted sample work;
-- [x] editable targeting controls for all agreed Phase 1 preferences;
-- [x] migration upgrade test from a Phase 0 database;
-- [x] source and packaged lifecycle self-tests;
-- [x] real Windows pywebview/WebView2 hidden-window bridge smoke;
-- [x] PyInstaller onedir desktop package feasibility build;
-- [x] Windows acceptance run `34455123604`: 50 tests passed, 2 external tests deselected; source/package self-tests and source/package hidden-window smokes passed.
+- [x] crash recovery and migration regression coverage;
+- [x] all agreed targeting controls;
+- [x] Windows source/package lifecycle self-tests, WebView2 smoke, and PyInstaller onedir build.
 
 Acceptance: see `docs/PHASE1_ACCEPTANCE.md`.
 
 ## Phase 2 - Resume import and approved fact bank [x]
 
-2A immutable LaTeX import, Tectonic baseline compile, page/layout baseline, template mapping. 2B supporting-source registry and fact correction/approval/versioning. No automatic rewriting or submission.
+2A immutable LaTeX import, Tectonic baseline compile, page/layout baseline and template mapping. 2B supporting-source registry and fact correction/approval/versioning. No automatic rewriting or submission.
 
 Completed:
-- [x] migration `003_phase2_resume_fact_bank.sql` for immutable source metadata, template maps/regions, resume baseline, versioned facts, and fact-bank revision;
-- [x] native file-picker boundary for master `.tex` and supported evidence files; JavaScript cannot supply arbitrary filesystem paths;
-- [x] byte-for-byte app-owned source copies with SHA-256 integrity checks, deduplication, and retained historical versions;
-- [x] candidate bullet mapping plus protected non-bullet facts for role title/date/employer/location, summary, skills, project stacks, education, professional development, and languages;
-- [x] active-resume fact scoping, source-linked stable IDs, corrections, explicit approve/reject, and integrity recheck before approval;
-- [x] checksum-pinned app-managed Tectonic 0.17.0 with explicit cache-populating compile followed by mandatory `--only-cached --untrusted` verification;
-- [x] baseline page count/geometry/PDF hash/text hash/source metrics and compile-log persistence;
+- [x] migration `003_phase2_resume_fact_bank.sql` and immutable SHA-256 source provenance;
+- [x] native file-picker boundary; no arbitrary JavaScript filesystem imports;
+- [x] candidate bullet mapping plus protected non-bullet facts for roles, dates, employers, locations, summary, skills, project stacks, education, professional development, and languages;
+- [x] active-resume fact scoping, stable IDs, correction/version history, explicit approve/reject, and source-integrity recheck before approval;
+- [x] checksum-pinned Tectonic 0.17.0 with explicit cache population followed by mandatory `--only-cached --untrusted` verification;
+- [x] page geometry/PDF/text/source metrics and compile-log persistence;
 - [x] real supplied template privately validated as two A4 pages with 23 standard `\item` regions, seven sections, three `\role` calls, no shell escape, and no final overfull/underfull warnings;
 - [x] sanitized matching template-shape fixture passed two-page cached-only Tectonic verification on Windows;
 - [x] user explicitly approved all factual claims in the supplied resume exactly as written on 2026-09-11; private resume/fact text is not committed.
 
 Acceptance: see `docs/PHASE2_ACCEPTANCE.md` and `PROGRESS.md`.
 
-## Phase 3 - Local AI and resource manager [~]
+## Phase 3 - Local AI and resource manager [x]
 
-3A RAM/CPU/disk/GPU detection and budgets. 3B approved model/binary download, checksum validation, one-job inference. 3C speed/memory/structured-output/factual-tailoring evaluation plus safe replacement/rollback/deletion.
+3A RAM/CPU/disk/GPU detection and budgets. 3B approved model/binary download, checksum validation and one-job inference. 3C speed/memory/structured-output/factual-tailoring evaluation plus safe replacement/rollback/deletion.
 
-Implementation and code-head acceptance completed:
-- [x] preserved merged Phase 2 finalization before continuing the pre-existing Phase 3 branch; no force reset or history loss;
+Completed:
+- [x] preserved the merged Phase 2 finalization before continuing pre-existing Phase 3 work; no force reset/history loss;
 - [x] migration `004_phase3_local_ai.sql` for hardware evidence, revisioned runtime/model installs, per-configuration evaluations, selected configuration, persisted review gates, cleanup and weekly-update state;
 - [x] local RAM/available memory, CPU capabilities, disk and conservative OS GPU evidence with explicit reserves and one-inference-at-a-time budget;
-- [x] runtime-reported `--list-devices` parsing; CPU forced with `--device none`; Vulkan requires an exact discovered `VulkanN` and explicit selection when multiple devices exist;
+- [x] runtime-reported `--list-devices`; CPU forced with `--device none`; Vulkan requires an exact discovered `VulkanN` and explicit selection when multiple devices exist;
 - [x] small tested catalogue pinning llama.cpp v0.4.0/b10809 CPU+Vulkan Windows x64 archives and Qwen3 4B Q4_K_M revision/size/SHA/license;
 - [x] explicit download confirmation UI; atomic exact-size/SHA verification; ZIP traversal/symlink rejection; app-owned tool/model storage only;
 - [x] localhost-only authenticated llama.cpp server with `--offline`, one slot, no web UI, no multimodal projection, owned-process cleanup, and serialized concurrent shutdown;
@@ -89,11 +78,11 @@ Implementation and code-head acceptance completed:
 - [x] user-triggered runtime/model metadata checks at most once every seven days and never automatic download/switch;
 - [x] Windows 8.3/long-path aliases canonicalized without weakening managed-root containment;
 - [x] Phase 3 model/resource UI and current official GitHub Actions v7 acceptance infrastructure;
-- [x] combined code-head Windows run `34575604480`: 101 passed, 1 intentional platform guard skip, 2 external probes deselected; preserved Phase 2 Tectonic acceptance passed; real checksum-pinned llama.cpp/Qwen3 CPU evaluation passed; source/package self-tests, WebView2 smokes and PyInstaller onedir build passed;
-- [x] real CPU evaluation at 4096 context: structured/factual/tailoring/resource all passed, generation 12.789 tok/s, peak process-tree RSS 5,021,855,744 bytes, live pressure normal, device `none`, review gate remained 0/5, auto-tailoring remained disabled;
-- [ ] final documentation/record head recheck and Phase 3 pull-request checks.
+- [x] combined Windows code-head run `34575604480`: 101 passed, 1 intentional platform-guard skip, 2 external probes deselected; preserved Phase 2 Tectonic acceptance, real checksum-pinned llama.cpp/Qwen3 CPU evaluation, source/package self-tests, WebView2 smokes and PyInstaller onedir build all passed;
+- [x] CPU evaluation at 4096 context: structured/factual/tailoring/resource gates passed, 12.789 generated tokens/s, 5,021,855,744 bytes peak process-tree RSS, normal live pressure, device `none`, review gate 0/5, auto-tailoring disabled;
+- [x] exact record-head Windows run `34576262983` repeated the complete Phase 3 workflow successfully before the completion-status update.
 
-Acceptance: see `docs/PHASE3_ACCEPTANCE.md`.
+Acceptance: see `docs/PHASE3_ACCEPTANCE.md` and `PROGRESS.md`.
 
 Boundary: Phase 3 does not perform JD-driven resume tailoring and cannot collect the five real tailored-resume approvals; those belong to Phase 4. No job discovery, browser application filling, or employer submission is enabled.
 
