@@ -18,15 +18,17 @@ def test_authenticated_client_uses_bearer_header_without_exposing_key_in_payload
     assert "controlled-secret" not in json.dumps(payload)
 
 
-def test_request_contains_release_correct_schema_constraint() -> None:
+def test_request_uses_llama_cpp_native_schema_constraint_not_openai_nested_wrapper() -> None:
     payload = LlamaServerClient.build_resume_edit_request([{"role": "user", "content": "controlled fixture"}])
     assert payload["response_format"] == {
         "type": "json_schema",
-        "json_schema": {"schema": RESUME_EDIT_SCHEMA},
+        "schema": RESUME_EDIT_SCHEMA,
     }
+    assert "json_schema" not in payload["response_format"]
     assert "json_schema" not in payload
     assert payload["temperature"] == 0.0
     assert payload["seed"] == 0
+    assert payload["reasoning_effort"] == "none"
     assert payload["chat_template_kwargs"] == {"enable_thinking": False}
 
 
