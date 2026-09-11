@@ -4,6 +4,7 @@ import hashlib
 import re
 import unicodedata
 from dataclasses import asdict, dataclass
+from urllib.parse import urlsplit
 
 MAX_JD_CHARS = 50_000
 INSTRUCTION_MARKERS = (
@@ -41,8 +42,14 @@ def normalize_job_description(text: str, source_url: str | None = None) -> Manua
     if len(normalized) > MAX_JD_CHARS:
         raise ValueError(f"job description exceeds {MAX_JD_CHARS} characters")
     url = (source_url or "").strip() or None
-    if url is not None and len(url) > 2000:
-        raise ValueError("job description source URL exceeds 2000 characters")
+    if url is not None:
+        if len(url) > 2000:
+            raise ValueError("job description source URL exceeds 2000 characters")
+        parsed = urlsplit(url)
+        if parsed.scheme.casefold() not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("job description source URL must be an absolute http(s) URL")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("job description source URL must not contain embedded credentials")
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
     folded = " ".join(normalized.casefold().split())
     instruction_like = any(marker in folded for marker in INSTRUCTION_MARKERS)
