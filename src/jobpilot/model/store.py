@@ -33,7 +33,7 @@ class ModelStore:
             return int(cursor.lastrowid)
 
     def latest_hardware(self) -> dict[str, Any] | None:
-        with self.database._lock:  # serialized with the shared connection
+        with self.database._lock:
             row = self.database.connection.execute(
                 "SELECT * FROM hardware_snapshots ORDER BY id DESC LIMIT 1"
             ).fetchone()
@@ -73,10 +73,15 @@ class ModelStore:
                     installed_at, last_verified_at, failure_message
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
+                    catalogue_id = excluded.catalogue_id,
+                    version = excluded.version,
+                    backend = excluded.backend,
                     status = excluded.status,
                     last_verified_at = excluded.last_verified_at,
                     failure_message = excluded.failure_message,
-                    executable_relpath = excluded.executable_relpath
+                    install_relpath = excluded.install_relpath,
+                    executable_relpath = excluded.executable_relpath,
+                    artifact_sha256 = excluded.artifact_sha256
                 """,
                 (
                     install_id, catalogue_id, version, backend, install_relpath,
@@ -95,6 +100,7 @@ class ModelStore:
         artifact_bytes: int,
         status: str,
         failure_message: str | None = None,
+        app_managed: bool = True,
     ) -> None:
         now = utc_now_text()
         with self.database.transaction() as connection:
@@ -102,20 +108,34 @@ class ModelStore:
                 """
                 INSERT INTO model_installs(
                     id, catalogue_id, source_revision, model_relpath,
-                    artifact_sha256, artifact_bytes, status,
+                    artifact_sha256, artifact_bytes, app_managed, status,
                     installed_at, last_verified_at, failure_message
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
+                    catalogue_id = excluded.catalogue_id,
+                    source_revision = excluded.source_revision,
+                    model_relpath = excluded.model_relpath,
+                    artifact_sha256 = excluded.artifact_sha256,
+                    artifact_bytes = excluded.artifact_bytes,
+                    app_managed = excluded.app_managed,
                     status = excluded.status,
                     last_verified_at = excluded.last_verified_at,
-                    failure_message = excluded.failure_message,
-                    artifact_bytes = excluded.artifact_bytes
+                    failure_message = excluded.failure_message
                 """,
                 (
                     install_id, catalogue_id, source_revision, model_relpath,
-                    artifact_sha256, int(artifact_bytes), status, now, now, failure_message,
+                    artifact_sha256, int(artifact_bytes), int(bool(app_managed)), status,
+                    now, now, failure_message,
                 ),
             )
+
+    def find_model_install(self, catalogue_id: str, source_revision: str) -> dict[str, Any] | None:
+        with self.database._lock:
+            row = self.database.connection.execute(
+                "SELECT * FROM model_installs WHERE catalogue_id=? AND source_revision=? ORDER BY installed_at DESC LIMIT 1",
+                (catalogue_id, source_revision),
+            ).fetchone()
+        return self._decode_model_row(row) if row is not None else None
 
     def set_model_status(self, install_id: str, status: str, failure_message: str | None = None) -> None:
         with self.database.transaction() as connection:
@@ -130,13 +150,17 @@ class ModelStore:
         return self._row("SELECT * FROM runtime_installs WHERE id = ?", install_id)
 
     def model_install(self, install_id: str) -> dict[str, Any] | None:
-        return self._row("SELECT * FROM model_installs WHERE id = ?", install_id)
+        with self.database._lock:
+            row = self.database.connection.execute("SELECT * FROM model_installs WHERE id = ?", (install_id,)).fetchone()
+        return self._decode_model_row(row) if row is not None else None
 
     def list_runtime_installs(self) -> list[dict[str, Any]]:
         return self._rows("SELECT * FROM runtime_installs ORDER BY installed_at, id")
 
     def list_model_installs(self) -> list[dict[str, Any]]:
-        return self._rows("SELECT * FROM model_installs ORDER BY installed_at, id")
+        with self.database._lock:
+            rows = self.database.connection.execute("SELECT * FROM model_installs ORDER BY installed_at, id").fetchall()
+        return [self._decode_model_row(row) for row in rows]
 
     def record_evaluation(self, payload: Mapping[str, Any]) -> None:
         with self.database.transaction() as connection:
@@ -144,31 +168,59 @@ class ModelStore:
                 """
                 INSERT INTO model_evaluations(
                     id, model_install_id, runtime_install_id, suite_version,
-                    backend, context_tokens, elapsed_ms, peak_rss_bytes,
+                    backend, device_id, context_tokens, elapsed_ms, peak_rss_bytes,
+                    generation_tokens_per_second, prompt_tokens_per_second,
                     structured_pass, factual_pass, tailoring_pass, resource_pass,
-                    overall_pass, details_json, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    overall_pass, configuration_json, pressure_json, details_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     payload["id"], payload["model_install_id"], payload["runtime_install_id"],
-                    payload["suite_version"], payload["backend"], int(payload["context_tokens"]),
-                    int(payload["elapsed_ms"]), payload.get("peak_rss_bytes"),
+                    payload["suite_version"], payload["backend"], str(payload.get("device_id") or "none"),
+                    int(payload["context_tokens"]), int(payload["elapsed_ms"]), payload.get("peak_rss_bytes"),
+                    payload.get("generation_tokens_per_second"), payload.get("prompt_tokens_per_second"),
                     int(bool(payload["structured_pass"])), int(bool(payload["factual_pass"])),
                     int(bool(payload["tailoring_pass"])), int(bool(payload["resource_pass"])),
-                    int(bool(payload["overall_pass"])), self._json(payload.get("details", {})), utc_now_text(),
+                    int(bool(payload["overall_pass"])), self._json(payload.get("configuration", {})),
+                    self._json(payload.get("pressure", {})), self._json(payload.get("details", {})), utc_now_text(),
                 ),
             )
 
-    def latest_evaluation(self, model_install_id: str, runtime_install_id: str | None = None) -> dict[str, Any] | None:
+    def latest_evaluation(
+        self,
+        model_install_id: str,
+        runtime_install_id: str | None = None,
+        device_id: str | None = None,
+    ) -> dict[str, Any] | None:
         params: list[object] = [model_install_id]
         sql = "SELECT * FROM model_evaluations WHERE model_install_id = ?"
         if runtime_install_id is not None:
             sql += " AND runtime_install_id = ?"
             params.append(runtime_install_id)
+        if device_id is not None:
+            sql += " AND device_id = ?"
+            params.append(device_id)
         sql += " ORDER BY created_at DESC LIMIT 1"
         with self.database._lock:
             row = self.database.connection.execute(sql, tuple(params)).fetchone()
         return self._decode_evaluation(row) if row is not None else None
+
+    def best_passing_evaluation(self, model_install_id: str) -> dict[str, Any] | None:
+        with self.database._lock:
+            rows = self.database.connection.execute(
+                "SELECT * FROM model_evaluations WHERE model_install_id=? AND overall_pass=1 ORDER BY created_at DESC",
+                (model_install_id,),
+            ).fetchall()
+        if not rows:
+            return None
+        decoded = [self._decode_evaluation(row) for row in rows]
+        return max(
+            decoded,
+            key=lambda row: (
+                float(row.get("generation_tokens_per_second") or 0.0),
+                -int(row.get("elapsed_ms") or 0),
+            ),
+        )
 
     def list_evaluations(self, limit: int = 20) -> list[dict[str, Any]]:
         with self.database._lock:
@@ -184,19 +236,99 @@ class ModelStore:
             raise RuntimeError("model_state singleton is missing")
         return dict(row)
 
-    def select_for_review(self, model_install_id: str, runtime_install_id: str) -> None:
+    def select_for_review(self, model_install_id: str, runtime_install_id: str, device_id: str) -> None:
         now = utc_now_text()
         with self.database.transaction() as connection:
             connection.execute(
                 """
                 UPDATE model_state
-                   SET selected_model_install_id=?, selected_runtime_install_id=?, updated_at=?
+                   SET selected_model_install_id=?, selected_runtime_install_id=?, selected_device_id=?, updated_at=?
                  WHERE id=1
                 """,
-                (model_install_id, runtime_install_id, now),
+                (model_install_id, runtime_install_id, device_id, now),
             )
+        self.ensure_review_gate(model_install_id)
+
+    def ensure_review_gate(self, model_install_id: str) -> dict[str, Any]:
+        now = utc_now_text()
+        with self.database.transaction() as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO model_review_gates(
+                    model_install_id, required_distinct_resumes, created_at, updated_at
+                ) VALUES (?, 5, ?, ?)
+                """,
+                (model_install_id, now, now),
+            )
+        return self.review_gate(model_install_id)
+
+    def review_gate(self, model_install_id: str) -> dict[str, Any]:
+        with self.database._lock:
+            gate = self.database.connection.execute(
+                "SELECT * FROM model_review_gates WHERE model_install_id=?", (model_install_id,)
+            ).fetchone()
+            approved = self.database.connection.execute(
+                "SELECT COUNT(*) FROM model_review_approvals WHERE model_install_id=?", (model_install_id,)
+            ).fetchone()[0]
+        if gate is None:
+            return {
+                "model_install_id": model_install_id,
+                "required_distinct_resumes": 5,
+                "approved_distinct_resumes": 0,
+                "remaining": 5,
+                "complete": False,
+                "invalidated": False,
+                "invalidation_reason": None,
+            }
+        result = dict(gate)
+        required = int(result["required_distinct_resumes"])
+        result["approved_distinct_resumes"] = int(approved)
+        result["remaining"] = max(0, required - int(approved))
+        result["invalidated"] = bool(result.get("invalidated_at"))
+        result["complete"] = bool(result.get("completed_at")) and not result["invalidated"] and int(approved) >= required
+        return result
+
+    def record_review_approval(self, model_install_id: str, resume_key: str) -> dict[str, Any]:
+        key = resume_key.strip()
+        if not key:
+            raise ValueError("resume review key must be non-empty")
+        if self.model_install(model_install_id) is None:
+            raise KeyError(model_install_id)
+        self.ensure_review_gate(model_install_id)
+        now = utc_now_text()
+        with self.database.transaction() as connection:
+            connection.execute(
+                "INSERT OR IGNORE INTO model_review_approvals(model_install_id, resume_key, approved_at) VALUES (?, ?, ?)",
+                (model_install_id, key, now),
+            )
+            count = int(connection.execute(
+                "SELECT COUNT(*) FROM model_review_approvals WHERE model_install_id=?", (model_install_id,)
+            ).fetchone()[0])
+            if count >= 5:
+                connection.execute(
+                    "UPDATE model_review_gates SET completed_at=?, invalidated_at=NULL, invalidation_reason=NULL, updated_at=? WHERE model_install_id=?",
+                    (now, now, model_install_id),
+                )
+        return self.review_gate(model_install_id)
+
+    def invalidate_review_gate(self, model_install_id: str, reason: str) -> dict[str, Any]:
+        message = reason.strip()
+        if not message:
+            raise ValueError("review-gate invalidation requires a reason")
+        self.ensure_review_gate(model_install_id)
+        now = utc_now_text()
+        with self.database.transaction() as connection:
+            connection.execute("DELETE FROM model_review_approvals WHERE model_install_id=?", (model_install_id,))
+            connection.execute(
+                "UPDATE model_review_gates SET completed_at=NULL, invalidated_at=?, invalidation_reason=?, updated_at=? WHERE model_install_id=?",
+                (now, message, now, model_install_id),
+            )
+        return self.review_gate(model_install_id)
 
     def activate_after_review_gate(self, model_install_id: str) -> str | None:
+        gate = self.review_gate(model_install_id)
+        if not gate["complete"]:
+            raise RuntimeError("five-distinct-resume review gate is not complete")
         now = utc_now_text()
         with self.database.transaction() as connection:
             row = connection.execute(
@@ -267,9 +399,17 @@ class ModelStore:
         return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
     @staticmethod
+    def _decode_model_row(row: Any) -> dict[str, Any]:
+        result = dict(row)
+        result["app_managed"] = bool(result.get("app_managed", 0))
+        return result
+
+    @staticmethod
     def _decode_evaluation(row: Any) -> dict[str, Any]:
         result = dict(row)
         for key in ("structured_pass", "factual_pass", "tailoring_pass", "resource_pass", "overall_pass"):
             result[key] = bool(result[key])
+        result["configuration"] = json.loads(result.pop("configuration_json"))
+        result["pressure"] = json.loads(result.pop("pressure_json"))
         result["details"] = json.loads(result.pop("details_json"))
         return result
