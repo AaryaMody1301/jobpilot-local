@@ -22,12 +22,17 @@ class Phase3DesktopBridge(DesktopBridge):
         self._phase3.install_local_model(model_id)
         return self._phase3.snapshot()
 
-    def evaluate_local_model(self, model_install_id: str, runtime_install_id: str) -> dict[str, Any]:
-        self._phase3.evaluate_local_model(model_install_id, runtime_install_id)
+    def evaluate_local_model(
+        self,
+        model_install_id: str,
+        runtime_install_id: str,
+        device_id: str | None = None,
+    ) -> dict[str, Any]:
+        self._phase3.evaluate_local_model(model_install_id, runtime_install_id, device_id)
         return self._phase3.snapshot()
 
-    def select_model_for_phase4_review(self, model_install_id: str, runtime_install_id: str) -> dict[str, Any]:
-        return self._phase3.select_model_for_phase4_review(model_install_id, runtime_install_id)
+    def select_model_for_phase4_review(self, model_install_id: str) -> dict[str, Any]:
+        return self._phase3.select_model_for_phase4_review(model_install_id)
 
     def check_model_updates(self) -> dict[str, Any]:
         self._phase3.check_model_updates()
