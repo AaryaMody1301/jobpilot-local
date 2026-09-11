@@ -250,6 +250,44 @@ class TailoringStore:
                 )
         return {"run": self.get_run(run_id), "gate_reset": gate_reset}
 
+    def reject_with_review_gate(self, run_id: str, note: str | None = None) -> dict[str, Any]:
+        """Revoke one approval without deleting a distinct key still backed by another approved run."""
+        now = utc_now_text()
+        with self.database.transaction() as connection:
+            run = connection.execute(
+                "SELECT model_install_id, resume_key FROM tailored_resumes WHERE id=? AND status='approved'",
+                (run_id,),
+            ).fetchone()
+            if run is None:
+                raise RuntimeError("only an approved tailored resume can revoke a gate approval")
+            connection.execute(
+                "UPDATE tailored_resumes SET status='rejected', review_note=?, reviewed_at=?, updated_at=? WHERE id=?",
+                ((note or "").strip()[:1000] or None, now, now, run_id),
+            )
+            another = connection.execute(
+                """
+                SELECT 1 FROM tailored_resumes
+                 WHERE model_install_id=? AND resume_key=? AND status='approved' AND id<>?
+                 LIMIT 1
+                """,
+                (run["model_install_id"], run["resume_key"], run_id),
+            ).fetchone()
+            if another is None:
+                connection.execute(
+                    "DELETE FROM model_review_approvals WHERE model_install_id=? AND resume_key=?",
+                    (run["model_install_id"], run["resume_key"]),
+                )
+            count = int(connection.execute(
+                "SELECT COUNT(*) FROM model_review_approvals WHERE model_install_id=?",
+                (run["model_install_id"],),
+            ).fetchone()[0])
+            if count < 5:
+                connection.execute(
+                    "UPDATE model_review_gates SET completed_at=NULL, updated_at=? WHERE model_install_id=?",
+                    (now, run["model_install_id"]),
+                )
+        return self.get_run(run_id) or {"id": run_id}
+
     def fail_run(self, run_id: str, message: str, *, blocked: bool = False) -> dict[str, Any]:
         status = "blocked" if blocked else "failed"
         return self.complete_run(
