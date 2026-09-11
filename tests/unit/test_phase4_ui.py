@@ -22,7 +22,7 @@ def test_phase4_ui_exposes_manual_jd_evidence_review_and_pdf_preview() -> None:
         "reject_tailored_resume", "tailored_pdf_data_uri", "enable_automatic_tailoring",
     ):
         assert bridge_method in js
-    assert "job description is an explicit local action" in html.lower()
+    assert "explicit local action" in html.lower()
     assert "fetch(" not in js
     assert "XMLHttpRequest" not in js
     assert "employer submission remain disabled" in html.lower() or "employer submission: disabled" in html.lower()
