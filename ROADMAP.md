@@ -79,9 +79,34 @@ Completed:
 
 Acceptance: see `docs/PHASE2_ACCEPTANCE.md` and `PROGRESS.md`.
 
-## Phase 3 - Local AI and resource manager [ ]
+## Phase 3 - Local AI and resource manager [~]
 
 3A RAM/CPU/disk/GPU detection and budgets. 3B approved model/binary download, checksum validation, one-job inference. 3C speed/memory/structured-output/factual-tailoring evaluation plus safe replacement/rollback/deletion. Exact llama.cpp/model pin occurs here.
+
+Implementation staged:
+- [x] preserve merged Phase 2 finalization before continuing the pre-existing Phase 3 branch; no force-reset or history loss;
+- [x] migration `004_phase3_local_ai.sql` for hardware evidence, revisioned runtime/model installs, configuration evaluations, selected configuration, persisted review gates, and cleanup/update state;
+- [x] local RAM/available-memory, CPU feature/topology, app-root disk and conservative OS GPU evidence with explicit reserves and one-inference-at-a-time budget;
+- [x] runtime-reported `--list-devices` parsing; CPU is forced with `--device none`, while Vulkan requires an exact discovered `VulkanN` identity and multiple devices require explicit selection;
+- [x] small tested catalogue pinning llama.cpp v0.4.0/b10809 CPU+Vulkan Windows x64 archives and Qwen3 4B Q4_K_M revision/size/SHA/license;
+- [x] explicit download confirmation UI; atomic exact-size/SHA verification; archive traversal/symlink rejection; app-owned tool/model storage only;
+- [x] localhost-only authenticated llama.cpp server with `--offline`, one slot, no web UI, no multimodal projection, and owned-process cleanup;
+- [x] llama.cpp b10809-native `response_format={type: json_schema, schema: ...}` plus strict application-side validation;
+- [x] controlled structured-output, malicious-JD/factual-adherence and evidence-only tailoring evaluations;
+- [x] measured elapsed time, generation/prompt throughput, peak process-tree RSS and live memory-pressure evidence per configuration;
+- [x] critical-pressure shutdown and constrained-pressure context reduction; insufficient evidence-backed RAM/disk refuses inference instead of using cloud or weakening quality;
+- [x] fastest passing CPU/Vulkan configuration selection for later Phase 4 review;
+- [x] revision-specific model install identities so replacement validation cannot overwrite accepted weights;
+- [x] persisted five-distinct-resume review gate; Phase 3 creates it at 0/5 and has no UI method to mark it complete;
+- [x] future replacement/rollback boundary preflights validated weights, completed persisted gate, app ownership and not-in-use status before deletion; retired metadata is retained;
+- [x] user-triggered model/runtime metadata checks at most once every seven days and never automatic download/switch;
+- [x] Phase 3 model/resource UI and current GitHub Actions v7 acceptance infrastructure;
+- [ ] final combined Windows acceptance on the merged Phase 2 + Phase 3 tree, including real pinned llama.cpp/Qwen3 CPU evaluation and packaged desktop smoke;
+- [ ] record final run evidence and mark Phase 3 complete.
+
+Acceptance: see `docs/PHASE3_ACCEPTANCE.md`.
+
+Boundary: Phase 3 does not perform JD-driven resume tailoring and cannot collect the five real tailored-resume approvals; those belong to Phase 4. No job discovery, browser application filling, or employer submission is enabled.
 
 ## Phase 4 - Evidence-based resume tailoring [ ]
 
