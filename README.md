@@ -4,24 +4,29 @@
 
 ## Status
 
-Phases 0-3 are complete on the Phase 3 branch. Phase 3 - **Local AI and resource manager** - has passed the complete Windows branch-head acceptance and is awaiting pull-request merge verification. Phase 4 has not started.
+Phases 0-3 are complete and merged. Phase 4 - **Evidence-based resume tailoring** - has passed its controlled Windows technical acceptance but remains **partial** until the user has approved five distinct real tailored resumes for the current validated model/profile/template context.
 
-Phase 3 adds local hardware/resource detection, explicit app-managed llama.cpp/model installation, local quality/resource evaluation, per-device performance evidence, revision-safe replacement primitives, and a persisted five-distinct-resume review gate for the later tailoring phase. It does **not** enable job discovery, JD-driven resume rewriting, browser form filling, or employer submission.
+Phase 5 job discovery and all employer submission paths remain disabled.
 
 ## Safety and privacy invariants
 
 - Windows 10/11 x64 only for v1.
 - No cloud AI, hosted database, telemetry, paid API, paid proxy, CAPTCHA solving, remote UI scripts, or cloud sign-in.
 - No startup service or hidden background scheduler.
-- Opening the application is always Idle and starts no download/inference/work thread.
+- Opening the application is always Idle and starts no download/inference/application work.
 - Runtime/model downloads require explicit confirmation and exact catalogue size/SHA verification.
-- `Start` is required to begin or resume the sample session lifecycle; model setup/evaluation uses separate explicit actions.
-- `Pause` schedules no new sample work.
-- `UNCERTAIN` submissions are never automatically retried in later phases.
-- Only app-owned processes and files proven to be under managed roots may be terminated/deleted.
-- Real employer submissions remain disabled until explicit activation after all onboarding/review gates.
+- Private master/source documents, approved facts, generated resumes and model weights live outside Git under the app-managed local data root.
+- JD text is untrusted data. Embedded instructions never override approved facts, template boundaries, or validation.
+- Local model output is structured plain-text edit intent; application code renders controlled LaTeX.
+- Only source-linked approved facts may support claims. Cross-bullet claim composition, unsupported content, and silent removal of existing numeric/date/metric literals are blocked.
+- Tailoring compilation uses app-managed Tectonic cached-only and `--untrusted`; it cannot silently download packages.
+- Pending review becomes stale if master/facts/template/baseline/profile/model/evaluation evidence changes.
+- Automatic tailoring requires five distinct persisted human approvals in the **current** review context. Controlled CI output never counts toward that gate.
+- `UNCERTAIN` submissions are never automatically retried when submission phases later exist.
+- Only app-owned processes/files proven under managed roots may be terminated/deleted.
+- Real employer submissions remain disabled until later explicit activation after all gates.
 
-## Run the Phase 3 desktop
+## Run the Phase 4 desktop
 
 Production baseline: Python 3.13.15 on Windows 10/11 x64.
 
@@ -34,52 +39,57 @@ python -m playwright install chromium
 python -m jobpilot.app.main
 ```
 
-### Resume/fact onboarding
+### 1. Resume/fact onboarding
 
-The private master `.tex`, supporting documents, generated PDFs and approved fact values live under `%LOCALAPPDATA%\JobPilotLocal`, not in Git. The supplied real template/facts completed Phase 2 development acceptance, but each local installation still imports its own private source and stores its own source-linked approvals.
+Use the **Resume & facts** screen to import the private master `.tex`, install the pinned Tectonic tool, explicitly populate any missing support cache, require the subsequent cached-only baseline, confirm editable regions, and resolve every candidate fact. The private source and fact values are stored locally and are not committed to this repository.
 
-Tectonic remains two-step: explicitly populate missing support files when needed, then require a cached-only `--untrusted` compile before the local resume gate is ready.
+### 2. Local AI setup
 
-### Local AI setup
-
-The initial Phase 3 catalogue is deliberately small:
+The Phase 3 tested catalogue remains the Phase 4 baseline:
 
 - llama.cpp stable baseline `v0.4.0`, tested Windows build `b10809`;
 - checksum-pinned Windows x64 CPU runtime plus optional Vulkan runtime;
 - `ggml-org/Qwen3-4B-GGUF` revision `2f3b082b1356a6123f7ed71e65aea340da25d53c`;
-- `Qwen3-4B-Q4_K_M.gguf`, exact 2,497,280,640 bytes, SHA-256 `ab27b9bfa375a178d6cba48f3ad892b94b7739659dcc7aae8058ce0ffed6b328`, Apache-2.0.
+- `Qwen3-4B-Q4_K_M.gguf`, 2,497,280,640 bytes, SHA-256 `ab27b9bfa375a178d6cba48f3ad892b94b7739659dcc7aae8058ce0ffed6b328`, Apache-2.0.
 
-The app never downloads these artifacts on launch. The Model & resources screen measures the actual machine, shows reserved RAM/disk and GPU evidence, and requires explicit confirmation for each runtime/model download. Files are installed only after exact size/SHA verification.
+The app measures the actual machine and evaluates installed CPU/Vulkan configurations. CPU is explicit `--device none`; Vulkan uses only exact device IDs reported by the verified llama.cpp runtime. Speed is compared only among configurations that pass all quality/resource gates.
 
-CPU evaluation is forced with `--device none`. Vulkan is considered only after the installed llama.cpp runtime reports one or more `VulkanN` devices through `--list-devices`; each selected configuration must independently pass the same structured/factual/resource evaluation. Speed is compared only among passing configurations.
+### 3. Manual-JD tailoring and review
 
-Automatic tailoring remains disabled. Selecting a validated configuration creates a persisted review gate at **0/5 distinct resumes**. Phase 4 supplies those human-reviewed tailored resumes; Phase 3 has no UI/API shortcut to complete the gate.
+Phase 4 accepts manually pasted JD text. An optional source URL is recorded as inert provenance only; it is not fetched by Phase 4. The app:
 
-If reserved resources cannot safely run the tested catalogue, the app reports that result instead of using cloud inference or weakening factual/quality requirements.
+1. labels the JD untrusted and hashes it;
+2. asks the selected validated local model for structured keyword mappings and plain-text wording edits;
+3. validates every used keyword/fact and requires field-linked source evidence;
+4. renders only confirmed simple wording regions through application code;
+5. compiles cached-only with Tectonic;
+6. checks protected source structure, page count/geometry, overflow and expected PDF content;
+7. writes a tamper-evident local audit package;
+8. shows PDF, diff, keyword/fact mapping and validation for human review.
 
-## Verified Windows CPU baseline
+Approve only accurate outputs. Reject/correct facts and regenerate when necessary.
 
-Combined Phase 3 code-head run `34575604480` passed:
+The first five **distinct** approved real tailored resumes for a selected model must share one current validation context. Changes to the approved fact bank, targeting/profile, template map, offline baseline or selected/evaluated model configuration invalidate/reset stale review evidence. Automatic tailoring remains disabled until the persisted current-context gate reaches 5/5.
 
-- **101 passed, 1 intentional skip, 2 external probes deselected**;
-- preserved Phase 2 cached-only Tectonic acceptance;
-- exact pinned llama.cpp/Qwen3 download and integrity verification;
-- CPU `--device none` evaluation at 4096 context;
-- structured, malicious-JD/factual, controlled-tailoring and resource gates;
-- **12.789 generated tokens/second**, **5,021,855,744 bytes peak process-tree RSS**, normal live memory pressure;
-- 0/5 future review approvals and automatic tailoring disabled;
-- source/package self-tests, WebView2 smokes and PyInstaller onedir build.
+## Verified Phase 4 technical baseline
 
-Exact record-head run `34576262983` then repeated the complete workflow successfully before Phase 3 was marked complete.
+Windows run `34593289955` at code head `e15ae7dc4aed425cb2675921e2c119b1c961fa2a` passed:
 
-This is a CI CPU compatibility baseline, not a claim about the user's own hardware. The application must probe and evaluate the actual local CPU/Vulkan configuration before selection.
+- **117 passed, 1 intentional platform-guard skip, 2 external probes deselected**;
+- real pinned local Qwen3/Tectonic controlled tailoring;
+- malicious instruction-like JD text treated as data;
+- one validated field-linked edit with one approved fact reference;
+- cached-only compile, unchanged page count and no overflow;
+- result `needs_review`, review gate still 0/5 and automatic tailoring disabled;
+- source/package self-tests, hidden WebView2 smokes and PyInstaller onedir build.
+
+This controlled result proves mechanics only and is not a human review approval.
 
 ## Acceptance checks
 
 ```powershell
 pytest -m "not external"
-python scripts\phase2_tectonic_acceptance.py
-python scripts\phase3_model_acceptance.py
+python scripts\phase4_tailoring_acceptance.py
 python -m jobpilot.app.main --self-test
 python -m jobpilot.app.main --window-smoke
 pyinstaller --clean --noconfirm packaging\jobpilot.spec
@@ -87,18 +97,18 @@ pyinstaller --clean --noconfirm packaging\jobpilot.spec
 .\dist\jobpilot-local\jobpilot-local.exe --window-smoke
 ```
 
-`phase3_model_acceptance.py` intentionally performs public CI-only downloads of the exact pinned CPU runtime and Qwen3 4B weight, then runs localhost-only inference. Normal application downloads still require the UI approval actions.
+`phase4_tailoring_acceptance.py` intentionally performs CI-only public downloads of the exact already-approved test catalogue and runs localhost-only inference. Normal application downloads still require explicit UI approval.
 
 ## Local data
 
-Runtime data is outside Git under `%LOCALAPPDATA%\JobPilotLocal`: SQLite, immutable source documents, generated artifacts, model weights, app-managed tools, browser data, caches, backups, runtime files, and logs. Private candidate data and model weights must never be committed.
+Runtime data lives under `%LOCALAPPDATA%\JobPilotLocal`: SQLite, immutable source documents, generated artifacts, model weights, app-managed tools, browser data, caches, backups, runtime files, and logs. Private candidate data and model weights must never be committed.
 
 ## Project records
 
 - `SPEC.md` - agreed requirements and approved changes.
-- `ROADMAP.md` - dependency-ordered phases/status.
-- `DECISIONS.md` - engineering decisions/rationale.
-- `PROGRESS.md` - actual repository state, evidence, blockers, exact continuation.
-- `docs/PHASE3_ACCEPTANCE.md` - Phase 3 gates and exact pinned catalogue.
+- `ROADMAP.md` - phase dependencies, acceptance and status.
+- `DECISIONS.md` - engineering decisions and rationale.
+- `PROGRESS.md` - actual repository state, test evidence, blockers and exact continuation.
+- `docs/PHASE4_ACCEPTANCE.md` - Phase 4 technical and human acceptance gates.
 
-Phase 4 is intentionally not started in this branch.
+Phase 5 is intentionally not started while the Phase 4 human review gate remains incomplete.
