@@ -80,6 +80,10 @@ class TailoringStore:
         runtime_install_id: str,
         device_id: str,
         resume_key: str,
+        template_map_sha256: str,
+        baseline_sha256: str,
+        profile_sha256: str,
+        review_context_sha256: str,
     ) -> dict[str, Any]:
         run_id = f"tailor-{uuid.uuid4().hex}"
         now = utc_now_text()
@@ -89,12 +93,15 @@ class TailoringStore:
                 INSERT INTO tailored_resumes(
                     id, jd_id, master_document_id, master_sha256, fact_bank_revision,
                     model_install_id, runtime_install_id, device_id, resume_key,
+                    template_map_sha256, baseline_sha256, profile_sha256, review_context_sha256,
                     status, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'generating', ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'generating', ?, ?)
                 """,
                 (
                     run_id, jd_id, master_document_id, master_sha256, int(fact_bank_revision),
-                    model_install_id, runtime_install_id, device_id, resume_key, now, now,
+                    model_install_id, runtime_install_id, device_id, resume_key,
+                    template_map_sha256, baseline_sha256, profile_sha256, review_context_sha256,
+                    now, now,
                 ),
             )
         return self.get_run(run_id) or {"id": run_id}
@@ -114,6 +121,8 @@ class TailoringStore:
         validation: object,
         model_usage: object,
         failure_message: str | None = None,
+        manifest_path: Path | None = None,
+        manifest_sha256: str | None = None,
     ) -> dict[str, Any]:
         if status not in TAILORED_STATUSES or status == "generating":
             raise ValueError("invalid completed tailoring status")
@@ -124,7 +133,7 @@ class TailoringStore:
                 UPDATE tailored_resumes
                    SET status=?, source_relpath=?, pdf_relpath=?, source_sha256=?, pdf_sha256=?,
                        diff_json=?, keyword_mapping_json=?, fact_refs_json=?, validation_json=?,
-                       model_usage_json=?, failure_message=?, updated_at=?
+                       model_usage_json=?, failure_message=?, manifest_relpath=?, manifest_sha256=?, updated_at=?
                  WHERE id=?
                 """,
                 (
@@ -139,6 +148,8 @@ class TailoringStore:
                     self._json(validation),
                     self._json(model_usage),
                     failure_message[-2000:] if failure_message else None,
+                    self._relative(manifest_path) if manifest_path else None,
+                    manifest_sha256,
                     now,
                     run_id,
                 ),
@@ -159,6 +170,85 @@ class TailoringStore:
             if updated != 1:
                 raise KeyError(run_id)
         return self.get_run(run_id) or {"id": run_id}
+
+    def approve_with_review_gate(
+        self,
+        run_id: str,
+        *,
+        model_install_id: str,
+        resume_key: str,
+        review_context_sha256: str,
+        note: str | None = None,
+    ) -> dict[str, Any]:
+        """Atomically mark one reviewed run approved and count its distinct resume key."""
+        context = review_context_sha256.strip()
+        if not context:
+            raise ValueError("review context fingerprint must be non-empty")
+        now = utc_now_text()
+        gate_reset = False
+        with self.database.transaction() as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO model_review_gates(
+                    model_install_id, required_distinct_resumes, review_context_sha256, created_at, updated_at
+                ) VALUES (?, 5, ?, ?, ?)
+                """,
+                (model_install_id, context, now, now),
+            )
+            gate = connection.execute(
+                "SELECT review_context_sha256 FROM model_review_gates WHERE model_install_id=?",
+                (model_install_id,),
+            ).fetchone()
+            existing_context = str(gate["review_context_sha256"] or "") if gate is not None else ""
+            if existing_context and existing_context != context:
+                gate_reset = True
+                connection.execute("DELETE FROM model_review_approvals WHERE model_install_id=?", (model_install_id,))
+                connection.execute(
+                    """
+                    UPDATE model_review_gates
+                       SET review_context_sha256=?, completed_at=NULL, invalidated_at=?,
+                           invalidation_reason='resume/fact/profile/template validation context changed; approvals reset',
+                           updated_at=?
+                     WHERE model_install_id=?
+                    """,
+                    (context, now, now, model_install_id),
+                )
+            elif not existing_context:
+                connection.execute(
+                    "UPDATE model_review_gates SET review_context_sha256=?, updated_at=? WHERE model_install_id=?",
+                    (context, now, model_install_id),
+                )
+
+            updated = connection.execute(
+                """
+                UPDATE tailored_resumes
+                   SET status='approved', review_note=?, reviewed_at=?, updated_at=?
+                 WHERE id=? AND status='needs_review' AND model_install_id=?
+                   AND resume_key=? AND review_context_sha256=?
+                """,
+                ((note or "").strip()[:1000] or None, now, now, run_id, model_install_id, resume_key, context),
+            ).rowcount
+            if updated != 1:
+                raise RuntimeError("tailored resume review state changed before approval could be committed")
+            connection.execute(
+                "INSERT OR IGNORE INTO model_review_approvals(model_install_id, resume_key, approved_at) VALUES (?, ?, ?)",
+                (model_install_id, resume_key, now),
+            )
+            count = int(connection.execute(
+                "SELECT COUNT(*) FROM model_review_approvals WHERE model_install_id=?",
+                (model_install_id,),
+            ).fetchone()[0])
+            if count >= 5:
+                connection.execute(
+                    """
+                    UPDATE model_review_gates
+                       SET completed_at=?, invalidated_at=NULL, invalidation_reason=NULL,
+                           review_context_sha256=?, updated_at=?
+                     WHERE model_install_id=?
+                    """,
+                    (now, context, now, model_install_id),
+                )
+        return {"run": self.get_run(run_id), "gate_reset": gate_reset}
 
     def fail_run(self, run_id: str, message: str, *, blocked: bool = False) -> dict[str, Any]:
         status = "blocked" if blocked else "failed"
