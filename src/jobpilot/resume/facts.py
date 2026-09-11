@@ -15,6 +15,8 @@ STRUCTURAL_LINE_RE = re.compile(
     r"^\s*\\(?:begin|end)\{[^}]+\}|^\s*\\(?:newpage|vspace|smallskip|medskip|bigskip)\b"
 )
 HREF_ONLY_RE = re.compile(r"^\s*\\href\{")
+LAYOUT_SPACING_RE = re.compile(r"\\(?:vspace|hspace|vskip|hskip)\*?\{[^{}]*\}")
+LINEBREAK_SPACING_RE = re.compile(r"\\\\(?:\[[^\]]*\])?")
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +39,12 @@ class ProtectedFactCandidate:
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
+
+
+def _fact_plain(value: str) -> str:
+    without_layout = LAYOUT_SPACING_RE.sub("", value)
+    without_layout = LINEBREAK_SPACING_RE.sub(" ", without_layout)
+    return latex_to_plain(without_layout)
 
 
 def _category_for_section(section: str, raw_line: str) -> str:
@@ -93,12 +101,12 @@ def extract_protected_facts(source_text: str, source_sha256: str) -> list[Protec
     for index, line in enumerate(lines, start=1):
         section_match = SECTION_RE.search(line)
         if section_match:
-            section = latex_to_plain(section_match.group(1)) or "Unnamed section"
+            section = _fact_plain(section_match.group(1)) or "Unnamed section"
             continue
 
         role_match = ROLE_CALL_RE.search(line)
         if role_match:
-            title, dates, employer, location = (latex_to_plain(value) for value in role_match.groups())
+            title, dates, employer, location = (_fact_plain(value) for value in role_match.groups())
             append(title, "title", index, "role_title")
             append(dates, "date", index, "role_dates")
             append(employer, "employer", index, "role_employer")
@@ -118,7 +126,7 @@ def extract_protected_facts(source_text: str, source_sha256: str) -> list[Protec
         if not line.strip() or STRUCTURAL_LINE_RE.match(line) or HREF_ONLY_RE.match(line):
             continue
 
-        plain = latex_to_plain(line)
+        plain = _fact_plain(line)
         if not plain:
             continue
         category = _category_for_section(section, line)
