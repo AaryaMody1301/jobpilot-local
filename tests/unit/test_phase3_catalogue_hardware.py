@@ -63,7 +63,7 @@ def test_pressure_watcher_records_and_fires_once_on_critical() -> None:
     gib = 1024**3
     samples = iter([
         SimpleNamespace(total=16 * gib, available=4 * gib, percent=75.0),
-        SimpleNamespace(total=16 * gib, available=int(1.5 * gib), percent=90.0),
+        SimpleNamespace(total=16 * gib, available=int(2.5 * gib), percent=84.0),
         SimpleNamespace(total=16 * gib, available=512 * 1024**2, percent=97.0),
     ])
     last = SimpleNamespace(total=16 * gib, available=512 * 1024**2, percent=97.0)
