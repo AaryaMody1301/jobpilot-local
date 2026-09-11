@@ -73,10 +73,11 @@ class Phase4ApplicationController(Phase3ApplicationController):
             self._require_idle_onboarding()
             result = self.tailoring.approve(run_id, note)
             gate = result["review_gate"]
+            reset = "; previous approvals were reset because the validation context changed" if result.get("gate_reset") else ""
             self.database.record_foundation_activity(
                 self.session_id,
                 "tailoring_approved",
-                f"Approved distinct tailored resume {run_id}; model review gate {gate['approved_distinct_resumes']}/5",
+                f"Approved distinct tailored resume {run_id}; model review gate {gate['approved_distinct_resumes']}/5{reset}",
             )
             return self.snapshot()
 
@@ -94,6 +95,7 @@ class Phase4ApplicationController(Phase3ApplicationController):
             model_install_id = str(state.get("selected_model_install_id") or "")
             if not model_install_id:
                 raise RuntimeError("no selected model is awaiting the Phase 4 review gate")
+            self.tailoring.require_review_gate_current(model_install_id)
             result = self.models.finalize_after_phase4_review_gate(
                 model_install_id,
                 delete_previous_app_managed_weights=bool(delete_previous_app_managed_weights),
@@ -101,7 +103,7 @@ class Phase4ApplicationController(Phase3ApplicationController):
             self.database.record_foundation_activity(
                 self.session_id,
                 "auto_tailoring_enabled",
-                "Enabled automatic local resume tailoring after five distinct persisted human approvals",
+                "Enabled automatic local resume tailoring after five distinct persisted human approvals for the current validation context",
             )
             return result
 
@@ -122,6 +124,7 @@ class Phase4ApplicationController(Phase3ApplicationController):
             return "data:application/pdf;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
 
     def _tailoring_snapshot(self) -> dict[str, Any]:
+        self.tailoring.mark_stale_runs()
         runs = self.tailoring_store.list_runs(30)
         jds = []
         for jd in self.tailoring_store.list_jds(30):
@@ -137,7 +140,7 @@ class Phase4ApplicationController(Phase3ApplicationController):
             "runs": runs,
             "selected_model_install_id": selected,
             "review_gate": gate,
-            "auto_tailoring_enabled": bool(model_state.get("auto_tailoring_model_install_id")),
+            "auto_tailoring_enabled": self.tailoring.auto_tailoring_is_current(),
             "phase5_discovery_enabled": False,
             "employer_submission_enabled": False,
         }
