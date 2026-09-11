@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import secrets
 import socket
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -32,16 +33,19 @@ class LlamaRuntimeSession:
     _process: ManagedProcess | None = field(init=False, default=None, repr=False)
     _port: int | None = field(init=False, default=None, repr=False)
     _api_key: str = field(init=False, default_factory=lambda: secrets.token_urlsafe(32), repr=False)
+    _close_lock: threading.RLock = field(init=False, default_factory=threading.RLock, repr=False)
 
     @property
     def pid(self) -> int | None:
-        return self._process.pid if self._process is not None else None
+        process = self._process
+        return process.pid if process is not None else None
 
     @property
     def base_url(self) -> str:
-        if self._port is None:
+        port = self._port
+        if port is None:
             raise RuntimeError("llama.cpp runtime is not started")
-        return f"http://127.0.0.1:{self._port}"
+        return f"http://127.0.0.1:{port}"
 
     @property
     def client(self) -> LlamaServerClient:
@@ -93,7 +97,10 @@ class LlamaRuntimeSession:
         deadline = time.monotonic() + self.startup_timeout_seconds
         health_url = f"{self.base_url}/health"
         while time.monotonic() < deadline:
-            if self._process.poll() is not None:
+            process = self._process
+            if process is None:
+                raise RuntimeError("llama.cpp server startup was cancelled")
+            if process.poll() is not None:
                 self.close()
                 raise RuntimeError("llama.cpp server exited before becoming healthy")
             try:
@@ -108,11 +115,13 @@ class LlamaRuntimeSession:
         raise TimeoutError("llama.cpp server did not become healthy before timeout")
 
     def close(self) -> None:
-        if self._supervisor is not None:
-            self._supervisor.close()
-        self._supervisor = None
-        self._process = None
-        self._port = None
+        with self._close_lock:
+            supervisor = self._supervisor
+            self._supervisor = None
+            self._process = None
+            self._port = None
+        if supervisor is not None:
+            supervisor.close()
 
     def __enter__(self) -> "LlamaRuntimeSession":
         return self.start()
