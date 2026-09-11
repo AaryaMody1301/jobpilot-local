@@ -128,18 +128,31 @@ class ManagedPaths:
         ):
             path.mkdir(parents=True, exist_ok=True)
 
-    def require_model_descendant(self, candidate: Path) -> Path:
-        root = self.models.resolve(strict=False)
+    @staticmethod
+    def _require_descendant(candidate: Path, root: Path, label: str) -> Path:
+        managed_root = root.resolve(strict=False)
         resolved = candidate.resolve(strict=False)
-        if resolved == root or not _is_relative_to(resolved, root):
-            raise UnsafeManagedPath(f"path is outside managed model files: {candidate}")
+        if resolved == managed_root or not _is_relative_to(resolved, managed_root):
+            raise UnsafeManagedPath(f"path is outside managed {label}: {candidate}")
         return resolved
 
-    def delete_model_path(self, candidate: Path) -> None:
-        resolved = self.require_model_descendant(candidate)
+    def require_model_descendant(self, candidate: Path) -> Path:
+        return self._require_descendant(candidate, self.models, "model files")
+
+    def require_tool_descendant(self, candidate: Path) -> Path:
+        return self._require_descendant(candidate, self.tools, "tool files")
+
+    @staticmethod
+    def _delete_descendant(resolved: Path) -> None:
         if not resolved.exists():
             return
         if resolved.is_dir():
             shutil.rmtree(resolved)
         else:
             resolved.unlink()
+
+    def delete_model_path(self, candidate: Path) -> None:
+        self._delete_descendant(self.require_model_descendant(candidate))
+
+    def delete_tool_path(self, candidate: Path) -> None:
+        self._delete_descendant(self.require_tool_descendant(candidate))
