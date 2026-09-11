@@ -52,7 +52,7 @@ def latex_to_plain(value: str) -> str:
     previous = None
     while text != previous:
         previous = text
-        text = WRAPPER_COMMAND_RE.sub(r"\1", text)
+        text = WRAPPER_COMMAND_RE.sub(r" \1 ", text)
     text = SIMPLE_COMMAND_RE.sub(" ", text)
     text = text.replace("{", " ").replace("}", " ")
     return " ".join(text.split())

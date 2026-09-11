@@ -322,7 +322,16 @@ class ApplicationController:
             baseline = self.resume_store.get_baseline(str(master["id"]))
             regions = self.resume_store.list_template_regions(str(master["id"]))
             mapping_status = self.resume_store.template_map_status(str(master["id"]))
-        facts = self.resume_store.list_facts()
+
+        active_master_id = str(master["id"]) if master is not None else None
+        facts: list[dict[str, Any]] = []
+        for fact in self.resume_store.list_facts():
+            source = self.resume_store.get_document(str(fact["source_document_id"]))
+            if source is None:
+                continue
+            if str(source["id"]) == active_master_id or str(source.get("kind")) == "supporting":
+                facts.append(fact)
+
         fact_counts = {"candidate": 0, "approved": 0, "rejected": 0}
         for fact in facts:
             status = str(fact["current_status"])
