@@ -56,7 +56,7 @@ Status: accepted for Phase 0 implementation and tightened in Phase 3.
 
 llama.cpp grammar/JSON-schema constraints improve generation reliability but are not validation. Every response is parsed and locally validated against the expected structure and later against approved fact IDs. Recent llama.cpp issue history shows that some schema request paths have regressed silently, so a successful HTTP response can never establish structural or factual validity by itself.
 
-Phase 3 pins llama.cpp build `b10809`. Its own server documentation uses the llama.cpp-native chat shape `response_format={"type":"json_schema","schema":...}`. JobPilot uses that exact contract instead of an OpenAI-nested wrapper, disables thinking for the controlled evaluation, and still applies strict local structural/factual checks after generation.
+Phase 3 pins llama.cpp build `b10809` and verified both its README and its actual server parser. They disagree for `response_format.type = "json_schema"`: the README shows a direct `response_format.schema`, while b10809 `server-common.cpp` reads `response_format.json_schema.schema`. A real Windows run using the README-shaped direct field produced HTTP-success responses that failed JobPilot's independent local schema validator. JobPilot therefore follows the **pinned executable's implementation contract** for b10809, uses the nested `json_schema.schema` path, disables thinking for the controlled evaluation, and still applies strict application-side schema plus factual checks after generation. The upstream documentation/source mismatch is recorded explicitly rather than guessed away.
 
 ## D-010 - ATS discovery versus submission
 
