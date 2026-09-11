@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import tempfile
 import urllib.request
 import zipfile
@@ -80,6 +81,11 @@ def download_verified(
         raise
 
 
+def _zip_member_is_symlink(member: zipfile.ZipInfo) -> bool:
+    unix_mode = (member.external_attr >> 16) & 0xFFFF
+    return bool(unix_mode and stat.S_ISLNK(unix_mode))
+
+
 def extract_zip_verified(archive: Path, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     temp_dir = Path(tempfile.mkdtemp(prefix="extract-", dir=str(destination.parent)))
@@ -87,6 +93,8 @@ def extract_zip_verified(archive: Path, destination: Path) -> None:
         root = temp_dir.resolve()
         with zipfile.ZipFile(archive) as bundle:
             for member in bundle.infolist():
+                if _zip_member_is_symlink(member):
+                    raise ArtifactIntegrityError(f"symbolic-link archive entry is not allowed: {member.filename}")
                 target = (temp_dir / member.filename).resolve()
                 try:
                     target.relative_to(root)
