@@ -4,9 +4,9 @@
 
 ## Status
 
-Phases 0-2 are complete. Phase 3 - **Local AI and resource manager** - is in final Windows acceptance.
+Phases 0-2 are complete. Phase 3 - **Local AI and resource manager** - has passed its combined Windows code-head acceptance and is in final record-head/PR verification.
 
-Phase 3 adds local hardware/resource detection, explicit app-managed llama.cpp/model installation, local quality/resource evaluation, per-device performance evidence, and a persisted five-resume review gate for the later tailoring phase. It does **not** enable job discovery, JD-driven resume rewriting, browser form filling, or employer submission.
+Phase 3 adds local hardware/resource detection, explicit app-managed llama.cpp/model installation, local quality/resource evaluation, per-device performance evidence, revision-safe replacement primitives, and a persisted five-distinct-resume review gate for the later tailoring phase. It does **not** enable job discovery, JD-driven resume rewriting, browser form filling, or employer submission.
 
 ## Safety and privacy invariants
 
@@ -14,10 +14,10 @@ Phase 3 adds local hardware/resource detection, explicit app-managed llama.cpp/m
 - No cloud AI, hosted database, telemetry, paid API, paid proxy, CAPTCHA solving, remote UI scripts, or cloud sign-in.
 - No startup service or hidden background scheduler.
 - Opening the application is always Idle and starts no download/inference/work thread.
-- `Start` is required to begin or resume the sample session lifecycle.
-- `Pause` schedules no new work.
-- `Stop` cancels discovery/generation/pre-submit work when those later phases exist while leaving the UI open.
-- `UNCERTAIN` submissions are never automatically retried.
+- Runtime/model downloads require explicit confirmation and exact catalogue size/SHA verification.
+- `Start` is required to begin or resume the sample session lifecycle; model setup/evaluation uses separate explicit actions.
+- `Pause` schedules no new sample work.
+- `UNCERTAIN` submissions are never automatically retried in later phases.
 - Only app-owned processes and files proven to be under managed roots may be terminated/deleted.
 - Real employer submissions remain disabled until explicit activation after all onboarding/review gates.
 
@@ -42,20 +42,35 @@ Tectonic remains two-step: explicitly populate missing support files when needed
 
 ### Local AI setup
 
-The initial Phase 3 catalogue is intentionally small:
+The initial Phase 3 catalogue is deliberately small:
 
 - llama.cpp stable baseline `v0.4.0`, tested Windows build `b10809`;
 - checksum-pinned Windows x64 CPU runtime plus optional Vulkan runtime;
 - `ggml-org/Qwen3-4B-GGUF` revision `2f3b082b1356a6123f7ed71e65aea340da25d53c`;
 - `Qwen3-4B-Q4_K_M.gguf`, exact 2,497,280,640 bytes, SHA-256 `ab27b9bfa375a178d6cba48f3ad892b94b7739659dcc7aae8058ce0ffed6b328`, Apache-2.0.
 
-The app never downloads those artifacts on launch. The Model & resources screen first measures the actual machine, shows reserved RAM/disk and GPU evidence, then requires explicit confirmation for each runtime/model download. Files are installed only after exact size/SHA verification.
+The app never downloads these artifacts on launch. The Model & resources screen measures the actual machine, shows reserved RAM/disk and GPU evidence, and requires explicit confirmation for each runtime/model download. Files are installed only after exact size/SHA verification.
 
-CPU evaluation is forced with `--device none`. Vulkan is considered only after the installed llama.cpp runtime reports one or more `VulkanN` devices through `--list-devices`; each selected configuration must independently pass the same structured/factual/resource evaluation. The fastest **passing** measured configuration is selected for future Phase 4 review.
+CPU evaluation is forced with `--device none`. Vulkan is considered only after the installed llama.cpp runtime reports one or more `VulkanN` devices through `--list-devices`; each selected configuration must independently pass the same structured/factual/resource evaluation. Speed is compared only among passing configurations.
 
-Automatic tailoring remains disabled. Selection creates a persisted review gate at **0/5 distinct resumes**. Phase 4 supplies those human-reviewed tailored resumes; Phase 3 cannot bypass that gate.
+Automatic tailoring remains disabled. Selecting a validated configuration creates a persisted review gate at **0/5 distinct resumes**. Phase 4 supplies those human-reviewed tailored resumes; Phase 3 has no UI/API shortcut to complete the gate.
 
-If the reserved resources cannot safely run the tested catalogue, the app reports that result instead of using cloud inference or weakening factual/quality requirements.
+If reserved resources cannot safely run the tested catalogue, the app reports that result instead of using cloud inference or weakening factual/quality requirements.
+
+## Verified Windows CPU baseline
+
+Combined Phase 3 code-head run `34575604480` passed:
+
+- **101 passed, 1 intentional skip, 2 external probes deselected**;
+- preserved Phase 2 cached-only Tectonic acceptance;
+- exact pinned llama.cpp/Qwen3 download and integrity verification;
+- CPU `--device none` evaluation at 4096 context;
+- structured, malicious-JD/factual, controlled-tailoring and resource gates;
+- **12.789 generated tokens/second**, **5,021,855,744 bytes peak process-tree RSS**, normal live memory pressure;
+- 0/5 future review approvals and automatic tailoring disabled;
+- source/package self-tests, WebView2 smokes and PyInstaller onedir build.
+
+This is a CI CPU compatibility baseline, not a claim about the user's own hardware. The application must probe and evaluate the actual local CPU/Vulkan configuration before selection.
 
 ## Acceptance checks
 
@@ -82,6 +97,6 @@ Runtime data is outside Git under `%LOCALAPPDATA%\JobPilotLocal`: SQLite, immuta
 - `ROADMAP.md` - dependency-ordered phases/status.
 - `DECISIONS.md` - engineering decisions/rationale.
 - `PROGRESS.md` - actual repository state, evidence, blockers, exact continuation.
-- `docs/PHASE3_ACCEPTANCE.md` - Phase 3 test gates and exact pinned catalogue.
+- `docs/PHASE3_ACCEPTANCE.md` - Phase 3 gates and exact pinned catalogue.
 
 Phase 4 is intentionally not started in this branch.
