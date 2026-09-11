@@ -10,11 +10,13 @@ from jobpilot.runtime.paths import ManagedPaths
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = ROOT / "migrations"
 FIXTURE = ROOT / "tests" / "fixtures" / "phase2_resume.tex"
+TEMPLATE_SHAPE = ROOT / "tests" / "fixtures" / "phase2_template_shape.tex"
 
 
 def main() -> int:
-    if not FIXTURE.is_file():
-        raise RuntimeError(f"controlled resume fixture is missing: {FIXTURE}")
+    for fixture in (FIXTURE, TEMPLATE_SHAPE):
+        if not fixture.is_file():
+            raise RuntimeError(f"controlled resume fixture is missing: {fixture}")
 
     with tempfile.TemporaryDirectory(prefix="jobpilot-phase2-tectonic-") as temp_dir:
         paths = ManagedPaths(Path(temp_dir) / "JobPilotLocal")
@@ -50,6 +52,19 @@ def main() -> int:
             if not final_state["onboarding_ready"]:
                 raise RuntimeError("controlled onboarding did not reach the ready gate after offline compile, mapping, and complete fact review")
 
+            controller.import_master_resume(TEMPLATE_SHAPE)
+            shape_first = controller.compile_master_resume(allow_package_downloads=True)["resume"]["baseline"]
+            if shape_first["status"] != "compiled" or bool(shape_first["offline_verified"]):
+                raise RuntimeError("template-shape cache population compile did not record the expected network-enabled state")
+            shape_state = controller.compile_master_resume(allow_package_downloads=False)["resume"]
+            shape_baseline = shape_state["baseline"]
+            if shape_baseline["status"] != "compiled" or not bool(shape_baseline["offline_verified"]):
+                raise RuntimeError("template-shape cached-only Tectonic compile did not establish offline verification")
+            if int(shape_baseline["page_count"]) != 2:
+                raise RuntimeError(f"template-shape baseline expected two pages, got {shape_baseline['page_count']}")
+            if len(shape_state["regions"]) < 5:
+                raise RuntimeError("template-shape fixture did not expose the expected editable bullet regions")
+
             result = {
                 "tectonic_version": final_state["tectonic"]["version"],
                 "tectonic_integrity": final_state["tectonic"]["integrity"],
@@ -59,6 +74,8 @@ def main() -> int:
                 "approved_facts": final_state["fact_counts"]["approved"],
                 "candidate_facts": final_state["fact_counts"]["candidate"],
                 "onboarding_ready": bool(final_state["onboarding_ready"]),
+                "template_shape_page_count": shape_baseline["page_count"],
+                "template_shape_offline_verified": bool(shape_baseline["offline_verified"]),
             }
             print(json.dumps(result, sort_keys=True))
         finally:
