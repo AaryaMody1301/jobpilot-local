@@ -40,9 +40,9 @@ Reviewed only for ideas/risk identification: `AbhishekMandapmalvi/AutoApply`, `h
 - license: MIT
 - stable semantic release baseline: `v0.4.0`
 - tested prebuilt binary build: `b10809`
-- exact b10809 server documentation was inspected, not only current `master`.
+- exact b10809 README **and source implementation** were inspected, not only current `master`.
 
-The b10809 server docs explicitly expose `--list-devices`, `--device <...>` with `none = don't offload`, `--n-gpu-layers`, `--offline`, and `--no-mmproj`. JobPilot therefore forces CPU tests with `--device none` and treats runtime-reported devices as authoritative for Vulkan instead of inferring usability from Windows display-adapter names.
+The b10809 server docs expose `--list-devices`, `--device <...>` with `none = don't offload`, `--n-gpu-layers`, `--offline`, and `--no-mmproj`. JobPilot therefore forces CPU tests with `--device none` and treats runtime-reported devices as authoritative for Vulkan instead of inferring usability from Windows display-adapter names.
 
 Pinned Windows x64 archives:
 
@@ -51,9 +51,11 @@ Pinned Windows x64 archives:
 
 ### Schema-constrained chat output
 
-The exact b10809 server README documents schema-constrained chat output using `response_format` with a direct `schema` member, e.g. `{"type":"json_schema","schema":{...}}`. JobPilot uses that llama.cpp-native request shape.
+The exact b10809 README shows schema-constrained chat output with a direct `response_format.schema`. However, its actual `server-common.cpp` parser for `response_format.type = "json_schema"` reads `response_format.json_schema.schema`. A Windows acceptance using the README-shaped direct field returned HTTP-success responses that were missing required fields or were not JSON; the same pinned Qwen3/runtime had previously passed with the implementation-shaped nested path.
 
-This is still not a trust boundary. Issue history includes cases where some JSON-schema request paths returned a successful response without enforcing the intended schema, and reasoning modes can interact with grammar behavior. JobPilot therefore disables thinking for the controlled evaluation and performs strict local parsing plus deterministic evidence/fact checks after every response.
+JobPilot therefore pins the b10809 wire contract to the **source implementation that the executable runs**: `response_format={"type":"json_schema","json_schema":{"name":"jobpilot_response","strict":true,"schema":{...}}}`. This upstream README/source mismatch is recorded rather than guessed away.
+
+This parser path is still not a trust boundary. Issue history includes cases where schema request paths returned a successful response without enforcing the intended schema, and reasoning modes can interact with grammar behavior. JobPilot disables thinking for the controlled evaluation and independently validates the returned JSON against a fail-closed local schema subset before deterministic fact/evidence checks. Unsupported local schema keywords are rejected rather than silently ignored.
 
 ### Initial tested model
 
