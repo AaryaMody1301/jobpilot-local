@@ -79,7 +79,7 @@ class StructuredJsonResponse:
 
 
 class LlamaServerClient:
-    """Small authenticated localhost-only client; validation remains local."""
+    """Small authenticated localhost-only client; server constraints and local validation are separate gates."""
 
     def __init__(self, base_url: str = "http://127.0.0.1:8080", *, api_key: str | None = None) -> None:
         if not (base_url.startswith("http://127.0.0.1:") or base_url.startswith("http://localhost:")):
@@ -105,9 +105,7 @@ class LlamaServerClient:
             "chat_template_kwargs": {"enable_thinking": False},
             "response_format": {
                 "type": "json_schema",
-                "json_schema": {
-                    "schema": dict(schema),
-                },
+                "schema": dict(schema),
             },
         }
 
