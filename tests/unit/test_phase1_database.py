@@ -11,6 +11,7 @@ ALL = [
     "003_phase2_resume_fact_bank.sql",
     "004_phase3_local_ai.sql",
     "005_phase4_tailoring.sql",
+    "006_phase4_tailoring_safety.sql",
 ]
 
 
@@ -57,6 +58,7 @@ def test_phase1_migration_upgrades_existing_phase0_database(tmp_path: Path) -> N
             "003_phase2_resume_fact_bank.sql",
             "004_phase3_local_ai.sql",
             "005_phase4_tailoring.sql",
+            "006_phase4_tailoring_safety.sql",
         ]
         columns = {row["name"] for row in db.connection.execute("PRAGMA table_info(work_items)")}
         assert {"label", "is_sample"}.issubset(columns)
