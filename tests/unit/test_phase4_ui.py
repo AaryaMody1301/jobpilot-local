@@ -22,6 +22,8 @@ def test_phase4_ui_exposes_manual_jd_evidence_review_and_pdf_preview() -> None:
         "reject_tailored_resume", "tailored_pdf_data_uri", "enable_automatic_tailoring",
     ):
         assert bridge_method in js
+    assert "expected_content_tokens_present" in js
+    assert "edited_fields_present_in_pdf" not in js
     assert "explicit local action" in html.lower()
     assert "fetch(" not in js
     assert "XMLHttpRequest" not in js
