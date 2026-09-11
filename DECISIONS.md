@@ -109,3 +109,11 @@ The JavaScript UI does not receive a generic filesystem-import method. Master/su
 Status: accepted for Phase 2 implementation.
 
 pypdf records baseline page geometry and extracted-text hashes and checks that a compiled resume contains usable text. The immutable LaTeX source and approved facts remain authoritative. PDF extraction order is not assumed to reproduce semantic reading order, so extracted PDF text cannot silently create or approve facts.
+
+## D-018 - real-template protected facts and approval privacy
+
+Status: approved/completed, 2026-09-11.
+
+Testing the user's actual LaTeX template showed that authoritative facts exist outside editable bullet regions. Phase 2 therefore extracts protected non-bullet facts such as `\role` title/date/employer/location fields and factual section text into the same candidate/approval system. These values are protected evidence, not automatically editable wording. Historical facts from inactive master resume versions remain retained for provenance but do not block readiness for the active master.
+
+The user explicitly approved all factual claims in the supplied resume exactly as written on 2026-09-11. That approval closes the Phase 2 fact-review gate. The repository records the approval event and validation outcome only; it does not reproduce or commit the private resume source or personal fact values. Future runtime imports must still create source-linked fact records with the normal integrity/versioning rules rather than relying on this repository note as a substitute for the private local fact bank.

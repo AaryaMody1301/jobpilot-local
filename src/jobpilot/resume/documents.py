@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from jobpilot.resume.facts import extract_protected_facts
 from jobpilot.resume.store import ResumeStore
 from jobpilot.resume.template_map import map_editable_regions, source_metrics
 from jobpilot.runtime.paths import ManagedPaths
@@ -94,6 +95,21 @@ class DocumentWorkspace:
         regions = map_editable_regions(source_text, digest)
         self.store.add_template_regions(document_id, (region.to_dict() for region in regions))
         created = self.store.create_candidate_facts_for_regions(document_id, digest)
+
+        existing_ids = {str(fact["id"]) for fact in self.store.list_facts()}
+        for candidate in extract_protected_facts(source_text, digest):
+            if candidate.fact_id in existing_ids:
+                continue
+            self.store.create_fact(
+                fact_id=candidate.fact_id,
+                value=candidate.value,
+                category=candidate.category,
+                source_document_id=document_id,
+                source_ref=candidate.source_ref(digest),
+            )
+            existing_ids.add(candidate.fact_id)
+            created += 1
+
         if self.store.get_baseline(document_id) is None:
             self.store.upsert_baseline(
                 document_id,
