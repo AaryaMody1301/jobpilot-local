@@ -160,6 +160,10 @@ class LlamaServerClient:
         temperature: float = 0.0,
         max_tokens: int = 256,
     ) -> dict[str, Any]:
+        # b10809's server implementation parses type=json_schema from
+        # response_format.json_schema.schema, even though the same tag's README shows
+        # a direct response_format.schema example. Pin to the executable's parser
+        # contract and validate the response independently below.
         return {
             "messages": [dict(message) for message in messages],
             "temperature": temperature,
@@ -170,7 +174,11 @@ class LlamaServerClient:
             "chat_template_kwargs": {"enable_thinking": False},
             "response_format": {
                 "type": "json_schema",
-                "schema": dict(schema),
+                "json_schema": {
+                    "name": "jobpilot_response",
+                    "strict": True,
+                    "schema": dict(schema),
+                },
             },
         }
 
