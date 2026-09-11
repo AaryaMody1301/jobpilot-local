@@ -33,6 +33,25 @@ Phase 3 adds local hardware/resource management and the controlled local AI runt
 - Windows x64 Vulkan archive: `llama-b10809-bin-win-vulkan-x64.zip`, 35,221,385 bytes, SHA-256 `97e50b3ef0cdd2cb4d5afd446a9006b3496bee6c0d0ba7083d32f36075771870`;
 - license: MIT.
 
+### b10809 structured-output wire contract
+
+The exact b10809 README and implementation disagree for `response_format.type = "json_schema"`. The README shows a direct `response_format.schema`, but b10809 `server-common.cpp` actually reads the grammar from `response_format.json_schema.schema`. A real Windows acceptance with the README-shaped direct field returned HTTP-success responses that failed JobPilot's local validator; the older implementation-shaped nested path had passed the real Qwen3 evaluation.
+
+JobPilot therefore pins to the **executable implementation contract** for b10809:
+
+```json
+{
+  "type": "json_schema",
+  "json_schema": {
+    "name": "jobpilot_response",
+    "strict": true,
+    "schema": {"...": "JobPilot schema"}
+  }
+}
+```
+
+This is not a relaxation of validation. llama.cpp grammar enforcement is only a generation aid. JobPilot independently parses the returned content and validates a fail-closed local JSON-schema subset including required fields, types, arrays, enums, string length and `additionalProperties: false`. Unsupported local schema keywords are rejected rather than ignored.
+
 ### Model
 
 - logical catalogue ID: `qwen3-4b-q4_k_m`;
