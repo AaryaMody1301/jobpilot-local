@@ -35,7 +35,10 @@ def normalize_job_description(text: str, source_url: str | None = None) -> Manua
     if not isinstance(text, str):
         raise TypeError("job description must be text")
     normalized = unicodedata.normalize("NFKC", text).replace("\r\n", "\n").replace("\r", "\n")
-    normalized = "".join(ch for ch in normalized if ch in "\n\t" or unicodedata.category(ch) != "Cc")
+    normalized = "".join(
+        ch for ch in normalized
+        if ch in "\n\t" or not unicodedata.category(ch).startswith("C")
+    )
     normalized = "\n".join(line.rstrip() for line in normalized.splitlines()).strip()
     if not normalized:
         raise ValueError("job description cannot be empty")
