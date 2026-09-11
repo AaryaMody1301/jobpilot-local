@@ -52,11 +52,11 @@ Pin Playwright and its Chromium revision together. Store the Playwright-managed 
 
 ## D-009 - llama.cpp structured-output trust boundary
 
-Status: accepted for Phase 0 implementation.
+Status: accepted for Phase 0 implementation and tightened in Phase 3.
 
 llama.cpp grammar/JSON-schema constraints improve generation reliability but are not validation. Every response is parsed and locally validated against the expected structure and later against approved fact IDs. Recent llama.cpp issue history shows that some schema request paths have regressed silently, so a successful HTTP response can never establish structural or factual validity by itself.
 
-The exact llama.cpp production build and model are intentionally not pinned in Phase 0. They are frozen only after the Phase 3 hardware-specific evaluation, with source/tag, checksum, backend, context, and measured results recorded.
+Phase 3 pins llama.cpp build `b10809` and verified both its README and its actual server parser. They disagree for `response_format.type = "json_schema"`: the README shows a direct `response_format.schema`, while b10809 `server-common.cpp` reads `response_format.json_schema.schema`. A real Windows run using the README-shaped direct field produced HTTP-success responses that failed JobPilot's independent local schema validator. JobPilot therefore follows the **pinned executable's implementation contract** for b10809, uses the nested `json_schema.schema` path, disables thinking for the controlled evaluation, and still applies strict application-side schema plus factual checks after generation. The upstream documentation/source mismatch is recorded explicitly rather than guessed away.
 
 ## D-010 - ATS discovery versus submission
 
@@ -117,3 +117,47 @@ Status: approved/completed, 2026-09-11.
 Testing the user's actual LaTeX template showed that authoritative facts exist outside editable bullet regions. Phase 2 therefore extracts protected non-bullet facts such as `\role` title/date/employer/location fields and factual section text into the same candidate/approval system. These values are protected evidence, not automatically editable wording. Historical facts from inactive master resume versions remain retained for provenance but do not block readiness for the active master.
 
 The user explicitly approved all factual claims in the supplied resume exactly as written on 2026-09-11. That approval closes the Phase 2 fact-review gate. The repository records the approval event and validation outcome only; it does not reproduce or commit the private resume source or personal fact values. Future runtime imports must still create source-linked fact records with the normal integrity/versioning rules rather than relying on this repository note as a substitute for the private local fact bank.
+
+## D-019 - Phase 3 tested local-AI catalogue
+
+Status: accepted for Phase 3 implementation, 2026-09-11.
+
+The initial tested catalogue stays deliberately small. It pins llama.cpp stable release `v0.4.0` / binary build `b10809` with checksum-addressed Windows x64 CPU and Vulkan archives, plus `ggml-org/Qwen3-4B-GGUF` revision `2f3b082b1356a6123f7ed71e65aea340da25d53c`, file `Qwen3-4B-Q4_K_M.gguf`, exact SHA-256 `ab27b9bfa375a178d6cba48f3ad892b94b7739659dcc7aae8058ce0ffed6b328`, exact size 2,497,280,640 bytes, Apache-2.0. Model weights are never committed or auto-downloaded.
+
+A newer upstream build/revision is metadata only until it receives a new catalogue identity, checksum/license review, local evaluation, and later five-resume review. Newest is not assumed best.
+
+## D-020 - runtime-reported devices are authoritative
+
+Status: accepted for Phase 3 implementation, 2026-09-11.
+
+OS probes are evidence about display adapters, not proof that llama.cpp can use them. The installed checksum-verified llama.cpp runtime must report accelerator IDs through `--list-devices`. CPU evaluation is forced with `--device none`; a Vulkan run carries an exact reported `VulkanN` ID. Multiple Vulkan devices require explicit selection. Each CPU/GPU configuration passes the same evaluation independently before speed can be compared.
+
+CUDA is not added to the initial catalogue because that would introduce additional runtime/toolkit compatibility assumptions. Vulkan is the first optional accelerator backend; a later backend can be added only with its own pinned/tested artefacts.
+
+## D-021 - evidence-backed resource budgets and one inference at a time
+
+Status: accepted for Phase 3 implementation, 2026-09-11.
+
+Hardware detection records RAM/available memory, CPU topology/features, app-root disk capacity, conservative OS/browser/JobPilot reserves, OS GPU evidence, and runtime device evidence. Unknown VRAM remains unknown. A prior successful Windows CPU acceptance measured approximately 5.0 GB peak llama.cpp process RSS for the pinned Qwen3 4B candidate; that measurement is a conservative reference floor, not a universal machine requirement.
+
+Only one model operation/server is allowed at a time. Critical memory pressure blocks startup. Constrained pressure reduces the controlled context. A live watcher continues during evaluation and closes the app-owned llama.cpp session if pressure becomes critical. No cloud fallback or quality weakening is allowed when the machine cannot safely run the tested catalogue.
+
+## D-022 - revisioned weights and persisted five-resume replacement gate
+
+Status: accepted for Phase 3 implementation, 2026-09-11.
+
+Every model revision has a distinct install ID and app-owned directory, so validating a replacement cannot overwrite the currently accepted weights. Selection records the fastest configuration that passed the same quality/resource suite. Automatic tailoring remains disabled in Phase 3.
+
+The future activation gate is persisted in SQLite and requires approvals for five distinct tailored resumes for the exact selected model/configuration. It cannot be satisfied by a caller-supplied boolean. Changing the selected configuration invalidates existing review evidence. Replacement cleanup is preflighted before activation, refuses shared/non-app-managed or in-use weights, remains beneath the model root, keeps retired metadata, and supports rollback to a still-validated previous model.
+
+## D-023 - model update checks are explicit and non-authoritative
+
+Status: accepted for Phase 3 implementation, 2026-09-11.
+
+Upstream runtime/model metadata checks occur only after an explicit UI action and at most once every seven days while the application is open. A check may report a newer version/revision but never downloads or switches to it. Any new binary/model still requires explicit download approval, checksum/license metadata, evaluation, and the later five-resume review gate.
+
+## D-024 - current official GitHub Actions majors
+
+Status: accepted for Phase 3 maintenance, 2026-09-11.
+
+The acceptance workflows use official `actions/checkout@v7` and `actions/setup-python@v7`. The prior v4/v5 pair was still functional but emitted Node runtime deprecation warnings on current hosted runners. This maintenance change does not alter application behavior.

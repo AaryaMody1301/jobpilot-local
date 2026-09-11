@@ -22,6 +22,11 @@ def _is_relative_to(path: Path, root: Path) -> bool:
 class ManagedPaths:
     root: Path
 
+    def __post_init__(self) -> None:
+        # Keep one canonical root for containment and relative-path proofs. This also
+        # normalizes Windows 8.3 aliases such as RUNNER~1 versus their long form.
+        object.__setattr__(self, "root", self.root.expanduser().resolve(strict=False))
+
     @classmethod
     def default(cls) -> "ManagedPaths":
         if os.name == "nt":
@@ -128,18 +133,39 @@ class ManagedPaths:
         ):
             path.mkdir(parents=True, exist_ok=True)
 
-    def require_model_descendant(self, candidate: Path) -> Path:
-        root = self.models.resolve(strict=False)
+    @staticmethod
+    def _require_descendant(candidate: Path, root: Path, label: str) -> Path:
+        managed_root = root.resolve(strict=False)
         resolved = candidate.resolve(strict=False)
-        if resolved == root or not _is_relative_to(resolved, root):
-            raise UnsafeManagedPath(f"path is outside managed model files: {candidate}")
+        if resolved == managed_root or not _is_relative_to(resolved, managed_root):
+            raise UnsafeManagedPath(f"path is outside managed {label}: {candidate}")
         return resolved
 
-    def delete_model_path(self, candidate: Path) -> None:
-        resolved = self.require_model_descendant(candidate)
+    def relative_to_root(self, candidate: Path) -> Path:
+        """Return a stable app-root-relative path after canonicalizing both sides."""
+        managed_root = self.root.resolve(strict=False)
+        resolved = candidate.resolve(strict=False)
+        if resolved == managed_root or not _is_relative_to(resolved, managed_root):
+            raise UnsafeManagedPath(f"path is outside the JobPilot managed root: {candidate}")
+        return resolved.relative_to(managed_root)
+
+    def require_model_descendant(self, candidate: Path) -> Path:
+        return self._require_descendant(candidate, self.models, "model files")
+
+    def require_tool_descendant(self, candidate: Path) -> Path:
+        return self._require_descendant(candidate, self.tools, "tool files")
+
+    @staticmethod
+    def _delete_descendant(resolved: Path) -> None:
         if not resolved.exists():
             return
         if resolved.is_dir():
             shutil.rmtree(resolved)
         else:
             resolved.unlink()
+
+    def delete_model_path(self, candidate: Path) -> None:
+        self._delete_descendant(self.require_model_descendant(candidate))
+
+    def delete_tool_path(self, candidate: Path) -> None:
+        self._delete_descendant(self.require_tool_descendant(candidate))

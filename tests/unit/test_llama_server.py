@@ -2,7 +2,13 @@ import json
 
 import pytest
 
-from jobpilot.model.llama_server import LlamaServerClient, RESUME_EDIT_SCHEMA, ResumeEditEnvelope, StructuredOutputError
+from jobpilot.model.llama_server import (
+    LlamaServerClient,
+    RESUME_EDIT_SCHEMA,
+    ResumeEditEnvelope,
+    StructuredOutputError,
+    validate_json_schema_subset,
+)
 
 
 def test_llama_endpoint_must_be_localhost() -> None:
@@ -10,14 +16,53 @@ def test_llama_endpoint_must_be_localhost() -> None:
         LlamaServerClient("https://example.com")
 
 
-def test_request_contains_schema_constraint() -> None:
+def test_authenticated_client_uses_bearer_header_without_exposing_key_in_payload() -> None:
+    client = LlamaServerClient("http://127.0.0.1:8080", api_key="controlled-secret")
+    headers = client._headers()
+    assert headers["Authorization"] == "Bearer controlled-secret"
+    payload = client.build_resume_edit_request([{"role": "user", "content": "controlled fixture"}])
+    assert "controlled-secret" not in json.dumps(payload)
+
+
+def test_request_matches_b10809_json_schema_parser_contract() -> None:
     payload = LlamaServerClient.build_resume_edit_request([{"role": "user", "content": "controlled fixture"}])
     assert payload["response_format"] == {
         "type": "json_schema",
-        "schema": RESUME_EDIT_SCHEMA,
+        "json_schema": {
+            "name": "jobpilot_response",
+            "strict": True,
+            "schema": RESUME_EDIT_SCHEMA,
+        },
     }
-    assert "json_schema" not in payload
+    assert "schema" not in {key for key in payload["response_format"] if key != "json_schema" and key != "type"}
     assert payload["temperature"] == 0.0
+    assert payload["seed"] == 0
+    assert payload["reasoning_effort"] == "none"
+    assert payload["chat_template_kwargs"] == {"enable_thinking": False}
+
+
+def test_local_schema_subset_rejects_server_output_with_extra_or_wrong_fields() -> None:
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "selected_fact_ids": {"type": "array", "items": {"type": "string"}},
+            "summary": {"type": "string", "maxLength": 20},
+        },
+        "required": ["selected_fact_ids", "summary"],
+    }
+    validate_json_schema_subset({"selected_fact_ids": ["F_SQL"], "summary": "SQL evidence"}, schema)
+    with pytest.raises(StructuredOutputError, match="unexpected"):
+        validate_json_schema_subset({"selected_fact_ids": ["F_SQL"], "summary": "SQL", "invented": True}, schema)
+    with pytest.raises(StructuredOutputError, match="must be an array"):
+        validate_json_schema_subset({"selected_fact_ids": "F_SQL", "summary": "SQL"}, schema)
+    with pytest.raises(StructuredOutputError, match="maxLength"):
+        validate_json_schema_subset({"selected_fact_ids": ["F_SQL"], "summary": "x" * 21}, schema)
+
+
+def test_local_schema_subset_fails_closed_on_unsupported_future_keyword() -> None:
+    with pytest.raises(StructuredOutputError, match="unsupported local schema keyword"):
+        validate_json_schema_subset("x", {"type": "string", "pattern": "x"})
 
 
 def test_local_strict_validation_accepts_expected_shape() -> None:

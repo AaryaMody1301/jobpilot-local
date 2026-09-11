@@ -1,8 +1,8 @@
-name: Phase 2 acceptance
+name: Phase 3 acceptance
 
 on:
   push:
-    branches: [phase-2-resume-fact-bank]
+    branches: [phase-3-local-ai-resource-manager]
   pull_request:
     branches: [main]
 
@@ -10,9 +10,9 @@ permissions:
   contents: read
 
 jobs:
-  windows-phase2:
+  windows-phase3:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}\.playwright-browsers
     steps:
@@ -31,15 +31,17 @@ jobs:
         run: |
           python -m compileall -q src scripts tests
           node --check src/jobpilot/ui/app.js
-      - name: Run Phase 0 through Phase 2 non-external checks
+      - name: Run Phase 0 through Phase 3 non-external checks
         run: pytest -m "not external"
-      - name: Run real Tectonic cache and baseline acceptance
+      - name: Preserve Phase 2 Tectonic acceptance
         run: python scripts/phase2_tectonic_acceptance.py
+      - name: Run real local llama.cpp and model acceptance
+        run: python scripts/phase3_model_acceptance.py
       - name: Run source self-test
         run: python -m jobpilot.app.main --self-test
       - name: Run hidden pywebview window smoke
         run: python -m jobpilot.app.main --window-smoke
-      - name: Build Phase 2 desktop onedir
+      - name: Build Phase 3 desktop onedir
         run: pyinstaller --clean --noconfirm packaging\jobpilot.spec
       - name: Run packaged self-test
         run: .\dist\jobpilot-local\jobpilot-local.exe --self-test
