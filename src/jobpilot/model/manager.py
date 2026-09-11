@@ -281,22 +281,31 @@ class ModelManager:
         if model_install_id in self._active_models:
             raise RuntimeError("replacement model is currently in use")
 
-        previous_id = self.store.activate_after_review_gate(model_install_id)
-        if delete_previous_app_managed_weights and previous_id and previous_id != model_install_id:
-            previous = self.store.model_install(previous_id)
-            if previous is not None:
+        previous_before = state.get("auto_tailoring_model_install_id")
+        cleanup_root = None
+        if previous_before and previous_before != model_install_id:
+            if previous_before in self._active_models:
+                raise RuntimeError("previous auto-tailoring model is currently in use")
+            previous = self.store.model_install(str(previous_before))
+            if previous is None:
+                raise RuntimeError("previous auto-tailoring model metadata is missing")
+            if delete_previous_app_managed_weights:
                 if not bool(previous.get("app_managed")):
                     raise RuntimeError("previous model is not app-managed; JobPilot will not delete shared weights")
                 previous_path = self.paths.require_model_descendant(self.paths.root / str(previous["model_relpath"]))
                 new_path = self.paths.require_model_descendant(self.paths.root / str(model["model_relpath"]))
-                version_root = previous_path.parent
-                if version_root == new_path.parent:
+                cleanup_root = previous_path.parent
+                if cleanup_root == new_path.parent:
                     raise RuntimeError("replacement cleanup would target the active model revision")
-                self.store.set_cleanup_pending(str(version_root.relative_to(self.paths.root)))
-                if previous_id not in self._active_models:
-                    self.paths.delete_model_path(version_root)
-                    self.store.set_model_status(previous_id, "retired")
-                    self.store.set_cleanup_pending(None)
+
+        previous_id = self.store.activate_after_review_gate(model_install_id)
+        if previous_id != (str(previous_before) if previous_before else None):
+            raise RuntimeError("model activation state changed unexpectedly during replacement")
+        if delete_previous_app_managed_weights and previous_id and cleanup_root is not None:
+            self.store.set_cleanup_pending(str(cleanup_root.relative_to(self.paths.root)))
+            self.paths.delete_model_path(cleanup_root)
+            self.store.set_model_status(previous_id, "retired")
+            self.store.set_cleanup_pending(None)
         return self.snapshot()
 
     def rollback_after_activation_failure(self, failed_model_install_id: str) -> dict[str, Any]:
