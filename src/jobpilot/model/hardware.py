@@ -6,14 +6,26 @@ import os
 import platform
 import shutil
 import subprocess
+import threading
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import psutil
 
 _GIB = 1024**3
 _MIB = 1024**2
+
+
+def classify_memory_pressure(total_bytes: int, available_bytes: int) -> str:
+    total = max(0, int(total_bytes))
+    available = max(0, int(available_bytes))
+    ratio = available / total if total else 0.0
+    if available < 1 * _GIB or ratio < 0.12:
+        return "critical"
+    if available < 2 * _GIB or ratio < 0.20:
+        return "constrained"
+    return "normal"
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +63,77 @@ class HardwareSnapshot:
         }
 
 
+class ResourcePressureWatcher:
+    """Polls live RAM pressure during one local inference operation."""
+
+    def __init__(
+        self,
+        *,
+        interval_seconds: float = 0.25,
+        memory_reader: Callable[[], Any] = psutil.virtual_memory,
+        on_critical: Callable[[], None] | None = None,
+    ) -> None:
+        self.interval_seconds = max(0.05, float(interval_seconds))
+        self.memory_reader = memory_reader
+        self.on_critical = on_critical
+        self._stop = threading.Event()
+        self._critical = threading.Event()
+        self._thread = threading.Thread(target=self._run, name="jobpilot-resource-pressure", daemon=True)
+        self._lock = threading.Lock()
+        self._min_available: int | None = None
+        self._max_used_percent = 0.0
+        self._worst = "normal"
+        self._callback_fired = False
+
+    @property
+    def critical(self) -> bool:
+        return self._critical.is_set()
+
+    def start(self) -> None:
+        if not self._thread.is_alive():
+            self._thread.start()
+
+    def stop(self) -> dict[str, Any]:
+        self._stop.set()
+        if self._thread.is_alive() and self._thread is not threading.current_thread():
+            self._thread.join(timeout=2)
+        with self._lock:
+            return {
+                "worst_pressure": self._worst,
+                "min_available_bytes": self._min_available,
+                "max_used_percent": self._max_used_percent,
+                "critical_triggered": self._critical.is_set(),
+            }
+
+    def _run(self) -> None:
+        rank = {"normal": 0, "constrained": 1, "critical": 2}
+        while not self._stop.wait(self.interval_seconds):
+            try:
+                memory = self.memory_reader()
+                total = int(memory.total)
+                available = int(memory.available)
+                used_percent = float(memory.percent)
+            except Exception:
+                continue
+            pressure = classify_memory_pressure(total, available)
+            callback: Callable[[], None] | None = None
+            with self._lock:
+                self._min_available = available if self._min_available is None else min(self._min_available, available)
+                self._max_used_percent = max(self._max_used_percent, used_percent)
+                if rank[pressure] > rank[self._worst]:
+                    self._worst = pressure
+                if pressure == "critical" and not self._callback_fired:
+                    self._callback_fired = True
+                    self._critical.set()
+                    callback = self.on_critical
+            if callback is not None:
+                try:
+                    callback()
+                finally:
+                    self._stop.set()
+                    return
+
+
 class HardwareProbe:
     """Conservative local hardware/resource probe with no network access."""
 
@@ -78,13 +161,7 @@ class HardwareProbe:
         live_model_budget = max(0, available - app_reserve - pressure_reserve)
         model_ram_budget = min(static_model_budget, live_model_budget)
         model_disk_budget = max(0, free_disk - 5 * _GIB)
-        available_ratio = available / total if total else 0.0
-        if available < 1 * _GIB or available_ratio < 0.12:
-            pressure = "critical"
-        elif available < 2 * _GIB or available_ratio < 0.20:
-            pressure = "constrained"
-        else:
-            pressure = "normal"
+        pressure = classify_memory_pressure(total, available)
 
         return HardwareSnapshot(
             platform={
@@ -114,7 +191,7 @@ class HardwareProbe:
             },
             gpus=gpus,
             budget={
-                "policy_version": "phase3-v1",
+                "policy_version": "phase3-v2",
                 "os_and_other_apps_reserve_bytes": os_other_reserve,
                 "browser_reserve_bytes": browser_reserve,
                 "jobpilot_reserve_bytes": app_reserve,
