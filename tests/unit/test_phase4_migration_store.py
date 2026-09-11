@@ -33,9 +33,16 @@ def test_phase4_migration_upgrades_phase3_database_and_preserves_state(tmp_path:
         ]
         db.set_json_setting("targeting", {"notice_period_days": 30})
     with Database(database_path, MIGRATIONS) as db:
-        assert db.apply_migrations() == ["005_phase4_tailoring.sql"]
+        assert db.apply_migrations() == ["005_phase4_tailoring.sql", "006_phase4_tailoring_safety.sql"]
         tables = {row[0] for row in db.connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert {"manual_job_descriptions", "tailored_resumes"}.issubset(tables)
+        tailored_columns = {row["name"] for row in db.connection.execute("PRAGMA table_info(tailored_resumes)")}
+        assert {
+            "template_map_sha256", "baseline_sha256", "profile_sha256", "review_context_sha256",
+            "manifest_relpath", "manifest_sha256",
+        }.issubset(tailored_columns)
+        gate_columns = {row["name"] for row in db.connection.execute("PRAGMA table_info(model_review_gates)")}
+        assert "review_context_sha256" in gate_columns
         assert db.get_json_setting("targeting") == {"notice_period_days": 30}
         state = db.connection.execute("SELECT auto_tailoring_model_install_id FROM model_state WHERE id=1").fetchone()
         assert state[0] is None
