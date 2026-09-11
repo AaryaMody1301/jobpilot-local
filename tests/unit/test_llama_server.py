@@ -2,7 +2,13 @@ import json
 
 import pytest
 
-from jobpilot.model.llama_server import LlamaServerClient, RESUME_EDIT_SCHEMA, ResumeEditEnvelope, StructuredOutputError
+from jobpilot.model.llama_server import (
+    LlamaServerClient,
+    RESUME_EDIT_SCHEMA,
+    ResumeEditEnvelope,
+    StructuredOutputError,
+    validate_json_schema_subset,
+)
 
 
 def test_llama_endpoint_must_be_localhost() -> None:
@@ -30,6 +36,30 @@ def test_request_uses_llama_cpp_native_schema_constraint_not_openai_nested_wrapp
     assert payload["seed"] == 0
     assert payload["reasoning_effort"] == "none"
     assert payload["chat_template_kwargs"] == {"enable_thinking": False}
+
+
+def test_local_schema_subset_rejects_server_output_with_extra_or_wrong_fields() -> None:
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "selected_fact_ids": {"type": "array", "items": {"type": "string"}},
+            "summary": {"type": "string", "maxLength": 20},
+        },
+        "required": ["selected_fact_ids", "summary"],
+    }
+    validate_json_schema_subset({"selected_fact_ids": ["F_SQL"], "summary": "SQL evidence"}, schema)
+    with pytest.raises(StructuredOutputError, match="unexpected"):
+        validate_json_schema_subset({"selected_fact_ids": ["F_SQL"], "summary": "SQL", "invented": True}, schema)
+    with pytest.raises(StructuredOutputError, match="must be an array"):
+        validate_json_schema_subset({"selected_fact_ids": "F_SQL", "summary": "SQL"}, schema)
+    with pytest.raises(StructuredOutputError, match="maxLength"):
+        validate_json_schema_subset({"selected_fact_ids": ["F_SQL"], "summary": "x" * 21}, schema)
+
+
+def test_local_schema_subset_fails_closed_on_unsupported_future_keyword() -> None:
+    with pytest.raises(StructuredOutputError, match="unsupported local schema keyword"):
+        validate_json_schema_subset("x", {"type": "string", "pattern": "x"})
 
 
 def test_local_strict_validation_accepts_expected_shape() -> None:
