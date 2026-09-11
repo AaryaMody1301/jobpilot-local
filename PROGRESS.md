@@ -4,112 +4,114 @@
 
 Phase 3 - Local AI and resource manager.
 
-Status: **in progress; implementation audited and staged, final combined Windows acceptance pending** as of 2026-09-11. Phases 0, 1 and 2 are complete. Phase 4 has not started.
+Status: **implementation and combined code-head acceptance complete; final record-head/PR verification pending** as of 2026-09-11. Phases 0, 1 and 2 are complete. Phase 4 has not started.
 
 ## Verified repository state at Phase 3 start
 
 - Re-read `SPEC.md`, `ROADMAP.md`, `DECISIONS.md`, `PROGRESS.md`, and `AGENTS.md` instead of relying on memory alone.
 - Verified Phase 2 finalization PR #4 merged into `main` at `71ea2265a515cbba9ff6c99b80ab1b0a34ae540e`.
-- Verified Phase 2 is `[x] complete`: the user's actual LaTeX structure was privately validated, a sanitized two-page template-shape fixture passed cached-only Tectonic on Windows, and the user explicitly approved all factual claims in the supplied resume exactly as written. Personal resume/fact text remains outside Git.
-- Found an existing `phase-3-local-ai-resource-manager` branch at `536a12555e1983d46bb80820e0154c82e658df19`. It contained substantial Phase 3 work but was 15 commits behind the Phase 2 finalization. It was not reset or discarded.
-- Merged current `main` into that Phase 3 branch through internal sync PR #5, producing `7f849b0722147145ea10ef54409f253ef7e99be2`. This preserves both histories and makes the Phase 3 work include every Phase 2 finalization fix.
-- Continued audit/fixes on staging branch `phase-3-stage` so the large external model acceptance is triggered only after a cohesive review.
+- Verified Phase 2 complete: the actual LaTeX structure was privately validated; a sanitized two-page template-shape fixture passed cached-only Tectonic; the user explicitly approved all factual claims exactly as written; no personal resume/fact text is committed.
+- Found existing `phase-3-local-ai-resource-manager` at `536a12555e1983d46bb80820e0154c82e658df19`, containing substantial Phase 3 work but 15 commits behind the real-resume finalization. It was not reset or discarded.
+- Merged current `main` into it through internal sync PR #5, producing `7f849b0722147145ea10ef54409f253ef7e99be2`, then audited/fixed Phase 3 on staging branch `phase-3-stage`.
 
-## Recalled requirements that govern Phase 3
+## Requirements preserved from the agreed product specification
 
-- Everything remains local; no cloud AI, hosted database, paid API/proxy, telemetry, remote UI script, or cloud sign-in.
-- Model/runtime download requires an explicit user action and exact source/license/checksum metadata.
-- Hardware recommendation must be based on the actual running machine; CI hardware must never be presented as the user's GPU/RAM profile.
-- Detect RAM, available memory, CPU capabilities, disk, GPU evidence, and reserve resources for Windows/browser/JobPilot.
-- Initial catalogue is small, versioned, quantized and tested. Newest does not automatically mean trusted or selected.
-- One inference operation at a time. No unnecessary vision. Resource pressure must reduce/block/cancel rather than cause unsafe memory exhaustion.
-- Every usable configuration must pass structured-output, factual/malicious-JD and controlled-tailoring quality checks plus resource checks; speed is measured only among passing configurations.
-- Switching is allowed only to installed/validated weights. A replacement repeats the later five-distinct-resume human review gate.
-- Old weights may be deleted only if JobPilot proves they are app-managed, inside the model root, not in use, and a replacement has satisfied all gates; metadata remains.
-- Update checks may occur at most weekly while open, never download/switch automatically, and still require approval/evaluation.
-- If no local candidate fits safely, report that result. Never use cloud inference or weaken factual requirements.
-- Phase 3 must not start JD-driven tailoring, discovery, form filling, or employer submission.
+- All AI inference is local. No cloud AI, hosted DB, paid API/proxy, telemetry, remote UI script, or cloud sign-in.
+- No runtime/model download on launch. Downloads require explicit UI confirmation and a tested catalogue record containing source, license, revision, exact size and checksum.
+- Hardware decisions use the actual running machine, not CI hardware, a model card, or a guessed GPU.
+- Detect RAM/available memory, CPU capabilities, disk, GPU evidence; reserve OS/browser/JobPilot headroom.
+- Small versioned quantized catalogue; newest never means automatically trusted.
+- One inference operation at a time; no unnecessary vision; live resource pressure must reduce/block/cancel rather than risk memory exhaustion.
+- Each CPU/GPU configuration independently passes structured-output, malicious-JD/factual, controlled-tailoring and resource checks. Speed is compared only among passing configurations.
+- Replacement weights install side-by-side, must pass evaluation and later five-distinct-resume human review, and may delete previous weights only when app-managed, inside the model root, not in use, and after all gates. Metadata remains and rollback is preserved.
+- Upstream metadata checks are explicit, at most weekly while open, and never download/switch automatically.
+- If no safe tested local model fits, report that result; do not fall back to cloud or weaken factual quality.
+- Phase 3 does not implement JD-driven tailoring, discovery, application forms, or submission.
 
-## Current official dependency/model verification
+## Current pinned local-AI catalogue
 
-Research was rechecked on 2026-09-11 against project-owned/official sources before freezing Phase 3:
+### llama.cpp
 
-- llama.cpp stable release baseline: `v0.4.0`; tested Windows binary build `b10809`.
-- b10809 server docs expose `--list-devices`, explicit `--device`, `--offline`, `--no-mmproj`, and schema-constrained `response_format`. `--device none` is the explicit no-offload CPU path.
-- llama.cpp b10809 chat schema shape is `response_format={"type":"json_schema","schema":...}`. JobPilot uses that native form and independently parses/validates the returned JSON.
-- Runtime catalogue pins b10809 Windows x64 CPU and Vulkan archives by exact byte count and SHA-256.
-- Model catalogue pins `ggml-org/Qwen3-4B-GGUF`, revision `2f3b082b1356a6123f7ed71e65aea340da25d53c`, `Qwen3-4B-Q4_K_M.gguf`, exact size 2,497,280,640 bytes, SHA-256 `ab27b9bfa375a178d6cba48f3ad892b94b7739659dcc7aae8058ce0ffed6b328`, Apache-2.0.
-- GitHub Actions acceptance was updated from deprecated Node-runtime action majors to official `actions/checkout@v7` and `actions/setup-python@v7`.
+- stable semantic release baseline: `v0.4.0`;
+- tested binary build: `b10809`;
+- CPU Windows x64 archive: 18,407,457 bytes, SHA-256 `9df3158ed228a641a4b127942d7f459f24c9e13f04682659d05c00c80099b6b5`;
+- Vulkan Windows x64 archive: 35,221,385 bytes, SHA-256 `97e50b3ef0cdd2cb4d5afd446a9006b3496bee6c0d0ba7083d32f36075771870`;
+- MIT.
 
-## Pre-existing Phase 3 evidence retained
+### Model
 
-Before the Phase 2 finalization merge, the old Phase 3 branch already had a successful Windows run `34478348579` / job `102874581087` using the pinned CPU runtime and Qwen3 4B Q4_K_M. It measured approximately 5,016,252,416 bytes peak RSS and passed its structured, factual/malicious-JD, controlled-tailoring and resource checks while leaving automatic tailoring disabled. Generation in the log was roughly 11 tokens/second at the controlled 4096-token context.
+- `ggml-org/Qwen3-4B-GGUF`;
+- pinned revision `2f3b082b1356a6123f7ed71e65aea340da25d53c`;
+- `Qwen3-4B-Q4_K_M.gguf`;
+- exact size 2,497,280,640 bytes;
+- SHA-256 `ab27b9bfa375a178d6cba48f3ad892b94b7739659dcc7aae8058ce0ffed6b328`;
+- Apache-2.0;
+- JobPilot controlled context baseline 4096 tokens;
+- text-only: no multimodal projection is downloaded or loaded.
 
-That run is useful empirical input for conservative RAM policy, but **is not Phase 3 completion evidence** because it predates the merged real-resume finalization and the safety fixes below.
+## Phase 3 implementation
 
-## Phase 3 audit findings fixed before final acceptance
+- `004_phase3_local_ai.sql` persists hardware evidence, revisioned runtime/model installs, per-configuration evaluation evidence, exact selected device/runtime, five-resume review gates/approvals, cleanup state and weekly update state.
+- Hardware probe records local RAM/availability, CPU topology/features, app-root disk and OS display-adapter evidence; unknown VRAM stays unknown.
+- Verified llama.cpp runtime is authoritative for accelerator devices via `--list-devices`. CPU uses `--device none`; Vulkan carries exact reported `VulkanN` identity, and multiple Vulkan devices require explicit selection.
+- Managed downloads are atomic and verify exact bytes + SHA-256. Runtime ZIP extraction rejects path traversal and symlink entries. Runtime executable and model weights are rehashed before use.
+- `ManagedPaths` canonicalizes the app root once so Windows 8.3 short-path aliases cannot create false containment failures; deletion still requires proof that a path is below the dedicated app-owned tool/model root.
+- llama.cpp binds only to `127.0.0.1`, receives a random per-session API key, runs `--offline`, one slot, no UI, no multimodal projection, and is owned by the process supervisor. Concurrent shutdown is serialized so normal close/resource-pressure close cannot double-release process handles.
+- One model operation is allowed at a time. Critical pressure blocks startup; constrained pressure lowers controlled context; a live watcher records pressure and closes the owned llama.cpp server if pressure becomes critical during evaluation.
+- Evaluation uses deterministic schemas plus application-side validation, malicious-JD injection resistance, approved-fact-only selection and controlled resume wording. Model output never defines its own passing criteria.
+- Evaluation persists backend/device/context/threads, elapsed time, generation/prompt throughput, peak process-tree RSS, pressure evidence and each pass gate.
+- Selection chooses the fastest measured configuration that passed all gates and whose artifacts still verify.
+- Every model revision has a unique install identity/directory, preventing replacement evaluation from overwriting the current version.
+- Selecting a validated configuration creates a persisted 0/5 distinct-resume review gate. Duplicate resume keys count once. Phase 3 exposes no JS bridge method that can add approvals or activate auto-tailoring.
+- Internal future replacement/rollback boundaries require the completed persisted gate, validated verified weights, not-in-use state, app ownership and safe path before activation/cleanup; retired metadata remains.
+- User-triggered upstream metadata checks are capped at once every seven days and never download/activate new artifacts.
+- Model/resource UI shows actual resource evidence, runtime devices, exact artifact metadata, evaluation configuration/performance and pending review gate. UI JavaScript has no network API.
+- GitHub workflows now use official `actions/checkout@v7` and `actions/setup-python@v7`.
 
-The existing branch was not accepted as-is. The audit found and corrected these material gaps:
+## b10809 structured-output contract: README/source mismatch
 
-1. Acceptance documentation named the wrong model size even though the actual script used Qwen3 4B.
-2. Model revisions shared one logical install identity/path, so a future revision could overwrite old weights before replacement review.
-3. Replacement activation accepted a caller-supplied review boolean rather than persisted evidence of five distinct approved resumes.
-4. CPU mode relied on `-ngl 0`; b10809 docs explicitly support `--device none`, which is now required to prove CPU-only evaluation.
-5. OS GPU detection was not enough to bind inference to an actual llama.cpp device. The runtime now enumerates `--list-devices`, and Vulkan evaluation requires an exact discovered `VulkanN` ID.
-6. Resource pressure was checked before/after inference but not continuously. A live watcher now records pressure and terminates the owned local server if memory becomes critical.
-7. Evaluation did not persist enough performance/configuration evidence to choose the fastest passing CPU/GPU configuration. It now stores exact device, context, throughput, elapsed time, peak RSS and pressure evidence.
-8. llama.cpp response schema used an OpenAI-nested wrapper. b10809's own server docs use direct `response_format.schema`; the request was corrected while retaining strict application-side validation.
-9. ZIP extraction allowed a symlink entry; runtime extraction now rejects both traversal and symlink members.
-10. Destructive tool cleanup lacked the same explicit managed-root proof used for model cleanup. Managed tool/model deletion boundaries are now separate and enforced.
-11. Replacement cleanup could discover an ownership problem after activation. Ownership/in-use/path checks now occur before changing the active model state.
-12. Old GitHub Actions majors emitted Node runtime deprecation warnings; acceptance workflows now use current official majors.
+The exact pinned b10809 README and implementation disagree for `response_format.type = "json_schema"`. The README demonstrates a direct `response_format.schema`; b10809 `server-common.cpp` actually reads `response_format.json_schema.schema`.
 
-## Phase 3 implementation staged
+This was verified empirically: a Windows run using the README-shaped request loaded the same verified runtime/model with normal memory pressure but produced HTTP-success responses that failed JobPilot's independent local validator. The implementation-shaped nested request is therefore pinned for b10809. This does not make llama.cpp grammar enforcement trusted: JobPilot independently parses the response and validates a fail-closed local JSON-schema subset (required fields, types, arrays/items, enums, string lengths and `additionalProperties: false`). Unsupported schema keywords are rejected rather than ignored.
 
-- Migration `004_phase3_local_ai.sql` stores hardware snapshots, runtime/model installs, per-configuration evaluations, selected runtime/device, persisted five-resume review gates/approvals, cleanup state and weekly update state.
-- Qwen model revisions have unique install IDs and directories based on pinned source revision, so evaluation is side-by-side rather than in-place replacement.
-- Download code is atomic and checks exact expected byte count plus SHA-256. Runtime ZIP extraction rejects traversal and symbolic links.
-- Runtime executable integrity is rechecked before device enumeration/inference; model weights are rehashed before use.
-- Hardware probe records current RAM, available RAM, CPU topology/features, disk, OS GPU evidence and conservative reserves. Unknown VRAM remains unknown.
-- llama.cpp `--list-devices` output is parsed into exact runtime device IDs. CPU forces `none`; Vulkan never guesses among multiple devices.
-- The server binds `127.0.0.1`, uses a random per-session API key, runs `--offline`, one slot, `--no-ui`, `--no-mmproj`, and is owned by the Windows process supervisor.
-- One model operation is allowed at a time. Critical pressure blocks startup; constrained pressure reduces controlled context; live critical pressure closes the owned server.
-- Controlled evaluation includes deterministic schema adherence, malicious JD injection resistance, evidence-only factual selection and controlled resume-bullet wording. Model output never sets its own pass criteria.
-- Per-configuration evidence includes backend/device/context/threads, elapsed time, generation and prompt throughput when available, peak process-tree RSS, live pressure, each quality gate and overall result.
-- Selection chooses the fastest measured configuration among those that passed every gate and whose model/runtime files still verify.
-- Phase 3 selection creates a persisted 0/5 distinct-resume review gate. There is no Phase 3 JS bridge method for adding approvals or activating automatic tailoring.
-- Future activation/cleanup/rollback primitives are implemented as guarded internal boundaries for Phase 4: five distinct persisted approvals required; no caller boolean; no shared/non-app-managed or in-use deletion; all deletion remains beneath the model root; retired metadata stays in SQLite.
-- User-triggered upstream metadata check is capped at once every seven days and never downloads or activates a new version.
-- UI displays resource evidence, exact download size/license/revision/checksum, runtime devices, per-configuration evaluation results and the pending 0/5 review gate. JavaScript still has no network API.
+## Failures found and fixed during finalization
 
-## Tests staged before final Windows run
+No acceptance failure was waived:
 
-Unit/integration coverage now includes:
+1. A unit test labelled 1.5 GiB available on 16 GiB as “constrained”, but the explicit policy correctly treats <12% available as critical. Test data was corrected to 2.5 GiB; production thresholds were unchanged.
+2. Windows `%TEMP%` supplied an 8.3 short path (`RUNNER~1`) while resolved descendants used the long name. Valid app-owned runtime installation was falsely rejected. Managed root canonicalization fixed the alias without weakening containment.
+3. The b10809 README-shaped direct schema request failed real model quality/format gates. Inspection of the exact tagged parser showed it reads the nested `json_schema.schema` field. The request was corrected to the executable's parser contract while preserving the stricter application-side schema validator.
+4. Concurrent critical-pressure and normal session cleanup could race. Session close is now serialized and a regression test races eight callers while requiring a single supervisor release.
 
-- Phase 2→3 migration preservation and review-gate tables;
-- no download or auto-inference on snapshot/launch;
-- explicit weekly update interval;
-- exclusive one-operation lock;
-- CPU device `none` and explicit/multiple Vulkan device behavior;
-- conservative no-candidate result instead of cloud/unsafe fallback;
-- exact catalogue size/hash/revision identity;
-- pressure thresholds and live critical callback;
-- atomic checksum/size downloads and cancellation;
-- ZIP traversal and symlink rejection;
-- revision-specific installs;
-- runtime/model integrity rechecks;
-- fastest passing configuration selection;
-- duplicate resume review approval counting only once;
-- refusal to activate before five distinct approvals;
-- refusal to delete shared/non-app-managed weights;
-- safe old-revision cleanup after the complete persisted gate;
-- rollback to previous validated weights;
-- llama.cpp-native schema request and strict local validation;
-- Phase 3 UI no-network/explicit-download/device/review-gate controls;
-- previous Phase 0/1/2 lifecycle, Windows Job Object, resume/fact and Tectonic tests.
+Earlier audit corrections also covered revision-safe installs, persisted five-distinct-resume evidence instead of a caller boolean, explicit CPU device `none`, runtime-reported Vulkan identities, live pressure monitoring, throughput/configuration persistence, ZIP symlink rejection, tool-root deletion proof, preflight cleanup ownership, and outdated Actions majors.
+
+## Successful combined code-head acceptance
+
+Windows GitHub Actions run `34575604480`, code head `296c86f0327f05437eda5bfe842f8ff5f242183d`:
+
+- current Actions v7 checkout/setup succeeded;
+- Python/JavaScript syntax validation passed;
+- `pytest -m "not external"` -> **101 passed, 1 intentional platform-guard skip, 2 external probes deselected in 24.87s**;
+- preserved Phase 2 Tectonic 0.17.0 cache-populating + cached-only/untrusted acceptance passed;
+- exact checksum-pinned llama.cpp CPU runtime/model install passed;
+- Qwen3 4B CPU evaluation used device `none`, context 4096 and passed structured, factual/malicious-JD, controlled-tailoring and resource gates;
+- measured generation throughput: **12.789 tokens/second**;
+- evaluation elapsed: **14,002 ms**;
+- peak llama.cpp process-tree RSS: **5,021,855,744 bytes**;
+- live pressure remained `normal`, minimum available RAM **9,296,838,656 bytes**, critical trigger false;
+- selected for future Phase 4 review with **5 approvals remaining (0/5)**;
+- automatic tailoring remained **disabled**;
+- source self-test passed;
+- source Edge/WebView2 hidden-window smoke passed;
+- PyInstaller onedir build passed;
+- packaged self-test passed;
+- packaged Edge/WebView2 hidden-window smoke passed;
+- workflow concluded success.
+
+This CI machine establishes a CPU compatibility baseline only. It is not the user's hardware recommendation. Local Vulkan suitability/performance can only be established when the user's installed runtime reports devices and those configurations pass the same evaluation on that machine.
 
 ## Current boundary / exact next step
 
-Fast-forward the audited staging head into `phase-3-local-ai-resource-manager` and run its Windows Phase 3 workflow. The final acceptance must include syntax/tests, preserved Phase 2 cached-only Tectonic acceptance, a real checksum-pinned CPU llama.cpp/Qwen3 4B evaluation, source WebView2 smoke, PyInstaller onedir build, packaged self-test and packaged WebView2 smoke. If any check fails, fix the implementation rather than weakening the gate.
+Fast-forward the final record/documentation staging head into `phase-3-local-ai-resource-manager` and rerun the complete Windows Phase 3 workflow. If that exact head is green, Phase 3 can be marked complete and opened as a merge-ready PR against `main`. The PR merge-context checks must also remain green.
 
-Only after that combined tree passes may `ROADMAP.md` be changed from `[~]` to `[x]` and a Phase 3 PR to `main` be marked ready. Phase 4 must remain untouched.
+Phase 4 is the first later phase and remains untouched. It will implement manual-JD evidence-based tailoring, deterministic factual/LaTeX/PDF/layout validation, and the five distinct human-reviewed tailored resumes required to complete the persisted model review gate.
