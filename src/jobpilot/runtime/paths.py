@@ -22,6 +22,11 @@ def _is_relative_to(path: Path, root: Path) -> bool:
 class ManagedPaths:
     root: Path
 
+    def __post_init__(self) -> None:
+        # Keep one canonical root for containment and relative-path proofs. This also
+        # normalizes Windows 8.3 aliases such as RUNNER~1 versus their long form.
+        object.__setattr__(self, "root", self.root.expanduser().resolve(strict=False))
+
     @classmethod
     def default(cls) -> "ManagedPaths":
         if os.name == "nt":
@@ -137,12 +142,7 @@ class ManagedPaths:
         return resolved
 
     def relative_to_root(self, candidate: Path) -> Path:
-        """Return a stable app-root-relative path after canonicalizing both sides.
-
-        On Windows the same directory can appear through an 8.3 short path on one
-        side and an expanded long path on the other. Canonicalizing both paths keeps
-        the containment proof strict without rejecting that legitimate alias.
-        """
+        """Return a stable app-root-relative path after canonicalizing both sides."""
         managed_root = self.root.resolve(strict=False)
         resolved = candidate.resolve(strict=False)
         if resolved == managed_root or not _is_relative_to(resolved, managed_root):
