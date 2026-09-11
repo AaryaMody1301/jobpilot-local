@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MIGRATIONS = ROOT / "migrations"
 
 
-def test_phase3_migration_upgrades_phase2_database(tmp_path: Path) -> None:
+def test_phase3_migration_upgrades_phase2_database_without_losing_phase4_additions(tmp_path: Path) -> None:
     phase2 = tmp_path / "phase2-migrations"; phase2.mkdir()
     for name in ("001_phase0_runtime.sql", "002_phase1_foundation.sql", "003_phase2_resume_fact_bank.sql"):
         (phase2 / name).write_text((MIGRATIONS / name).read_text(encoding="utf-8"), encoding="utf-8")
@@ -26,7 +26,7 @@ def test_phase3_migration_upgrades_phase2_database(tmp_path: Path) -> None:
         assert db.apply_migrations() == ["001_phase0_runtime.sql", "002_phase1_foundation.sql", "003_phase2_resume_fact_bank.sql"]
         db.set_json_setting("targeting", {"notice_period_days": 30})
     with Database(database_path, MIGRATIONS) as db:
-        assert db.apply_migrations() == ["004_phase3_local_ai.sql"]
+        assert db.apply_migrations() == ["004_phase3_local_ai.sql", "005_phase4_tailoring.sql"]
         tables = {row[0] for row in db.connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert {
             "hardware_snapshots", "runtime_installs", "model_installs", "model_evaluations",
