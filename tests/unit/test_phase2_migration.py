@@ -20,6 +20,7 @@ def test_phase2_migration_upgrades_phase1_database_without_losing_later_additive
             "003_phase2_resume_fact_bank.sql",
             "004_phase3_local_ai.sql",
             "005_phase4_tailoring.sql",
+            "006_phase4_tailoring_safety.sql",
         ]
         tables = {row[0] for row in db.connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert {"source_documents", "resume_baselines", "template_maps", "template_regions", "facts", "fact_versions", "fact_bank_state"}.issubset(tables)
