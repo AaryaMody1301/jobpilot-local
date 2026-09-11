@@ -95,29 +95,10 @@ def _state() -> dict:
         "activity": [],
         "data_root": "C:\\fixture\\JobPilotLocal",
         "resume": _resume_state(),
-        "model": {
-            "hardware": None,
-            "runtime_catalogue": [],
-            "model_catalogue": [],
-            "runtime_installs": [],
-            "model_installs": [],
-            "evaluations": [],
-            "selected": {},
-            "review_gate": None,
-            "operation_busy": None,
-            "recommendation": {},
-            "catalogue_update": {},
-            "phase4_auto_tailoring_enabled": False,
-        },
-        "tailoring": {
-            "manual_jds": [],
-            "runs": [],
-            "selected_model_install_id": None,
-            "review_gate": None,
-            "auto_tailoring_enabled": False,
-            "phase5_discovery_enabled": False,
-            "employer_submission_enabled": False,
-        },
+        # This regression test intentionally supplies only Phase 1-era state.
+        # Later-phase renderers are tested in their own phase-specific suites.
+        "model": None,
+        "tailoring": None,
     }
 
 
