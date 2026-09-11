@@ -136,6 +136,19 @@ class ManagedPaths:
             raise UnsafeManagedPath(f"path is outside managed {label}: {candidate}")
         return resolved
 
+    def relative_to_root(self, candidate: Path) -> Path:
+        """Return a stable app-root-relative path after canonicalizing both sides.
+
+        On Windows the same directory can appear through an 8.3 short path on one
+        side and an expanded long path on the other. Canonicalizing both paths keeps
+        the containment proof strict without rejecting that legitimate alias.
+        """
+        managed_root = self.root.resolve(strict=False)
+        resolved = candidate.resolve(strict=False)
+        if resolved == managed_root or not _is_relative_to(resolved, managed_root):
+            raise UnsafeManagedPath(f"path is outside the JobPilot managed root: {candidate}")
+        return resolved.relative_to(managed_root)
+
     def require_model_descendant(self, candidate: Path) -> Path:
         return self._require_descendant(candidate, self.models, "model files")
 
