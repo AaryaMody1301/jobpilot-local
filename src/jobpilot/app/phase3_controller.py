@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from jobpilot.app.controller import ApplicationController
-from jobpilot.model.manager import ModelManager
 from jobpilot.domain.states import SessionState
+from jobpilot.model.manager import ModelManager
 
 
 class Phase3ApplicationController(ApplicationController):
@@ -33,7 +33,7 @@ class Phase3ApplicationController(ApplicationController):
             if self._state is not SessionState.IDLE:
                 raise RuntimeError("hardware refresh is allowed only while the session is idle")
             self.models.refresh_hardware()
-            self.database.record_foundation_activity(self.session_id, "phase3_hardware", "Refreshed local hardware/resource budget")
+            self.database.record_foundation_activity(self.session_id, "phase3_hardware", "Refreshed local hardware/resource budget and installed-runtime device evidence")
             return self.snapshot()
 
     def install_model_runtime(self, runtime_id: str) -> dict[str, Any]:
@@ -70,32 +70,42 @@ class Phase3ApplicationController(ApplicationController):
             with self._lock:
                 self._end_onboarding_operation()
 
-    def evaluate_local_model(self, model_install_id: str, runtime_install_id: str) -> dict[str, Any]:
+    def evaluate_local_model(
+        self,
+        model_install_id: str,
+        runtime_install_id: str,
+        device_id: str | None = None,
+    ) -> dict[str, Any]:
         with self._lock:
             cancel = self._begin_onboarding_operation("local model evaluation")
         try:
-            result = self.models.evaluate(model_install_id, runtime_install_id, cancel)
+            result = self.models.evaluate(model_install_id, runtime_install_id, cancel, device_id)
             with self._lock:
                 self._require_open()
                 outcome = "passed" if result["overall_pass"] else "failed"
                 self.database.record_foundation_activity(
                     self.session_id,
                     "model_evaluation",
-                    f"Controlled local model evaluation {outcome}: {model_install_id} on {runtime_install_id}",
+                    f"Controlled local model evaluation {outcome}: {result['model_install_id']} on {runtime_install_id}/{result['device_id']}",
                 )
             return result
         finally:
             with self._lock:
                 self._end_onboarding_operation()
 
-    def select_model_for_phase4_review(self, model_install_id: str, runtime_install_id: str) -> dict[str, Any]:
+    def select_model_for_phase4_review(self, model_install_id: str) -> dict[str, Any]:
         with self._lock:
             self._require_idle_onboarding()
-            result = self.models.select_for_phase4_review(model_install_id, runtime_install_id)
+            result = self.models.select_for_phase4_review(model_install_id)
+            selected = result["selection"]
             self.database.record_foundation_activity(
                 self.session_id,
                 "model_selected_for_review",
-                f"Selected validated model {model_install_id} for future Phase 4 five-resume review; auto-tailoring remains disabled",
+                (
+                    f"Selected fastest passing configuration for {model_install_id}: "
+                    f"{selected.get('selected_runtime_install_id')}/{selected.get('selected_device_id')}; "
+                    "auto-tailoring remains disabled until five distinct Phase 4 resumes are approved"
+                ),
             )
             return result
 
