@@ -35,7 +35,7 @@ Phase 3 adds local hardware/resource management and the controlled local AI runt
 
 ### b10809 structured-output wire contract
 
-The exact b10809 README and implementation disagree for `response_format.type = "json_schema"`. The README shows a direct `response_format.schema`, but b10809 `server-common.cpp` actually reads the grammar from `response_format.json_schema.schema`. A real Windows acceptance with the README-shaped direct field returned HTTP-success responses that failed JobPilot's local validator; the older implementation-shaped nested path had passed the real Qwen3 evaluation.
+The exact b10809 README and implementation disagree for `response_format.type = "json_schema"`. The README shows a direct `response_format.schema`, but b10809 `server-common.cpp` actually reads the grammar from `response_format.json_schema.schema`. A real Windows acceptance with the README-shaped direct field returned HTTP-success responses that failed JobPilot's local validator; the implementation-shaped nested path passed the real Qwen3 evaluation.
 
 JobPilot therefore pins to the **executable implementation contract** for b10809:
 
@@ -72,6 +72,12 @@ The model's source advertises a larger native context, but JobPilot does not equ
 
 GitHub-hosted CI does not establish Vulkan performance or suitability for the user's machine. If the user's Windows PC exposes one or more Vulkan devices through the pinned runtime, each desired device/configuration must be evaluated locally before it can compete with CPU on measured speed and quality.
 
+## Verified acceptance evidence
+
+Windows code-head run `34575604480` passed all Phase 3 gates. The non-external suite reported **101 passed, 1 intentional platform-guard skip, 2 external probes deselected**. The real CPU model evaluation at context 4096/device `none` passed structured, malicious-JD/factual, controlled-tailoring, and resource gates; measured generation was **12.789 tokens/s**, peak process-tree RSS **5,021,855,744 bytes**, live pressure stayed normal, and the persisted review gate remained **0/5** with automatic tailoring disabled. Phase 2 Tectonic, source/package self-tests, hidden WebView2 smokes and PyInstaller onedir packaging all passed.
+
+Exact record-head run `34576262983` at `881781b2f8a768d7e23dc971711c7cf04477a61d` then repeated the complete workflow successfully before the completion-status documentation update.
+
 ## Phase boundary
 
-Phase 3 may be marked complete after the combined Phase 0-3 Windows workflows pass on the final Phase 3 branch head and the persistent project records are updated. Phase 4 remains separate: it supplies real JD-driven tailoring, deterministic LaTeX/PDF validation, and the five distinct human-approved tailored resumes that can eventually complete the persisted review gate.
+Phase 3 is complete on the branch after successful final branch-head verification. The merge-context PR must preserve these checks before merge. Phase 4 remains separate: it supplies real JD-driven tailoring, deterministic LaTeX/PDF validation, and the five distinct human-approved tailored resumes that can eventually complete the persisted review gate.
