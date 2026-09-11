@@ -4,7 +4,8 @@ from dataclasses import asdict, dataclass
 from typing import Literal
 
 
-CATALOGUE_VERSION = "2026-09-10.2"
+CATALOGUE_VERSION = "2026-09-11.1"
+REFERENCE_CPU_PEAK_RSS_BYTES = 5_016_252_416
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,7 +35,7 @@ class ModelArtifact:
     filename: str
     url: str
     sha256: str
-    display_bytes: int
+    bytes: int
     quantization: str
     license: str
     tested_context_tokens: int
@@ -42,9 +43,21 @@ class ModelArtifact:
     preferred_total_ram_bytes: int
     tier: Literal["preferred"]
     notes: str
+    reference_cpu_peak_rss_bytes: int | None = None
+
+    @property
+    def install_id(self) -> str:
+        return f"{self.id}-{self.source_revision[:12]}"
+
+    @property
+    def display_bytes(self) -> int:
+        return self.bytes
 
     def to_dict(self) -> dict[str, object]:
-        return asdict(self)
+        value = asdict(self)
+        value["install_id"] = self.install_id
+        value["display_bytes"] = self.bytes
+        return value
 
 
 RUNTIMES: tuple[RuntimeArtifact, ...] = (
@@ -82,19 +95,25 @@ MODELS: tuple[ModelArtifact, ...] = (
         filename="Qwen3-4B-Q4_K_M.gguf",
         url="https://huggingface.co/ggml-org/Qwen3-4B-GGUF/resolve/2f3b082b1356a6123f7ed71e65aea340da25d53c/Qwen3-4B-Q4_K_M.gguf?download=true",
         sha256="ab27b9bfa375a178d6cba48f3ad892b94b7739659dcc7aae8058ce0ffed6b328",
-        display_bytes=2_500_000_000,
+        bytes=2_497_280_640,
         quantization="Q4_K_M",
         license="Apache-2.0",
         tested_context_tokens=4096,
         min_total_ram_bytes=12 * 1024**3,
         preferred_total_ram_bytes=16 * 1024**3,
         tier="preferred",
-        notes="Production Phase 3 candidate. Requires device-local structured/factual/resource evaluation and the later Phase 4 five-resume human review gate.",
+        reference_cpu_peak_rss_bytes=REFERENCE_CPU_PEAK_RSS_BYTES,
+        notes=(
+            "Text-only Phase 3 production candidate. The 12/16 GiB figures are conservative setup-policy "
+            "thresholds, not claims about universal model requirements. Device-local evaluation and the "
+            "later Phase 4 five-resume review gate remain authoritative."
+        ),
     ),
 )
 
 _RUNTIME_BY_ID = {item.id: item for item in RUNTIMES}
 _MODEL_BY_ID = {item.id: item for item in MODELS}
+_MODEL_BY_INSTALL_ID = {item.install_id: item for item in MODELS}
 
 
 def get_runtime(runtime_id: str) -> RuntimeArtifact:
@@ -109,3 +128,10 @@ def get_model(model_id: str) -> ModelArtifact:
         return _MODEL_BY_ID[model_id]
     except KeyError as exc:
         raise KeyError(f"unknown model catalogue id: {model_id}") from exc
+
+
+def get_model_for_install(install_id: str) -> ModelArtifact:
+    try:
+        return _MODEL_BY_INSTALL_ID[install_id]
+    except KeyError as exc:
+        raise KeyError(f"unknown current catalogue model install id: {install_id}") from exc
