@@ -4,91 +4,67 @@ Status legend: `[ ] planned`, `[~] in progress`, `[x] complete`, `[!] blocked/pa
 
 ## Phase 0 - Feasibility and architecture [x]
 
-User-visible outcome: no employer automation yet; reviewed architecture and executable feasibility probes for the highest-risk local/Windows behaviors.
+User-visible outcome: reviewed architecture and executable feasibility probes for the highest-risk local/Windows behaviors. No employer automation.
 
-Dependencies: none.
+Completed: authoritative project records, trust/data/state architecture, dependency/license research, deterministic lifecycle/application states, managed-path deletion guard, SQLite recovery, Windows Job Object ownership, Tectonic offline boundary, llama.cpp structured-response boundary, controlled Playwright recognition, and Windows acceptance.
 
-Deliverables:
-- [x] authoritative `SPEC.md`, `ROADMAP.md`, `DECISIONS.md`, `PROGRESS.md` records;
-- [x] module/trust/data/state architecture;
-- [x] dependency/version/license research and notices;
-- [x] deterministic session/application state-machine primitives;
-- [x] managed-path deletion boundary;
-- [x] SQLite migration and interrupted-work recovery spike;
-- [x] Windows suspended-process + Job Object ownership spike;
-- [x] Tectonic cached/untrusted command boundary;
-- [x] llama.cpp structured-response request/validation boundary;
-- [x] Playwright controlled-form read-only recognition fixture;
-- [x] Windows CI definition for reproducible Phase 0 checks;
-- [x] Windows CI acceptance evidence: corrected Phase 0 commit passed 28 non-external tests, Chromium fixture recognition, Windows Job Object checks, PyInstaller onedir build, and packaged self-test.
-
-Acceptance: see `docs/PHASE0_ACCEPTANCE.md`.
+Acceptance: `docs/PHASE0_ACCEPTANCE.md`.
 
 ## Phase 1 - Runnable desktop foundation [x]
 
-User-visible outcome: a runnable local pywebview dashboard with navigation, editable targeting settings, persistent SQLite state, app-owned folders, Start/Pause/Stop/Close lifecycle, crash recovery, and clearly labelled sample work only.
+Completed: bundled local pywebview UI, SQLite settings/runtime/activity persistence, Start/Pause/Stop/Close lifecycle, sample-only worker created only by Start, crash recovery, all agreed targeting controls, source/package WebView2 smoke and PyInstaller onedir build.
 
-Deliverables:
-- [x] bundled local pywebview UI with no remote scripts or telemetry;
-- [x] SQLite settings/runtime/activity/sample-queue persistence;
-- [x] Start/Pause/Stop/Close controller and sample-only worker created only by explicit Start;
-- [x] crash recovery and migration regression coverage;
-- [x] all agreed targeting controls;
-- [x] Windows source/package lifecycle self-tests, WebView2 smoke, and PyInstaller onedir build.
-
-Acceptance: see `docs/PHASE1_ACCEPTANCE.md`.
+Acceptance: `docs/PHASE1_ACCEPTANCE.md`.
 
 ## Phase 2 - Resume import and approved fact bank [x]
 
-2A immutable LaTeX import, Tectonic baseline compile, page/layout baseline and template mapping. 2B supporting-source registry and fact correction/approval/versioning. No automatic rewriting or submission.
+Completed: immutable SHA-256 LaTeX import, native picker boundary, source-linked stable facts and versions, protected non-bullet facts, explicit approve/correct/reject, confirmed template map, app-managed Tectonic 0.17.0, explicit support-cache population followed by mandatory `--only-cached --untrusted` verification, baseline PDF/page geometry evidence, real supplied two-page template validation, and explicit user approval of all factual claims in the supplied resume exactly as written. Private resume/fact values remain outside Git.
 
-Completed:
-- [x] migration `003_phase2_resume_fact_bank.sql` and immutable SHA-256 source provenance;
-- [x] native file-picker boundary; no arbitrary JavaScript filesystem imports;
-- [x] candidate bullet mapping plus protected non-bullet facts for roles, dates, employers, locations, summary, skills, project stacks, education, professional development, and languages;
-- [x] active-resume fact scoping, stable IDs, correction/version history, explicit approve/reject, and source-integrity recheck before approval;
-- [x] checksum-pinned Tectonic 0.17.0 with explicit cache population followed by mandatory `--only-cached --untrusted` verification;
-- [x] page geometry/PDF/text/source metrics and compile-log persistence;
-- [x] real supplied template privately validated as two A4 pages with 23 standard `\item` regions, seven sections, three `\role` calls, no shell escape, and no final overfull/underfull warnings;
-- [x] sanitized matching template-shape fixture passed two-page cached-only Tectonic verification on Windows;
-- [x] user explicitly approved all factual claims in the supplied resume exactly as written on 2026-09-11; private resume/fact text is not committed.
-
-Acceptance: see `docs/PHASE2_ACCEPTANCE.md` and `PROGRESS.md`.
+Acceptance: `docs/PHASE2_ACCEPTANCE.md`.
 
 ## Phase 3 - Local AI and resource manager [x]
 
-3A RAM/CPU/disk/GPU detection and budgets. 3B approved model/binary download, checksum validation and one-job inference. 3C speed/memory/structured-output/factual-tailoring evaluation plus safe replacement/rollback/deletion.
+Completed: RAM/CPU/disk/GPU evidence and reserves, runtime-reported llama.cpp devices, exact CPU/Vulkan/runtime/model catalogue metadata, explicit checksum-pinned app-managed downloads, one-at-a-time local inference, localhost-only authenticated `--offline` llama.cpp, live pressure handling, structured/factual/malicious-JD/resource evaluation, measured fastest-passing configuration selection, revision-safe model installs, safe replacement/rollback primitives, persisted five-distinct-resume gate, weekly-only explicit update checks, and Windows packaged acceptance.
 
-Completed:
-- [x] preserved the merged Phase 2 finalization before continuing pre-existing Phase 3 work; no force reset/history loss;
-- [x] migration `004_phase3_local_ai.sql` for hardware evidence, revisioned runtime/model installs, per-configuration evaluations, selected configuration, persisted review gates, cleanup and weekly-update state;
-- [x] local RAM/available memory, CPU capabilities, disk and conservative OS GPU evidence with explicit reserves and one-inference-at-a-time budget;
-- [x] runtime-reported `--list-devices`; CPU forced with `--device none`; Vulkan requires an exact discovered `VulkanN` and explicit selection when multiple devices exist;
-- [x] small tested catalogue pinning llama.cpp v0.4.0/b10809 CPU+Vulkan Windows x64 archives and Qwen3 4B Q4_K_M revision/size/SHA/license;
-- [x] explicit download confirmation UI; atomic exact-size/SHA verification; ZIP traversal/symlink rejection; app-owned tool/model storage only;
-- [x] localhost-only authenticated llama.cpp server with `--offline`, one slot, no web UI, no multimodal projection, owned-process cleanup, and serialized concurrent shutdown;
-- [x] b10809 structured-output contract pinned to the executable parser (`response_format.json_schema.schema`) after documenting its README/parser mismatch; strict application-side schema validation remains mandatory;
-- [x] controlled structured-output, malicious-JD/factual-adherence and evidence-only tailoring evaluations;
-- [x] measured elapsed time, generation/prompt throughput, peak process-tree RSS and live memory-pressure evidence per configuration;
-- [x] critical-pressure shutdown and constrained-pressure context reduction; insufficient evidence-backed RAM/disk refuses inference instead of using cloud or weakening quality;
-- [x] fastest passing CPU/Vulkan configuration selection for later Phase 4 review;
-- [x] revision-specific model install identities so replacement validation cannot overwrite accepted weights;
-- [x] persisted five-distinct-resume review gate; Phase 3 creates it at 0/5 and exposes no UI method to mark it complete;
-- [x] future replacement/rollback boundary preflights validated weights, completed persisted gate, app ownership and not-in-use status before deletion; retired metadata is retained;
-- [x] user-triggered runtime/model metadata checks at most once every seven days and never automatic download/switch;
-- [x] Windows 8.3/long-path aliases canonicalized without weakening managed-root containment;
-- [x] Phase 3 model/resource UI and current official GitHub Actions v7 acceptance infrastructure;
-- [x] combined Windows code-head run `34575604480`: 101 passed, 1 intentional platform-guard skip, 2 external probes deselected; preserved Phase 2 Tectonic acceptance, real checksum-pinned llama.cpp/Qwen3 CPU evaluation, source/package self-tests, WebView2 smokes and PyInstaller onedir build all passed;
-- [x] CPU evaluation at 4096 context: structured/factual/tailoring/resource gates passed, 12.789 generated tokens/s, 5,021,855,744 bytes peak process-tree RSS, normal live pressure, device `none`, review gate 0/5, auto-tailoring disabled;
-- [x] exact record-head Windows run `34576262983` repeated the complete Phase 3 workflow successfully before the completion-status update.
+Pinned baseline: llama.cpp v0.4.0 / b10809 and `ggml-org/Qwen3-4B-GGUF` Q4_K_M revision `2f3b082b1356a6123f7ed71e65aea340da25d53c`. The b10809 README/parser `response_format` discrepancy is pinned to the tested executable parser contract and all output is still independently validated.
 
-Acceptance: see `docs/PHASE3_ACCEPTANCE.md` and `PROGRESS.md`.
+Acceptance: `docs/PHASE3_ACCEPTANCE.md`.
 
-Boundary: Phase 3 does not perform JD-driven resume tailoring and cannot collect the five real tailored-resume approvals; those belong to Phase 4. No job discovery, browser application filling, or employer submission is enabled.
-
-## Phase 4 - Evidence-based resume tailoring [ ]
+## Phase 4 - Evidence-based resume tailoring [!]
 
 4A JD-as-data parsing and structured fact-linked edits. 4B deterministic factual/LaTeX/PDF/layout validation. 4C first-five distinct resume approval gate for the active model. Manual JD input only.
+
+Technical implementation complete:
+- [x] preserve merged Phase 3 as the branch base; existing Phase 4 work was audited rather than reset or silently accepted;
+- [x] migration `005_phase4_tailoring.sql` for manual JDs and tailoring runs plus additive `006_phase4_tailoring_safety.sql` for template/baseline/profile/review-context fingerprints and tamper-evident manifest metadata;
+- [x] manual JD text is normalized and hashed; instruction-like content remains untrusted data; optional source URLs are inert provenance and must be absolute credential-free HTTP(S) URLs;
+- [x] selected local model/runtime/device must still have passing Phase 3 evaluation evidence and verified installed artifacts;
+- [x] model returns structured plain-text edit intent, approved fact IDs and JD keywords; arbitrary model LaTeX is never rendered;
+- [x] every edit must cite an approved fact linked to that exact LaTeX region, preventing claim composition across unrelated bullets;
+- [x] every used JD keyword must be present in the supplied JD and supported by field-linked approved evidence;
+- [x] unsupported content tokens and removal of existing numeric/date/metric literals fail closed;
+- [x] renderer only changes confirmed simple single-line item wording, escapes plain text, rejects embedded LaTeX commands, and verifies unchanged non-edit lines plus protected template structure;
+- [x] Tectonic tailoring compile is cached-only and `--untrusted`; no tailoring-time package download is permitted;
+- [x] verified master baseline PDF integrity, same page count/geometry, no overfull boxes, extractable text and order-independent expected-content token validation are required;
+- [x] stale-run detection covers master hash, fact-bank revision/source integrity, template-map fingerprint, offline baseline fingerprint, targeting/profile fingerprint, selected model/runtime/device, passing evaluation evidence, and runtime/model integrity;
+- [x] five-resume review approvals are bound to a validation-context fingerprint; context changes reset prior distinct approvals instead of carrying them forward;
+- [x] human approval and distinct-key insertion are one SQLite transaction; approval revocation removes the gate contribution when no other approved run represents that key and reopens a gate below five;
+- [x] per-run app-owned audit package contains JD snapshot/provenance, controlled `.tex`/PDF, diff, keyword mapping, fact references/versions, model/evaluation evidence, usage, validation and a manifest with SHA-256/byte length for required components;
+- [x] human approval re-verifies source/PDF/manifest/component integrity; tampered or missing audit evidence cannot count toward the gate;
+- [x] automatic tailoring can be enabled only when the persisted five-distinct gate is complete **and** its review-context fingerprint still matches the current validated environment;
+- [x] Phase 4 UI supports manual JD import, local generation, diff/keyword/fact/validation review, PDF preview, approve/reject and explicit post-5/5 automatic-tailoring activation;
+- [x] Phase 5 discovery and employer submission remain disabled;
+- [x] Windows code-head run `34593289955` at `e15ae7dc4aed425cb2675921e2c119b1c961fa2a`: 117 passed, 1 intentional platform-guard skip, 2 external probes deselected; real controlled Phase 4 local-model tailoring passed; source/package WebView2 smokes and PyInstaller onedir build passed;
+- [x] controlled real-model result: one validated edit with one approved fact reference, malicious JD marker treated as data, cached-only compile true, page count unchanged, no overflow, status `needs_review`, review gate still 0/5, discovery/submission false.
+
+Human completion gate:
+- [ ] five **distinct real tailored resumes** for the selected validated model/configuration must be reviewed and explicitly approved by the user under one unchanged review context;
+- [ ] automatic tailoring must remain disabled until that 5/5 gate is complete and current;
+- [ ] final Phase 4 PR remains draft/partial until the human gate is complete.
+
+Acceptance: `docs/PHASE4_ACCEPTANCE.md`.
+
+Boundary: controlled CI proves mechanics only and never counts as human approval. Phase 5 must not start while Phase 4 remains `[!]`.
 
 ## Phase 5 - Job discovery and matching [ ]
 
