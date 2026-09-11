@@ -214,7 +214,7 @@ async function inspectTailoringRun(runId) {
     ? run.keyword_mapping.map(item => `<div class="activity-item"><strong>${escapeHtml(item.keyword)}</strong><span>${escapeHtml((item.fact_ids || []).join(', '))}</span></div>`).join('')
     : '<p>No keyword mapping.</p>';
   const validation = run.validation || {};
-  document.getElementById('tailoring-validation').innerHTML = `<div><strong>${validation.overall_pass ? 'PASS' : 'NOT PASSED'}</strong><span>Pages: ${validation.page_count ?? '—'} / baseline ${validation.baseline_page_count ?? '—'}</span><span>Offline compile: ${validation.offline_compile ? 'yes' : 'no'}</span><span>Overflow: ${validation.overflow_detected ? 'detected' : 'none'}</span><span>Edited wording in PDF: ${validation.edited_fields_present_in_pdf ? 'yes' : 'no'}</span><span>${escapeHtml((validation.failures || []).join('; ') || 'No deterministic validation failures')}</span></div>`;
+  document.getElementById('tailoring-validation').innerHTML = `<div><strong>${validation.overall_pass ? 'PASS' : 'NOT PASSED'}</strong><span>Pages: ${validation.page_count ?? '—'} / baseline ${validation.baseline_page_count ?? '—'}</span><span>Offline compile: ${validation.offline_compile ? 'yes' : 'no'}</span><span>Overflow: ${validation.overflow_detected ? 'detected' : 'none'}</span><span>Expected baseline + tailored content: ${validation.expected_content_tokens_present ? 'present' : 'missing'}</span><span>${escapeHtml((validation.failures || []).join('; ') || 'No deterministic validation failures')}</span></div>`;
   const iframe = document.getElementById('tailored-pdf-preview');
   iframe.removeAttribute('src');
   if (run.pdf_relpath) iframe.src = await invokeRaw('tailored_pdf_data_uri', runId);
