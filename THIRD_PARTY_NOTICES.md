@@ -45,5 +45,6 @@ The following projects are research inputs only. README claims are not treated a
 - `humancto/mr-jobs`
 - `ATAboukhadra/job_finder`
 - `speedyapply/JobSpy`
+- `Rojios/ponytail` — development-style reference for minimum-code/YAGNI/stdlib-first implementation and focused checks; no implementation code copied.
 
 If code is reused later, the exact file/commit, governing license, modifications, and required attribution must be added here before merge.
