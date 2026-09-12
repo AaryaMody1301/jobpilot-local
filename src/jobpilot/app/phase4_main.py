@@ -32,6 +32,49 @@ def create_controller(paths: ManagedPaths | None = None, *, sample_item_seconds:
     return Phase4ApplicationController(paths or ManagedPaths.default(), migrations_dir, sample_item_seconds=sample_item_seconds)
 
 
+def run_phase4_gate_report(paths: ManagedPaths | None = None) -> dict[str, object]:
+    """Return a privacy-safe Phase 4 human-gate report for the active local profile."""
+
+    controller = create_controller(paths)
+    try:
+        state = controller.snapshot()
+        tailoring = state["tailoring"]
+        selected = tailoring.get("selected_model_install_id")
+        raw_gate = tailoring.get("review_gate") or {}
+        required = int(raw_gate.get("required_distinct_resumes") or 5)
+        approved = int(raw_gate.get("approved_distinct_resumes") or 0)
+        remaining = max(0, int(raw_gate.get("remaining") if raw_gate.get("remaining") is not None else required - approved))
+        gate_complete = bool(raw_gate.get("complete"))
+        gate_current = False
+        gate_reason: str | None = None
+
+        if selected:
+            try:
+                controller.tailoring.require_review_gate_current(str(selected))
+                gate_current = True
+            except Exception as exc:
+                gate_reason = str(exc)
+        else:
+            gate_reason = "no selected validated model/configuration is awaiting Phase 4 review"
+
+        return {
+            "phase": 4,
+            "selected_model_install_id": selected,
+            "required_distinct_resumes": required,
+            "approved_distinct_resumes": approved,
+            "remaining": remaining,
+            "persisted_gate_complete": gate_complete,
+            "current_review_context_complete": gate_current,
+            "ready_to_close_phase4": gate_current,
+            "automatic_tailoring_enabled": bool(tailoring.get("auto_tailoring_enabled")),
+            "phase5_discovery_enabled": bool(tailoring.get("phase5_discovery_enabled")),
+            "employer_submission_enabled": bool(tailoring.get("employer_submission_enabled")),
+            "gate_reason": gate_reason,
+        }
+    finally:
+        controller.close()
+
+
 def run_self_test() -> dict[str, object]:
     import webview  # noqa: F401 - verifies packaged pywebview import
 
@@ -181,7 +224,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="JobPilot Local desktop application")
     parser.add_argument("--self-test", action="store_true", help="run local Phase 4 packaged acceptance checks")
     parser.add_argument("--window-smoke", action="store_true", help="open a hidden Windows pywebview smoke window and exit")
+    parser.add_argument(
+        "--phase4-gate-report",
+        action="store_true",
+        help="print a privacy-safe report for the persisted five-resume Phase 4 human gate",
+    )
     args = parser.parse_args(argv)
+    if args.phase4_gate_report:
+        report = run_phase4_gate_report()
+        print(json.dumps(report, sort_keys=True))
+        return 0 if report["ready_to_close_phase4"] else 2
     if args.self_test:
         print(json.dumps(run_self_test(), sort_keys=True))
         return 0

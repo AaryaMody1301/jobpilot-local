@@ -4,9 +4,17 @@
 
 ## Status
 
-Phases 0-3 are complete and merged. Phase 4 - **Evidence-based resume tailoring** - has passed its controlled Windows technical acceptance but remains **partial** until the user has approved five distinct real tailored resumes for the current validated model/profile/template context.
+Phases 0-3 are complete and merged. Phase 4 - **Evidence-based resume tailoring** - is technically implemented and merged, but product acceptance remains **partial** until the private local review gate contains five distinct real tailored-resume approvals in one current validation context.
 
 Phase 5 job discovery and all employer submission paths remain disabled.
+
+PR #7 was merged on 2026-09-12 even though its human completion gate was still open. Treat that merge as **Phase 4 implementation merged**, not as evidence that the Phase 4 product gate is complete. The gate is authoritative in the local JobPilot database and can be checked without exposing private resume/JD content with:
+
+```powershell
+python -m jobpilot.app.main --phase4-gate-report
+```
+
+The command exits `0` only when the persisted five-resume gate is complete for the current validated resume/fact/profile/template/model context; otherwise it exits `2` and reports only counts/status.
 
 ## Safety and privacy invariants
 
@@ -18,7 +26,7 @@ Phase 5 job discovery and all employer submission paths remain disabled.
 - Private master/source documents, approved facts, generated resumes and model weights live outside Git under the app-managed local data root.
 - JD text is untrusted data. Embedded instructions never override approved facts, template boundaries, or validation.
 - Local model output is structured plain-text edit intent; application code renders controlled LaTeX.
-- Only source-linked approved facts may support claims. Cross-bullet claim composition, unsupported content, and silent removal of existing numeric/date/metric literals are blocked.
+- Only source-linked approved facts may support claims. Cross-bullet claim composition, unsupported content, hidden Unicode/hidden text, keyword stuffing, and silent removal of existing numeric/date/metric literals are blocked.
 - Tailoring compilation uses app-managed Tectonic cached-only and `--untrusted`; it cannot silently download packages.
 - Pending review becomes stale if master/facts/template/baseline/profile/model/evaluation evidence changes.
 - Automatic tailoring requires five distinct persisted human approvals in the **current** review context. Controlled CI output never counts toward that gate.
@@ -58,14 +66,15 @@ The app measures the actual machine and evaluates installed CPU/Vulkan configura
 
 Phase 4 accepts manually pasted JD text. An optional source URL is recorded as inert provenance only; it is not fetched by Phase 4. The app:
 
-1. labels the JD untrusted and hashes it;
+1. labels the JD untrusted, strips hidden Unicode control/format characters, and hashes it;
 2. asks the selected validated local model for structured keyword mappings and plain-text wording edits;
 3. validates every used keyword/fact and requires field-linked source evidence;
 4. renders only confirmed simple wording regions through application code;
-5. compiles cached-only with Tectonic;
-6. checks protected source structure, page count/geometry, overflow and expected PDF content;
-7. writes a tamper-evident local audit package;
-8. shows PDF, diff, keyword/fact mapping and validation for human review.
+5. rejects hidden/non-printable replacement text and evidence-derived keyword stuffing;
+6. compiles cached-only with Tectonic;
+7. checks protected source structure, page count/geometry, overflow and expected PDF content;
+8. writes a tamper-evident local audit package;
+9. shows PDF, diff, keyword/fact mapping and validation for human review.
 
 Approve only accurate outputs. Reject/correct facts and regenerate when necessary.
 
@@ -73,17 +82,21 @@ The first five **distinct** approved real tailored resumes for a selected model 
 
 ## Verified Phase 4 technical baseline
 
-Windows run `34593289955` at code head `e15ae7dc4aed425cb2675921e2c119b1c961fa2a` passed:
+Final audited PR head `582a00797bf68fe8d5d1d7076905c9e88c86d0e2` passed all Phase 0-4 pull-request workflows. Phase 4 Windows run `34598042842` passed:
 
-- **117 passed, 1 intentional platform-guard skip, 2 external probes deselected**;
+- **123 passed, 1 intentional platform-guard skip, 2 external probes deselected**;
 - real pinned local Qwen3/Tectonic controlled tailoring;
-- malicious instruction-like JD text treated as data;
+- malicious/instruction-like JD text treated as data;
+- hidden-JD Unicode, hidden replacement Unicode and keyword-stuffing regressions;
 - one validated field-linked edit with one approved fact reference;
 - cached-only compile, unchanged page count and no overflow;
-- result `needs_review`, review gate still 0/5 and automatic tailoring disabled;
+- persisted PDF content-validation field correctly shown by the UI;
+- result `needs_review`, controlled review gate 0/5 and automatic tailoring disabled;
 - source/package self-tests, hidden WebView2 smokes and PyInstaller onedir build.
 
 This controlled result proves mechanics only and is not a human review approval.
+
+The Phase 4 workflow now runs on Phase 4 branches, pull requests targeting `main`, manual dispatch, and pushes to `main`, so the merged baseline receives the same Phase 4 acceptance path rather than relying only on the pre-merge head.
 
 ## Acceptance checks
 
@@ -92,6 +105,7 @@ pytest -m "not external"
 python scripts\phase4_tailoring_acceptance.py
 python -m jobpilot.app.main --self-test
 python -m jobpilot.app.main --window-smoke
+python -m jobpilot.app.main --phase4-gate-report
 pyinstaller --clean --noconfirm packaging\jobpilot.spec
 .\dist\jobpilot-local\jobpilot-local.exe --self-test
 .\dist\jobpilot-local\jobpilot-local.exe --window-smoke
@@ -108,7 +122,8 @@ Runtime data lives under `%LOCALAPPDATA%\JobPilotLocal`: SQLite, immutable sourc
 - `SPEC.md` - agreed requirements and approved changes.
 - `ROADMAP.md` - phase dependencies, acceptance and status.
 - `DECISIONS.md` - engineering decisions and rationale.
-- `PROGRESS.md` - actual repository state, test evidence, blockers and exact continuation.
+- `PROGRESS.md` - implementation history and acceptance evidence.
 - `docs/PHASE4_ACCEPTANCE.md` - Phase 4 technical and human acceptance gates.
+- `docs/PHASE4_CLOSEOUT.md` - post-merge closeout state and exact remaining gate.
 
-Phase 5 is intentionally not started while the Phase 4 human review gate remains incomplete.
+Phase 5 must not start until `--phase4-gate-report` shows the current private 5/5 gate is complete and the Phase 4 records are explicitly marked complete.
