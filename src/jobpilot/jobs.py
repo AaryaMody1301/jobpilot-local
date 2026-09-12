@@ -16,15 +16,16 @@ PROVIDERS = {"greenhouse", "lever", "ashby"}
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
 YEARS_RE = re.compile(r"\b(\d{1,2})(?:\s*(?:-|to)\s*(\d{1,2}))?\+?\s+years?\b", re.I)
 STOPWORDS = {
-    "about", "after", "also", "and", "are", "but", "for", "from", "have", "into", "job", "more",
-    "our", "role", "team", "that", "the", "their", "this", "with", "work", "will", "you", "your",
-    "data", "experience", "required", "preferred", "skills", "using", "years",
+    "about", "after", "also", "and", "are", "at", "but", "for", "from", "have", "in", "into", "job",
+    "more", "of", "or", "our", "role", "team", "that", "the", "their", "this", "to", "using", "will",
+    "with", "work", "you", "your", "data", "experience", "required", "preferred", "skills", "years",
 }
 REQUIRED_MARKERS = ("required", "requirements", "must have", "minimum", "at least", "proficient", "experience with")
 PREFERRED_MARKERS = ("preferred", "nice to have", "bonus", "ideally")
 NO_SPONSORSHIP = ("no sponsorship", "cannot sponsor", "can t sponsor", "unable to sponsor", "not sponsor", "without sponsorship")
 YES_SPONSORSHIP = ("visa sponsorship", "sponsorship available", "will sponsor", "can sponsor")
 REMOTE_RESTRICTED = ("united states only", "u s only", "us only", "must be based in the us", "must reside in the us")
+WORK_AUTH_MARKERS = ("authorized to work", "work authorization", "right to work")
 LEGAL_SUFFIXES = {"inc", "incorporated", "llc", "ltd", "limited", "corp", "corporation", "pvt", "private"}
 
 
@@ -220,7 +221,10 @@ def normalize_manual_job(raw: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _tokens(value: str) -> set[str]:
-    return {token for token in re.findall(r"[a-z0-9+#.]{2,}", value.casefold()) if token not in STOPWORDS}
+    return {
+        token for token in re.findall(r"[a-z0-9+#.]+", value.casefold())
+        if token not in STOPWORDS and (len(token) >= 2 or token.isdigit() or token in {"c", "r"})
+    }
 
 
 def _requirements(description: str) -> tuple[list[str], list[str]]:
@@ -241,8 +245,15 @@ def _requirement_supported(requirement: str, fact_token_sets: list[set[str]]) ->
     req = _tokens(requirement)
     if not req:
         return False
-    threshold = 1 if len(req) <= 2 else max(2, (len(req) + 1) // 2)
-    return any(len(req & fact) >= threshold for fact in fact_token_sets)
+    numbers = {token for token in req if token.isdigit()}
+    terms = req - numbers
+    threshold = len(terms) if len(terms) <= 2 else max(2, (len(terms) + 1) // 2)
+    for fact in fact_token_sets:
+        if not numbers.issubset(fact):
+            continue
+        if not terms or len(terms & fact) >= threshold:
+            return True
+    return False
 
 
 def _explicit_min_years(description: str) -> int | None:
@@ -283,6 +294,8 @@ def assess_job(job: Mapping[str, Any], targeting: TargetingSettings, approved_fa
         hard.append(f"explicit minimum experience is {minimum_years} years, above configured target")
 
     combined = f"{location_key} {_key(description[:5000])}"
+    if any(marker in combined for marker in WORK_AUTH_MARKERS):
+        review.append("mandatory work-authorization condition requires review")
     if workplace == "remote":
         if targeting.remote_must_allow_origin:
             origin_ok = _key(targeting.remote_origin_city) in combined or _key(targeting.remote_origin_country) in combined

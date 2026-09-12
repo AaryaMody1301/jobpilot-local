@@ -92,6 +92,24 @@ def test_matching_is_conservative_explainable_and_deduplicated() -> None:
     assert preferred_seniority["eligibility"] == "eligible"
     assert not any("minimum experience" in reason for reason in preferred_seniority["hard_reasons"])
 
+    unsupported_years = assess_job({
+        **job,
+        "source_job_id": "required-years",
+        "description": "Permanent full-time role. Required 5 years of SQL experience.",
+    }, targeting, facts)
+    assert unsupported_years["eligibility"] == "eligible"
+    assert unsupported_years["matched_required"] == []
+
+    work_auth = assess_job({
+        **job,
+        "source_job_id": "work-auth",
+        "location": "Remote, India",
+        "workplace_type": "remote",
+        "description": "Remote from India. Must be authorized to work in the United States. Required SQL experience.",
+    }, targeting, facts)
+    assert work_auth["eligibility"] == "review"
+    assert any("work-authorization" in reason for reason in work_auth["review_reasons"])
+
     overseas = assess_job({
         **job,
         "source_job_id": "overseas",
