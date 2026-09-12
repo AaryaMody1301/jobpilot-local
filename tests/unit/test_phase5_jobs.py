@@ -1,5 +1,11 @@
-from jobpilot.jobs import assess_job, dedupe_jobs, normalize_manual_job, parse_board_payload
+from pathlib import Path
+
+from jobpilot.jobs import JobStore, assess_job, dedupe_jobs, normalize_manual_job, parse_board_payload
 from jobpilot.settings import TargetingSettings
+from jobpilot.storage.database import Database
+
+ROOT = Path(__file__).resolve().parents[2]
+MIGRATIONS = ROOT / "migrations"
 
 
 def test_supported_board_payloads_normalize_to_one_job_shape() -> None:
@@ -93,3 +99,31 @@ def test_matching_is_conservative_explainable_and_deduplicated() -> None:
         "description": "Permanent full-time role collaborating with teams in India. Visa sponsorship available. Required SQL experience.",
     }, targeting, facts)
     assert overseas["eligibility"] == "eligible"
+
+
+def test_board_refresh_hides_jobs_removed_from_the_current_feed(tmp_path: Path) -> None:
+    with Database(tmp_path / "jobpilot.sqlite3", MIGRATIONS) as db:
+        db.apply_migrations()
+        store = JobStore(db)
+        board = store.add_board("lever", "Acme", "acme", verification_source="test")
+        payload = [
+            {
+                "id": "keep",
+                "text": "Data Engineer",
+                "categories": {"location": "Surat, India", "commitment": "Full-time"},
+                "descriptionPlain": "Required SQL experience.",
+                "hostedUrl": "https://jobs.lever.co/acme/keep",
+            },
+            {
+                "id": "gone",
+                "text": "Data Analyst",
+                "categories": {"location": "Surat, India", "commitment": "Full-time"},
+                "descriptionPlain": "Required SQL experience.",
+                "hostedUrl": "https://jobs.lever.co/acme/gone",
+            },
+        ]
+        store.replace_board_jobs(str(board["id"]), parse_board_payload("lever", "Acme", "acme", payload))
+        store.replace_board_jobs(str(board["id"]), parse_board_payload("lever", "Acme", "acme", payload[:1]))
+        assert [job["source_job_id"] for job in store.jobs()] == ["keep"]
+        inactive = db.connection.execute("SELECT active FROM discovered_jobs WHERE source_job_id='gone'").fetchone()
+        assert inactive is not None and inactive["active"] == 0

@@ -400,37 +400,46 @@ class JobStore:
                 (utc_now_text(), error, board_id),
             )
 
-    def upsert(self, job: Mapping[str, Any], board_id: str | None = None) -> None:
+    def _upsert_on(self, connection: Any, job: Mapping[str, Any], board_id: str | None, now: str) -> None:
         identity = f"{job['provider']}|{job.get('board_token', '')}|{job['source_job_id']}"
         job_id = sha256(identity.encode()).hexdigest()
         content_sha = sha256("|".join(_key(job.get(key)) for key in ("employer", "title", "location", "description")).encode()).hexdigest()
+        connection.execute(
+            """
+            INSERT INTO discovered_jobs(
+                id, provider, board_id, board_token, source_job_id, employer, title, location,
+                workplace_type, employment_type, source_url, apply_url, description, published_at,
+                active, first_seen_at, last_seen_at, content_sha256
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                employer=excluded.employer, title=excluded.title, location=excluded.location,
+                workplace_type=excluded.workplace_type, employment_type=excluded.employment_type,
+                source_url=excluded.source_url, apply_url=excluded.apply_url, description=excluded.description,
+                published_at=excluded.published_at, active=1, last_seen_at=excluded.last_seen_at,
+                content_sha256=excluded.content_sha256
+            """,
+            (
+                job_id, job["provider"], board_id, job.get("board_token", ""), job["source_job_id"],
+                job["employer"], job["title"], job["location"], job.get("workplace_type"),
+                job.get("employment_type"), job["source_url"], job.get("apply_url"), job["description"],
+                job.get("published_at"), now, now, content_sha,
+            ),
+        )
+
+    def upsert(self, job: Mapping[str, Any], board_id: str | None = None) -> None:
+        with self.database.transaction() as connection:
+            self._upsert_on(connection, job, board_id, utc_now_text())
+
+    def replace_board_jobs(self, board_id: str, jobs: list[Mapping[str, Any]]) -> None:
         now = utc_now_text()
         with self.database.transaction() as connection:
-            connection.execute(
-                """
-                INSERT INTO discovered_jobs(
-                    id, provider, board_id, board_token, source_job_id, employer, title, location,
-                    workplace_type, employment_type, source_url, apply_url, description, published_at,
-                    first_seen_at, last_seen_at, content_sha256
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    employer=excluded.employer, title=excluded.title, location=excluded.location,
-                    workplace_type=excluded.workplace_type, employment_type=excluded.employment_type,
-                    source_url=excluded.source_url, apply_url=excluded.apply_url, description=excluded.description,
-                    published_at=excluded.published_at, last_seen_at=excluded.last_seen_at,
-                    content_sha256=excluded.content_sha256
-                """,
-                (
-                    job_id, job["provider"], board_id, job.get("board_token", ""), job["source_job_id"],
-                    job["employer"], job["title"], job["location"], job.get("workplace_type"),
-                    job.get("employment_type"), job["source_url"], job.get("apply_url"), job["description"],
-                    job.get("published_at"), now, now, content_sha,
-                ),
-            )
+            connection.execute("UPDATE discovered_jobs SET active=0 WHERE board_id=?", (board_id,))
+            for job in jobs:
+                self._upsert_on(connection, job, board_id, now)
 
     def jobs(self, limit: int = 500) -> list[dict[str, Any]]:
         with self.database._lock:
             rows = self.database.connection.execute(
-                "SELECT * FROM discovered_jobs ORDER BY last_seen_at DESC LIMIT ?", (limit,)
+                "SELECT * FROM discovered_jobs WHERE active=1 ORDER BY last_seen_at DESC LIMIT ?", (limit,)
             ).fetchall()
         return [dict(row) for row in rows]

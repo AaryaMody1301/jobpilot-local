@@ -49,8 +49,7 @@ class Phase5ApplicationController(Phase4ApplicationController):
                 board = self.job_store.add_board(
                     provider, employer, token, verification_source="live public ATS endpoint", user_added=True
                 )
-                for job in jobs:
-                    self.job_store.upsert(job, str(board["id"]))
+                self.job_store.replace_board_jobs(str(board["id"]), jobs)
                 self.job_store.mark_checked(str(board["id"]))
                 self.database.record_foundation_activity(
                     self.session_id,
@@ -82,8 +81,7 @@ class Phase5ApplicationController(Phase4ApplicationController):
                     raise RuntimeError("job discovery cancelled")
                 try:
                     jobs = fetch_board(str(board["provider"]), str(board["employer"]), str(board["board_token"]))
-                    for job in jobs:
-                        self.job_store.upsert(job, str(board["id"]))
+                    self.job_store.replace_board_jobs(str(board["id"]), jobs)
                     self.job_store.mark_checked(str(board["id"]))
                     imported += len(jobs)
                 except Exception as exc:

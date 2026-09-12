@@ -33,9 +33,10 @@ CREATE TABLE IF NOT EXISTS discovered_jobs (
     apply_url TEXT,
     description TEXT NOT NULL,
     published_at TEXT,
+    active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
     first_seen_at TEXT NOT NULL,
     last_seen_at TEXT NOT NULL,
     content_sha256 TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_discovered_jobs_last_seen ON discovered_jobs(last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_discovered_jobs_active_last_seen ON discovered_jobs(active, last_seen_at DESC);
