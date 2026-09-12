@@ -22,9 +22,9 @@ STOPWORDS = {
 }
 REQUIRED_MARKERS = ("required", "requirements", "must have", "minimum", "at least", "proficient", "experience with")
 PREFERRED_MARKERS = ("preferred", "nice to have", "bonus", "ideally")
-NO_SPONSORSHIP = ("no sponsorship", "cannot sponsor", "unable to sponsor", "not sponsor", "without sponsorship")
+NO_SPONSORSHIP = ("no sponsorship", "cannot sponsor", "can t sponsor", "unable to sponsor", "not sponsor", "without sponsorship")
 YES_SPONSORSHIP = ("visa sponsorship", "sponsorship available", "will sponsor", "can sponsor")
-REMOTE_RESTRICTED = ("united states only", "u.s. only", "us only", "must be based in the us", "must reside in the us")
+REMOTE_RESTRICTED = ("united states only", "u s only", "us only", "must be based in the us", "must reside in the us")
 LEGAL_SUFFIXES = {"inc", "incorporated", "llc", "ltd", "limited", "corp", "corporation", "pvt", "private"}
 
 
@@ -59,6 +59,8 @@ def _employer_key(value: object) -> str:
 
 def _url(value: object) -> str:
     text = _clean(value)
+    if len(text) > 2000:
+        raise ValueError("job URL exceeds 2000 characters")
     parsed = urlparse(text)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
         raise ValueError("job URL must be an absolute credential-free HTTP(S) URL")
@@ -134,9 +136,11 @@ def _job(provider: str, board_token: str, employer: str, source_id: object, *, t
     title_text = _clean(title)
     employer_text = _clean(employer)
     location_text = _clean(location) or "Unknown"
-    description_text = _plain(description) if "<" in str(description or "") else _clean(description)
+    description_text = _plain(description)
     if not title_text or not employer_text or not description_text:
         raise ValueError("job requires employer, title, and description")
+    if len(title_text) > 300 or len(employer_text) > 200 or len(location_text) > 300:
+        raise ValueError("job employer/title/location exceeds the supported size")
     source_url_text = _url(source_url)
     source_id_text = _clean(source_id) or sha256(source_url_text.encode()).hexdigest()[:24]
     return {
@@ -246,6 +250,8 @@ def _explicit_min_years(description: str) -> int | None:
     low = description.casefold()
     for match in YEARS_RE.finditer(low):
         context = low[max(0, match.start() - 60):match.end() + 60]
+        if any(marker in context for marker in PREFERRED_MARKERS):
+            continue
         if any(marker in context for marker in ("experience", "required", "minimum", "at least")):
             found.append(int(match.group(1)))
     return max(found) if found else None
@@ -286,7 +292,7 @@ def assess_job(job: Mapping[str, Any], targeting: TargetingSettings, approved_fa
                 review.append("remote role does not explicitly permit the configured India origin")
     elif not location_key or location_key == "unknown":
         review.append("work location is unknown")
-    elif "india" in combined:
+    elif "india" in location_key or any(_key(city) in location_key for city in targeting.india_office_cities):
         if not any(_key(city) in location_key for city in targeting.india_office_cities):
             hard.append("India office/hybrid location is outside configured cities")
     else:
@@ -365,6 +371,8 @@ class JobStore:
         employer = _clean(employer)
         if not employer:
             raise ValueError("employer name is required")
+        if len(employer) > 200:
+            raise ValueError("employer name exceeds 200 characters")
         board_id = f"{provider}:{token.casefold()}"
         now = utc_now_text()
         with self.database.transaction() as connection:
