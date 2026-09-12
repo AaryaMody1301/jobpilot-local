@@ -53,22 +53,35 @@ Technical implementation complete:
 - [x] human approval re-verifies source/PDF/manifest/component integrity; tampered or missing audit evidence cannot count toward the gate;
 - [x] automatic tailoring can be enabled only when the persisted five-distinct gate is complete **and** its review-context fingerprint still matches the current validated environment;
 - [x] Phase 4 UI supports manual JD import, local generation, diff/keyword/fact/validation review, PDF preview, approve/reject and explicit post-5/5 automatic-tailoring activation;
-- [x] Phase 5 discovery and employer submission remain disabled;
-- [x] Windows code-head run `34593289955` at `e15ae7dc4aed425cb2675921e2c119b1c961fa2a`: 117 passed, 1 intentional platform-guard skip, 2 external probes deselected; real controlled Phase 4 local-model tailoring passed; source/package WebView2 smokes and PyInstaller onedir build passed;
-- [x] controlled real-model result: one validated edit with one approved fact reference, malicious JD marker treated as data, cached-only compile true, page count unchanged, no overflow, status `needs_review`, review gate still 0/5, discovery/submission false.
+- [x] controlled Windows technical acceptance passed on the final audited PR #7 head; see `docs/PHASE4_CLOSEOUT.md`.
 
 Human completion gate:
 - [ ] five **distinct real tailored resumes** for the selected validated model/configuration must be reviewed and explicitly approved by the user under one unchanged review context;
-- [ ] automatic tailoring must remain disabled until that 5/5 gate is complete and current;
-- [ ] final Phase 4 PR remains draft/partial until the human gate is complete.
+- [ ] automatic tailoring must remain disabled until that 5/5 gate is complete and current.
 
-Acceptance: `docs/PHASE4_ACCEPTANCE.md`.
+Acceptance: `docs/PHASE4_ACCEPTANCE.md` and `docs/PHASE4_CLOSEOUT.md`.
 
-Boundary: controlled CI proves mechanics only and never counts as human approval. Phase 5 must not start while Phase 4 remains `[!]`.
+Sequencing note: on 2026-09-12 the user explicitly authorized Phase 5 development after the Phase 4 closeout PR was merged. This is a development-order exception only. It does **not** satisfy or bypass the private Phase 4 5/5 gate, and Phase 5 does not enable employer submission.
 
-## Phase 5 - Job discovery and matching [ ]
+## Phase 5 - Job discovery and matching [~]
 
 5A normalization/manual import. 5B verified Greenhouse/Lever/Ashby starter registry and discovery. 5C hard eligibility, required/preferred requirements, evidence matching, conservative deduplication, explainable ranking, Brentwood exclusion.
+
+Implemented on `phase-5-job-discovery-matching`:
+- [x] additive migration `007_phase5_jobs.sql` for verified board registry and normalized discovered jobs;
+- [x] manual job import with absolute credential-free HTTP(S) provenance and untrusted description text;
+- [x] compact stdlib-only public GET clients for Greenhouse, Lever, and Ashby using their documented job-board endpoints;
+- [x] three verified starter boards plus user-added board identifiers that are persisted only after a live supported payload is returned;
+- [x] conservative source/content deduplication;
+- [x] hard targeting checks for excluded employers, target-role titles, permanent full-time employment, explicit minimum experience, India city rules, relocation/sponsorship, and explicit remote-US-only restrictions;
+- [x] unknown mandatory employment/location/origin/sponsorship conditions enter review instead of being guessed;
+- [x] required/preferred requirement extraction and evidence matching use only current approved source-verified resume facts;
+- [x] explainable ranking keeps eligibility separate from evidence coverage and is explicitly not called an ATS score or interview probability;
+- [x] local jobs UI reuses the existing Phase 4 shell through one bundled Phase 5 layer; JavaScript performs no network fetches;
+- [x] employer form filling/submission remains disabled;
+- [ ] final Windows Phase 5 workflow and live three-provider discovery acceptance must pass on the final head before this phase becomes `[x]`.
+
+Acceptance: `docs/PHASE5_ACCEPTANCE.md`.
 
 ## Phase 6 - Application engine using controlled forms [ ]
 
