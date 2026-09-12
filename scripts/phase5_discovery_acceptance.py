@@ -7,7 +7,7 @@ from jobpilot.jobs import fetch_board
 
 STARTER_BOARDS = (
     ("greenhouse", "GitLab", "gitlab"),
-    ("lever", "Lever", "lever"),
+    ("lever", "Nium", "nium"),
     ("ashby", "Ashby", "ashby"),
 )
 
@@ -16,6 +16,8 @@ def main() -> int:
     counts: dict[str, int] = {}
     for provider, employer, token in STARTER_BOARDS:
         jobs = fetch_board(provider, employer, token)
+        if not jobs:
+            raise RuntimeError(f"{provider} starter board returned no current jobs")
         counts[provider] = len(jobs)
         for job in jobs:
             if job["provider"] != provider or not job["source_url"].startswith("https://"):
