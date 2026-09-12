@@ -102,14 +102,8 @@ class Phase5ApplicationController(Phase4ApplicationController):
         return self.snapshot()
 
     def _approved_evidence(self) -> list[dict[str, Any]]:
-        facts: list[dict[str, Any]] = []
-        for fact in self.resume_store.list_facts():
-            if fact.get("current_status") != "approved":
-                continue
-            source = self.resume_store.get_document(str(fact["source_document_id"]))
-            if source and self.documents.verify_document(source) == "verified":
-                facts.append(fact)
-        return facts
+        master = self.resume_store.get_active_master()
+        return self.tailoring._approved_current_facts(master) if master else []
 
     def _job_snapshot(self) -> dict[str, Any]:
         facts = self._approved_evidence()
