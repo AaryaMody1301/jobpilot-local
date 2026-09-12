@@ -9,7 +9,7 @@ def test_supported_board_payloads_normalize_to_one_job_shape() -> None:
                 "id": 10,
                 "title": "Data Engineer",
                 "location": {"name": "Surat, India"},
-                "content": "<p>Required SQL and Python experience.</p>",
+                "content": "&lt;p&gt;Required SQL and Python experience.&lt;/p&gt;",
                 "absolute_url": "https://boards.greenhouse.io/acme/jobs/10",
                 "updated_at": "2026-09-12T00:00:00Z",
             }]
@@ -43,7 +43,7 @@ def test_supported_board_payloads_normalize_to_one_job_shape() -> None:
         assert jobs[0]["provider"] == provider
         assert jobs[0]["title"] == "Data Engineer"
         assert jobs[0]["source_url"].startswith("https://")
-        assert "SQL and Python" in jobs[0]["description"]
+        assert jobs[0]["description"] == "Required SQL and Python experience."
 
 
 def test_matching_is_conservative_explainable_and_deduplicated() -> None:
@@ -73,7 +73,23 @@ def test_matching_is_conservative_explainable_and_deduplicated() -> None:
         "source_job_id": "remote-us",
         "location": "Remote",
         "workplace_type": "remote",
-        "description": "Remote in the United States only. Required SQL experience.",
+        "description": "Remote U.S. only. Required SQL experience.",
     }, targeting, facts)
     assert remote_us["eligibility"] == "ineligible"
     assert any("United States" in reason for reason in remote_us["hard_reasons"])
+
+    preferred_seniority = assess_job({
+        **job,
+        "source_job_id": "preferred-seniority",
+        "description": "Permanent full-time role. 7 years of experience preferred. Required SQL experience.",
+    }, targeting, facts)
+    assert preferred_seniority["eligibility"] == "eligible"
+    assert not any("minimum experience" in reason for reason in preferred_seniority["hard_reasons"])
+
+    overseas = assess_job({
+        **job,
+        "source_job_id": "overseas",
+        "location": "London, United Kingdom",
+        "description": "Permanent full-time role collaborating with teams in India. Visa sponsorship available. Required SQL experience.",
+    }, targeting, facts)
+    assert overseas["eligibility"] == "eligible"
