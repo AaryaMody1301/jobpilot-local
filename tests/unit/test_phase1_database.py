@@ -5,7 +5,14 @@ from jobpilot.storage.database import Database
 
 ROOT = Path(__file__).resolve().parents[2]
 MIGRATIONS = ROOT / "migrations"
-ALL = ["001_phase0_runtime.sql", "002_phase1_foundation.sql", "003_phase2_resume_fact_bank.sql", "004_phase3_local_ai.sql"]
+ALL = [
+    "001_phase0_runtime.sql",
+    "002_phase1_foundation.sql",
+    "003_phase2_resume_fact_bank.sql",
+    "004_phase3_local_ai.sql",
+    "005_phase4_tailoring.sql",
+    "006_phase4_tailoring_safety.sql",
+]
 
 
 def test_phase1_settings_and_session_persist(tmp_path: Path) -> None:
@@ -46,7 +53,13 @@ def test_phase1_migration_upgrades_existing_phase0_database(tmp_path: Path) -> N
         assert db.apply_migrations() == ["001_phase0_runtime.sql"]
         db.connection.execute("INSERT INTO work_items(id, kind, state, updated_at) VALUES ('old-work', 'phase0', 'pending', 'now')")
     with Database(database_path, MIGRATIONS) as db:
-        assert db.apply_migrations() == ["002_phase1_foundation.sql", "003_phase2_resume_fact_bank.sql", "004_phase3_local_ai.sql"]
+        assert db.apply_migrations() == [
+            "002_phase1_foundation.sql",
+            "003_phase2_resume_fact_bank.sql",
+            "004_phase3_local_ai.sql",
+            "005_phase4_tailoring.sql",
+            "006_phase4_tailoring_safety.sql",
+        ]
         columns = {row["name"] for row in db.connection.execute("PRAGMA table_info(work_items)")}
         assert {"label", "is_sample"}.issubset(columns)
         old = db.connection.execute("SELECT state, is_sample FROM work_items WHERE id = 'old-work'").fetchone()

@@ -64,7 +64,7 @@ def _resume_state() -> dict:
 
 def _state() -> dict:
     return {
-        "phase": 2,
+        "phase": 4,
         "development_mode": True,
         "session_id": "fixture-session",
         "session_state": "idle",
@@ -95,6 +95,10 @@ def _state() -> dict:
         "activity": [],
         "data_root": "C:\\fixture\\JobPilotLocal",
         "resume": _resume_state(),
+        # This regression test intentionally supplies only Phase 1-era state.
+        # Later-phase renderers are tested in their own phase-specific suites.
+        "model": None,
+        "tailoring": None,
     }
 
 
@@ -119,7 +123,7 @@ def test_local_ui_navigation_and_bridge_contract(chromium_page) -> None:
         chromium_page.evaluate("window.dispatchEvent(new Event('pywebviewready'))")
         chromium_page.wait_for_function("document.getElementById('session-badge').textContent === 'idle'")
 
-        assert chromium_page.locator("text=Local evaluation mode.").is_visible()
+        assert chromium_page.locator("text=Local tailoring review mode.").is_visible()
         assert chromium_page.locator("text=SAMPLE - lifecycle").is_visible()
         assert chromium_page.locator("text=Confirmed today").is_visible()
         chromium_page.locator("button[data-view='settings']").click()

@@ -161,3 +161,57 @@ Upstream runtime/model metadata checks occur only after an explicit UI action an
 Status: accepted for Phase 3 maintenance, 2026-09-11.
 
 The acceptance workflows use official `actions/checkout@v7` and `actions/setup-python@v7`. The prior v4/v5 pair was still functional but emitted Node runtime deprecation warnings on current hosted runners. This maintenance change does not alter application behavior.
+
+## D-025 - Phase 4 facts are field-local evidence
+
+Status: accepted for Phase 4 implementation, 2026-09-11.
+
+A model may not rewrite one resume field by composing claims from unrelated approved facts. Every automatic edit must cite at least one approved fact whose source reference points to that exact editable LaTeX region. A JD keyword used in that edit must be supported by the same field-linked evidence. Approved facts elsewhere in the resume remain available for matching/explanation but cannot silently migrate a skill, metric, responsibility, title, date or other claim into another bullet.
+
+When the desired wording cannot be supported by the existing field-linked fact, JobPilot keeps the original or requires human review rather than expanding the claim.
+
+## D-026 - protect existing numeric, date and metric literals during wording edits
+
+Status: accepted for Phase 4 implementation, 2026-09-11.
+
+Automatic wording edits must preserve numeric/date/metric-like literals already present in the edited field. This is a deterministic guard in addition to fact-ID validation. It prevents a model from quietly dropping or changing an approved number, percentage, duration, year or similar quantitative evidence while paraphrasing a bullet. A change to such evidence belongs in the fact-bank correction workflow, not automatic tailoring.
+
+## D-027 - five-review evidence is bound to the full validation context
+
+Status: accepted for Phase 4 implementation, 2026-09-11.
+
+The five-distinct-resume gate is not reusable merely because the model install ID is unchanged. Phase 4 computes a review-context fingerprint covering the active master/hash, fact-bank revision, confirmed template-map fingerprint, offline-baseline fingerprint, targeting/profile fingerprint, and selected runtime/device/passing-model-evaluation evidence.
+
+If that context changes, prior distinct approvals for the model are invalidated/reset before a new-context approval can count. Automatic tailoring requires both a persisted complete 5/5 gate and a current matching review-context fingerprint. A stale completed gate cannot enable automatic mode.
+
+## D-028 - tailored-resume approval and gate contribution are atomic and revocable
+
+Status: accepted for Phase 4 implementation, 2026-09-11.
+
+Marking a generated resume approved and inserting its distinct resume key into the model review gate occur in one SQLite transaction. A crash therefore cannot leave a gate contribution without a corresponding approved run, or vice versa. Duplicate resume keys count once.
+
+If the user later rejects/revokes an approved run, its distinct contribution is removed when no other approved run represents that same key. Falling below five reopens the gate. This preserves the meaning of five currently accepted distinct examples rather than five irreversible clicks.
+
+## D-029 - Phase 4 audit packages are tamper-evident before human approval
+
+Status: accepted for Phase 4 implementation, 2026-09-11.
+
+Every generated run writes app-managed evidence for the JD snapshot/provenance, controlled LaTeX/PDF/log, diff, keyword mappings, fact references/versions/source locators, model/configuration/evaluation evidence, usage and deterministic validation. A manifest records the run/dependency fingerprints and SHA-256 plus byte length for required components.
+
+Human approval re-verifies the stored source/PDF/manifest and every required component against that manifest. Modified or missing evidence cannot contribute to the five-resume gate. The manifest is an integrity/audit mechanism, not an authenticity signature and not a substitute for the approved fact bank.
+
+## D-030 - PDF completeness checks are order-independent validation evidence
+
+Status: accepted for Phase 4 implementation, 2026-09-11.
+
+pypdf extraction is not treated as authoritative reading order. Phase 4 verifies the baseline PDF itself by hash, then builds an expected token multiset from baseline extracted text minus each validated edited `before` phrase plus each validated `after` phrase. The tailored PDF must contain that expected multiset, in addition to preserving page count/geometry and avoiding overfull boxes.
+
+This catches accidentally missing non-edited content without assuming that PDF extraction preserves semantic order. LaTeX source and approved facts remain the authoritative content sources.
+
+## D-031 - manual JD source URLs are inert provenance in Phase 4
+
+Status: accepted for Phase 4 implementation, 2026-09-11.
+
+Phase 4 accepts JD text only through explicit manual input. An optional source URL may be recorded for provenance, but Phase 4 never fetches or navigates it. The recorded value must be an absolute HTTP(S) URL, is length-capped, and cannot contain embedded credentials. The bundled UI still has `connect-src 'none'` and no JavaScript fetch/XHR path.
+
+URL retrieval/discovery belongs to later approved discovery/browser phases and must obey their own allowlists, adapters and safety rules.
