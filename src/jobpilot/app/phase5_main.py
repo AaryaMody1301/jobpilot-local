@@ -19,6 +19,11 @@ def create_controller(paths: ManagedPaths | None = None, *, sample_item_seconds:
     return Phase5ApplicationController(paths or ManagedPaths.default(), migrations_dir, sample_item_seconds=sample_item_seconds)
 
 
+def _inject_phase5_ui(window: object, ui_index: Path) -> None:
+    script = ui_index.with_name("phase5.js").read_text(encoding="utf-8")
+    window.evaluate_js(script)  # type: ignore[attr-defined]
+
+
 def run_self_test() -> dict[str, object]:
     import webview  # noqa: F401 - verifies packaged pywebview import
 
@@ -97,10 +102,14 @@ def run_window_smoke() -> dict[str, object]:
                     if ready:
                         break
                     time.sleep(0.1)
-                checks["phase5_bridge_ready"] = ready
-                checks["document_title"] = window.evaluate_js("document.title")
                 if not ready:
                     raise RuntimeError("pywebview Phase 5 JS bridge was not exposed")
+                _inject_phase5_ui(window, ui_index)
+                checks["phase5_bridge_ready"] = True
+                checks["phase5_jobs_ui"] = bool(window.evaluate_js("document.getElementById('job-discover') !== null"))
+                checks["document_title"] = window.evaluate_js("document.title")
+                if not checks["phase5_jobs_ui"]:
+                    raise RuntimeError("Phase 5 jobs UI was not injected")
                 if checks["document_title"] != "JobPilot Local":
                     raise RuntimeError("bundled UI did not load expected document")
             except Exception as exc:
@@ -133,6 +142,7 @@ def run_desktop() -> None:
         background_color="#f4f6f8", text_select=True,
     )
     bridge.bind_window(window)
+    window.events.loaded += lambda: _inject_phase5_ui(window, ui_index)
     window.events.closing += lambda: bridge.close_for_window_event()
     window.events.closed += lambda: controller.close()
     webview.start(gui="edgechromium", debug=False)
