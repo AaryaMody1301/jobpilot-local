@@ -6,7 +6,7 @@ from jobpilot.jobs import fetch_board
 
 
 STARTER_BOARDS = (
-    ("greenhouse", "GitLab", "gitlabcrm"),
+    ("greenhouse", "GitLab", "gitlab"),
     ("lever", "Lever", "lever"),
     ("ashby", "Ashby", "ashby"),
 )

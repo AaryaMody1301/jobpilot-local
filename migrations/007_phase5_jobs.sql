@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS job_boards (
 
 INSERT OR IGNORE INTO job_boards(id, provider, employer, board_token, enabled, user_added, verification_source, verified_at)
 VALUES
-    ('greenhouse:gitlabcrm', 'greenhouse', 'GitLab', 'gitlabcrm', 1, 0, 'GitLab public careers links + Greenhouse Job Board API', '2026-09-12T00:00:00Z'),
+    ('greenhouse:gitlab', 'greenhouse', 'GitLab', 'gitlab', 1, 0, 'GitLab current public openings board + Greenhouse Job Board API', '2026-09-12T00:00:00Z'),
     ('lever:lever', 'lever', 'Lever', 'lever', 1, 0, 'Lever official Postings API documentation', '2026-09-12T00:00:00Z'),
     ('ashby:ashby', 'ashby', 'Ashby', 'ashby', 1, 0, 'Ashby official public Job Postings API documentation', '2026-09-12T00:00:00Z');
 
