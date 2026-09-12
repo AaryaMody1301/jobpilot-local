@@ -1,42 +1,46 @@
 # jobpilot-local
 
-`jobpilot-local` is an incremental Windows desktop application for local-first job discovery, evidence-backed resume tailoring, and user-authorized application automation.
+`jobpilot-local` is a local-first Windows desktop assistant for job discovery, evidence-backed resume tailoring, and later user-authorized application automation.
 
 ## Status
 
-Phases 0-3 are complete and merged. Phase 4 - **Evidence-based resume tailoring** - is technically implemented and merged, but product acceptance remains **partial** until the private local review gate contains five distinct real tailored-resume approvals in one current validation context.
+- Phases 0-3 are complete.
+- Phase 4 tailoring is technically implemented and merged. Its private five-real-resume review gate remains independently authoritative until `--phase4-gate-report` returns success for the current local context.
+- Phase 5 job discovery and matching is implemented and accepted. Phase 6 employer-form automation has not started, and employer submission remains disabled.
 
-Phase 5 job discovery and all employer submission paths remain disabled.
+## Phase 5
 
-PR #7 was merged on 2026-09-12 even though its human completion gate was still open. Treat that merge as **Phase 4 implementation merged**, not as evidence that the Phase 4 product gate is complete. The gate is authoritative in the local JobPilot database and can be checked without exposing private resume/JD content with:
+Phase 5 adds:
+
+- manual job import with credential-free HTTP(S) provenance;
+- a versioned starter registry for public Greenhouse, Lever, and Ashby boards;
+- user-added board identifiers that are persisted only after a live supported public payload is returned;
+- normalized local job storage and conservative deduplication;
+- hard targeting checks for excluded employers, target roles, permanent full-time employment, experience limits, office-location rules, overseas sponsorship, and explicit remote restrictions;
+- `review` instead of guessing when mandatory location, employment, remote-origin, or sponsorship information is unknown;
+- required/preferred requirement extraction and evidence matching using only current approved facts whose source still verifies;
+- explainable ranking whose components are visible and are not presented as an ATS score or interview probability;
+- a bundled jobs UI. JavaScript performs no network requests; Python owns the public ATS GET boundary.
+
+The implementation intentionally uses Python's standard library for the three JSON GET feeds and reuses the existing desktop shell rather than adding a new HTTP dependency or UI framework.
+
+## Safety and privacy
+
+- Windows 10/11 x64 only for v1.
+- No cloud AI, hosted database, telemetry, paid proxy/API, CAPTCHA solving, remote UI scripts, or cloud sign-in.
+- Private resume sources, approved facts, generated resumes, local databases, browser state, and model weights stay outside Git under the app-managed local data root.
+- JDs, ATS payloads, employer pages, and model output are untrusted data.
+- Automatic resume tailoring still requires the current five-distinct-resume Phase 4 gate.
+- Phase 5 never fills or submits employer forms.
+- `UNCERTAIN` submission outcomes, when later phases exist, are never automatically retried.
+
+Check the private Phase 4 gate without exposing resume/JD/fact content:
 
 ```powershell
 python -m jobpilot.app.main --phase4-gate-report
 ```
 
-The command exits `0` only when the persisted five-resume gate is complete for the current validated resume/fact/profile/template/model context; otherwise it exits `2` and reports only counts/status.
-
-## Safety and privacy invariants
-
-- Windows 10/11 x64 only for v1.
-- No cloud AI, hosted database, telemetry, paid API, paid proxy, CAPTCHA solving, remote UI scripts, or cloud sign-in.
-- No startup service or hidden background scheduler.
-- Opening the application is always Idle and starts no download/inference/application work.
-- Runtime/model downloads require explicit confirmation and exact catalogue size/SHA verification.
-- Private master/source documents, approved facts, generated resumes and model weights live outside Git under the app-managed local data root.
-- JD text is untrusted data. Embedded instructions never override approved facts, template boundaries, or validation.
-- Local model output is structured plain-text edit intent; application code renders controlled LaTeX.
-- Only source-linked approved facts may support claims. Cross-bullet claim composition, unsupported content, hidden Unicode/hidden text, keyword stuffing, and silent removal of existing numeric/date/metric literals are blocked.
-- Tailoring compilation uses app-managed Tectonic cached-only and `--untrusted`; it cannot silently download packages.
-- Pending review becomes stale if master/facts/template/baseline/profile/model/evaluation evidence changes.
-- Automatic tailoring requires five distinct persisted human approvals in the **current** review context. Controlled CI output never counts toward that gate.
-- `UNCERTAIN` submissions are never automatically retried when submission phases later exist.
-- Only app-owned processes/files proven under managed roots may be terminated/deleted.
-- Real employer submissions remain disabled until later explicit activation after all gates.
-
-## Run the Phase 4 desktop
-
-Production baseline: Python 3.13.15 on Windows 10/11 x64.
+## Run
 
 ```powershell
 py -3.13 -m venv .venv
@@ -47,83 +51,28 @@ python -m playwright install chromium
 python -m jobpilot.app.main
 ```
 
-### 1. Resume/fact onboarding
+## Phase 5 acceptance
 
-Use the **Resume & facts** screen to import the private master `.tex`, install the pinned Tectonic tool, explicitly populate any missing support cache, require the subsequent cached-only baseline, confirm editable regions, and resolve every candidate fact. The private source and fact values are stored locally and are not committed to this repository.
+Windows run `34686987747` at head `76398acef947a7c09df83db40fa06b82103f04f0` passed the focused Phase 5 path:
 
-### 2. Local AI setup
+- Python and bundled JavaScript syntax validation;
+- the complete non-external regression suite;
+- live normalization of one verified public Greenhouse, Lever, and Ashby board;
+- source self-test and hidden WebView2/pywebview smoke;
+- PyInstaller onedir build;
+- packaged self-test and packaged hidden-window smoke.
 
-The Phase 3 tested catalogue remains the Phase 4 baseline:
-
-- llama.cpp stable baseline `v0.4.0`, tested Windows build `b10809`;
-- checksum-pinned Windows x64 CPU runtime plus optional Vulkan runtime;
-- `ggml-org/Qwen3-4B-GGUF` revision `2f3b082b1356a6123f7ed71e65aea340da25d53c`;
-- `Qwen3-4B-Q4_K_M.gguf`, 2,497,280,640 bytes, SHA-256 `ab27b9bfa375a178d6cba48f3ad892b94b7739659dcc7aae8058ce0ffed6b328`, Apache-2.0.
-
-The app measures the actual machine and evaluates installed CPU/Vulkan configurations. CPU is explicit `--device none`; Vulkan uses only exact device IDs reported by the verified llama.cpp runtime. Speed is compared only among configurations that pass all quality/resource gates.
-
-### 3. Manual-JD tailoring and review
-
-Phase 4 accepts manually pasted JD text. An optional source URL is recorded as inert provenance only; it is not fetched by Phase 4. The app:
-
-1. labels the JD untrusted, strips hidden Unicode control/format characters, and hashes it;
-2. asks the selected validated local model for structured keyword mappings and plain-text wording edits;
-3. validates every used keyword/fact and requires field-linked source evidence;
-4. renders only confirmed simple wording regions through application code;
-5. rejects hidden/non-printable replacement text and evidence-derived keyword stuffing;
-6. compiles cached-only with Tectonic;
-7. checks protected source structure, page count/geometry, overflow and expected PDF content;
-8. writes a tamper-evident local audit package;
-9. shows PDF, diff, keyword/fact mapping and validation for human review.
-
-Approve only accurate outputs. Reject/correct facts and regenerate when necessary.
-
-The first five **distinct** approved real tailored resumes for a selected model must share one current validation context. Changes to the approved fact bank, targeting/profile, template map, offline baseline or selected/evaluated model configuration invalidate/reset stale review evidence. Automatic tailoring remains disabled until the persisted current-context gate reaches 5/5.
-
-## Verified Phase 4 technical baseline
-
-Final audited PR head `582a00797bf68fe8d5d1d7076905c9e88c86d0e2` passed all Phase 0-4 pull-request workflows. Phase 4 Windows run `34598042842` passed:
-
-- **123 passed, 1 intentional platform-guard skip, 2 external probes deselected**;
-- real pinned local Qwen3/Tectonic controlled tailoring;
-- malicious/instruction-like JD text treated as data;
-- hidden-JD Unicode, hidden replacement Unicode and keyword-stuffing regressions;
-- one validated field-linked edit with one approved fact reference;
-- cached-only compile, unchanged page count and no overflow;
-- persisted PDF content-validation field correctly shown by the UI;
-- result `needs_review`, controlled review gate 0/5 and automatic tailoring disabled;
-- source/package self-tests, hidden WebView2 smokes and PyInstaller onedir build.
-
-This controlled result proves mechanics only and is not a human review approval.
-
-The Phase 4 workflow now runs on Phase 4 branches, pull requests targeting `main`, manual dispatch, and pushes to `main`, so the merged baseline receives the same Phase 4 acceptance path rather than relying only on the pre-merge head.
-
-## Acceptance checks
-
-```powershell
-pytest -m "not external"
-python scripts\phase4_tailoring_acceptance.py
-python -m jobpilot.app.main --self-test
-python -m jobpilot.app.main --window-smoke
-python -m jobpilot.app.main --phase4-gate-report
-pyinstaller --clean --noconfirm packaging\jobpilot.spec
-.\dist\jobpilot-local\jobpilot-local.exe --self-test
-.\dist\jobpilot-local\jobpilot-local.exe --window-smoke
-```
-
-`phase4_tailoring_acceptance.py` intentionally performs CI-only public downloads of the exact already-approved test catalogue and runs localhost-only inference. Normal application downloads still require explicit UI approval.
+See `docs/PHASE5_ACCEPTANCE.md` for the exact boundary and check rationale.
 
 ## Local data
 
-Runtime data lives under `%LOCALAPPDATA%\JobPilotLocal`: SQLite, immutable source documents, generated artifacts, model weights, app-managed tools, browser data, caches, backups, runtime files, and logs. Private candidate data and model weights must never be committed.
+Runtime data lives under `%LOCALAPPDATA%\JobPilotLocal`. Private candidate data and model weights must never be committed.
 
 ## Project records
 
-- `SPEC.md` - agreed requirements and approved changes.
-- `ROADMAP.md` - phase dependencies, acceptance and status.
-- `DECISIONS.md` - engineering decisions and rationale.
-- `PROGRESS.md` - implementation history and acceptance evidence.
-- `docs/PHASE4_ACCEPTANCE.md` - Phase 4 technical and human acceptance gates.
-- `docs/PHASE4_CLOSEOUT.md` - post-merge closeout state and exact remaining gate.
-
-Phase 5 must not start until `--phase4-gate-report` shows the current private 5/5 gate is complete and the Phase 4 records are explicitly marked complete.
+- `SPEC.md` - v1 product requirements.
+- `ROADMAP.md` - phase order and current status.
+- `DECISIONS.md` - engineering decisions.
+- `PROGRESS.md` - current handoff and exact verification evidence.
+- `AGENTS.md` - repository implementation rules, including the compact Ponytail-style code/check policy.
+- `docs/PHASE5_ACCEPTANCE.md` - Phase 5 acceptance boundary.
