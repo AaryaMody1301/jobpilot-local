@@ -20,6 +20,7 @@ _FORM = b"""<!doctype html><html><body>
 <label>Email*<input name="email" type="email" required></label>
 <label>Resume/CV*<input name="resume" type="file" required></label>
 <label>Notice period*<select name="notice" required><option value="">Select</option><option value="30">30 days</option></select></label>
+<label>Payments experience<input name="payment_experience"></label>
 <button type="submit">Submit application</button>
 </form>
 <script>
@@ -53,7 +54,7 @@ def _controlled(browser: Any, adapter_type: type, root: Path) -> dict[str, objec
     try:
         adapter = adapter_type(page, allow_controlled_submit=True)
         inspection = adapter.inspect(f"http://127.0.0.1:{server.server_address[1]}/{adapter_type.provider}")
-        assert inspection.supported and inspection.submit_controls == 1
+        assert inspection.supported and "payment" not in inspection.blockers and inspection.submit_controls == 1
         assert {field.name for field in inspection.fields if field.required} == {"name", "email", "resume", "notice"}
         adapter.fill({"name": "Controlled Candidate", "email": "controlled@example.invalid", "resume": str(resume), "notice": "30"})
         adapter.submit()
