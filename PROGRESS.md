@@ -2,47 +2,60 @@
 
 ## Current phase
 
-Phase 6 - Application engine using controlled forms.
+Phase 7 - Supported hiring-platform adapters.
 
-Status: **implementation complete and focused Windows acceptance passed**. Phase 7 has not started. Real employer form filling/submission remains disabled.
+Status: **implementation complete and exact-head Windows acceptance passed**. Phase 8 has not started. Real employer form filling/submission remains disabled; Phase 7 live checks are read-only.
 
-PR #9 merged Phase 5 into `main` at `29234991ca824eb6d5f4d1892079360c3241431b` on 2026-09-12. Phase 4's private five-real-resume human gate remains a separate local acceptance condition and is not waived by later development authorization.
+PR #10 merged Phase 6 into `main` at `28a2dd4ec4d5c6ec5227eaf6029dcf50342234af` on 2026-09-13. Phase 4's private five-real-resume human gate remains a separate local acceptance condition and is not waived by later development authorization.
 
-## Phase 6 implementation
+## Phase 7 implementation
 
-- Added additive migration `008_phase6_applications.sql` for controlled-attempt leasing/retry metadata, exact-context approved answers, and mandatory-question review records.
-- Reused the existing Phase 0 application state machine/journal and existing `jobpilot.applications` package rather than adding a second workflow model or parallel package.
-- Added one compact application-engine module containing the transactional journal, localhost trust boundary, exact-context answer fingerprint, controlled Playwright engine, and one worker. No new dependency or provider abstraction was added.
-- Targets must be absolute credential-free localhost/loopback HTTP(S). Real employer targets are rejected before Playwright and non-loopback HTTP(S) browser requests are aborted.
-- Playwright runs on the single application-worker thread with one dedicated persistent JobPilot profile.
-- Unknown mandatory supported questions enter review and are reusable only when question key + semantic context hash match exactly; other queued controlled fixtures continue.
-- CAPTCHA/assessment/login/verification/payment/unsupported markers block before submit.
-- Pre-submit network/browser failures are safely bounded-retryable; interrupted pre-submit attempts recover to queued. Browser-internal error pages caused by a dropped localhost connection remain retryable, while explicit external HTTP(S) escapes remain blocked.
-- `SUBMITTING` is persisted immediately before the click; only an explicit positive confirmation marker can become `CONFIRMED`. Post-submit ambiguity becomes terminal `UNCERTAIN`.
-- Phase 6 UI is a small bundled layer on top of the existing shell and exposes the single worker, review lane, and controlled journal. JavaScript performs no remote networking.
-- Greenhouse, Lever, and Ashby employer-form adapters are deliberately not implemented; they remain Phase 7.
+- Added one compact shared hosted-form adapter implementation under the existing `jobpilot.applications` package instead of adding provider frameworks or a second browser engine.
+- Added Greenhouse host support for `job-boards.greenhouse.io` and `boards.greenhouse.io`.
+- Added Lever host support for `jobs.lever.co` and `jobs.eu.lever.co`.
+- Added Ashby host support for `jobs.ashbyhq.com`.
+- Provider targets must be absolute credential-free HTTP(S) URLs on the exact supported host list.
+- Live mode is read-only: `fill()` and `submit()` fail closed unless the adapter is explicitly created for a loopback controlled fixture. No real employer form was filled or submitted during Phase 7.
+- Visible form fields, required status, supported input types and a single submit control are recognized using the existing Playwright dependency.
+- Supported controlled input types are text/email/tel/url/number/date/file/checkbox/radio plus textarea/select. Required unsupported controls become blockers rather than guessed answers.
+- CAPTCHA, login/verification, actual card/billing controls, assessment controls and unsupported required fields remain conservative blockers.
+- Explicit positive confirmation is still required after a controlled submit.
+- A live Nium field containing the ordinary word `payment` exposed an over-broad payment detector during acceptance. The detector was narrowed to actual credit-card/payment controls and the controlled fixture now includes `payment_experience` to prevent regression.
 
-## Compact-code/check policy
+## Sequential provider gates
 
-The repository-wide Ponytail rule remains authoritative: prefer no code, then stdlib/native/already-installed dependencies, then the minimum clear implementation. Phase 6 uses the already-pinned Playwright dependency and existing SQLite/application state machinery instead of a new automation framework.
+Phase 7 followed the roadmap order; the next provider was not started until the prior provider passed both required gates:
 
-Checks are limited to consequential boundaries: one focused journal/state test plus one localhost Playwright acceptance. The full existing regression suite and desktop/package smokes remain the integration safety net.
+- 7A Greenhouse: code head `87c9138157f5ed42e0c4772e747867070e53a114`, Windows run `34744776048`, success.
+- 7B Lever: code head `6e350b76fe284441436978d3ee71d69028d8b014`, Windows run `34744964533`, success.
+- 7C Ashby plus final payment-classifier repair: accepted code head `3a95d0a32755c94b21ec77c209749986718167a6`, Windows run `34745312735`, success.
 
-## Verification
+## Final verification
 
-Phase 6 Windows run `34743335410`, code head `8d1cb12d1a5ff096ecfc8b8df470777ee3b99c43`, concluded `success` on 2026-09-13.
-
-Passed:
+Accepted Phase 7 Windows run `34745312735` passed:
 
 - Python and bundled JavaScript syntax validation;
-- the complete non-external regression suite;
-- controlled localhost Playwright acceptance covering successful review/fill/confirmation, exact-context answer reuse, an unknown mandatory question while other work continues, CAPTCHA blocking, pre-submit network retry, duplicate prevention, single-worker submission, persistent profile creation, and ambiguous post-submit `UNCERTAIN`;
+- the complete non-external regression suite: 128 passed, 1 skipped, 2 deselected;
+- one provider acceptance covering controlled submit/explicit confirmation plus read-only live form recognition for Greenhouse, Lever and Ashby;
+- live write guards for all three providers;
 - source self-test and hidden WebView2/pywebview smoke;
 - PyInstaller onedir build;
 - packaged self-test and packaged hidden-window smoke.
 
-No failed acceptance condition was waived. Earlier development runs exposed and fixed a workflow-expression error, an existing-package integration mistake, and the transient localhost navigation classification edge before this accepted head.
+The final live recognition evidence was:
+
+- Greenhouse/GitLab: 29 visible application fields, one submit control, CAPTCHA blocker;
+- Lever/Nium: 11 visible application fields, one submit control, CAPTCHA blocker;
+- Ashby/Ashby: 26 visible application fields, one submit control, CAPTCHA blocker.
+
+All three current live examples were therefore recognized but conservatively reported unsupported for automatic submission. This is an expected safety result, not a waived check.
+
+## Compact-code/check policy
+
+The repository-wide Ponytail rule remains authoritative: prefer no code, then stdlib/native/already-installed dependencies, then the minimum clear implementation. Phase 7 reuses the existing `ApplicationAdapter` protocol, Playwright dependency and Phase 5 public-board discovery instead of introducing new packages or provider-specific engines.
+
+Checks remain boundary-focused: one consolidated provider acceptance plus the existing regression and desktop/package safety net. No provider-specific test matrix was added merely to increase test count.
 
 ## Next boundary
 
-Open and merge the Phase 6 PR only after the final pull-request-context Phase 0-6 workflows are green. Do not start Phase 7 without a later explicit user request.
+Open and merge the Phase 7 PR only after the final pull-request-context workflows are green. Do not start Phase 8 without a later explicit user request. Phase 8 is responsible for connecting discovery, matching, tailoring gates, provider adapters, queues, attention/history and submission orchestration.
