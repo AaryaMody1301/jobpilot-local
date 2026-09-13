@@ -6,11 +6,12 @@ from jobpilot.applications.engine import (
     ControlledFixtureViolation,
     question_context_sha256,
 )
-from jobpilot.applications.platforms import GreenhouseAdapter, LeverAdapter
+from jobpilot.applications.platforms import AshbyAdapter, GreenhouseAdapter, LeverAdapter
 
 __all__ = [
     "ApplicationJournal",
     "ApplicationWorker",
+    "AshbyAdapter",
     "ControlledFixtureViolation",
     "GreenhouseAdapter",
     "LeverAdapter",
