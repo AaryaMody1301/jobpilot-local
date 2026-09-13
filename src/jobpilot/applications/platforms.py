@@ -190,7 +190,7 @@ class HostedApplicationAdapter:
         selectors = {
             "captcha": '[id*="captcha" i], [class*="captcha" i], iframe[src*="captcha" i], iframe[src*="recaptcha" i], iframe[src*="hcaptcha" i]',
             "login_or_verification": 'input[type="password"], input[autocomplete="one-time-code"]',
-            "payment": 'input[autocomplete="cc-number"], input[name*="card" i], input[name*="payment" i]',
+            "payment": 'input[autocomplete^="cc-" i], input[name="card_number" i], input[name="cardnumber" i], iframe[src*="stripe.com" i], iframe[src*="braintree" i], iframe[src*="paypal" i]',
         }
         blockers = [name for name, selector in selectors.items() if frame.locator(selector).count()]
         if frame.get_by_role("button", name=re.compile(r".*(?:assessment|test).*", re.I)).count():
