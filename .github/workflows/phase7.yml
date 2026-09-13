@@ -43,8 +43,8 @@ jobs:
           node --check src/jobpilot/ui/phase6.js
       - name: Run deterministic regression suite
         run: pytest -m "not external"
-      - name: Verify Greenhouse controlled submit and live read-only recognition
-        run: python scripts/phase7_greenhouse_acceptance.py
+      - name: Verify Greenhouse and Lever controlled submit plus live read-only recognition
+        run: python scripts/phase7_platform_acceptance.py
       - name: Run source desktop checks
         run: |
           python -m jobpilot.app.main --self-test
