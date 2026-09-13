@@ -44,15 +44,15 @@ Completed: normalized/manual discovery, verified public Greenhouse/Lever/Ashby b
 
 Acceptance: `docs/PHASE5_ACCEPTANCE.md`.
 
-## Phase 6 - Application engine using controlled forms [~]
+## Phase 6 - Application engine using controlled forms [x]
 
-Implementation in progress:
+Completed:
 - [x] 6A transactional application journal, duplicate prevention, single explicit-session worker, and crash recovery;
 - [x] 6B localhost-only Playwright controlled-form contract and exact-context approved-answer reuse;
 - [x] 6C conservative CAPTCHA/challenge/unknown-question/network/Stop/Close/`UNCERTAIN` behavior;
-- [ ] exact-head Windows Phase 6 acceptance and final pull-request-context Phase 0-6 checks.
+- [x] exact-head Windows Phase 6 acceptance at code head `8d1cb12d1a5ff096ecfc8b8df470777ee3b99c43`, run `34743335410`.
 
-No real employer submission and no Greenhouse/Lever/Ashby form adapter is part of Phase 6.
+No real employer submission and no Greenhouse/Lever/Ashby employer-form adapter is part of Phase 6.
 
 Acceptance: `docs/PHASE6_ACCEPTANCE.md`.
 

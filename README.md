@@ -1,28 +1,31 @@
 # jobpilot-local
 
-`jobpilot-local` is a local-first Windows desktop assistant for job discovery, evidence-backed resume tailoring, and later user-authorized application automation.
+`jobpilot-local` is a local-first Windows desktop assistant for job discovery, evidence-backed resume tailoring, and user-authorized application automation.
 
 ## Status
 
 - Phases 0-3 are complete.
-- Phase 4 tailoring is technically implemented and merged. Its private five-real-resume review gate remains independently authoritative until `--phase4-gate-report` returns success for the current local context.
-- Phase 5 job discovery and matching is implemented and accepted. Phase 6 employer-form automation has not started, and employer submission remains disabled.
+- Phase 4 tailoring is technically implemented and merged. Its private five-real-resume review gate remains independently authoritative until `--phase4-gate-report` succeeds for the current local context.
+- Phase 5 job discovery and matching is complete.
+- Phase 6 controlled application-engine work is complete and accepted. It is deliberately limited to app-controlled localhost/loopback fixtures; real employer form adapters and real employer submission remain disabled and belong to later phases.
 
-## Phase 5
+## Phase 6
 
-Phase 5 adds:
+Phase 6 adds the application engine without crossing the real-employer boundary:
 
-- manual job import with credential-free HTTP(S) provenance;
-- a versioned starter registry for public Greenhouse, Lever, and Ashby boards;
-- user-added board identifiers that are persisted only after a live supported public payload is returned;
-- normalized local job storage and conservative deduplication;
-- hard targeting checks for excluded employers, target roles, permanent full-time employment, experience limits, office-location rules, overseas sponsorship, and explicit remote restrictions;
-- `review` instead of guessing when mandatory location, employment, remote-origin, or sponsorship information is unknown;
-- required/preferred requirement extraction and evidence matching using only current approved facts whose source still verifies;
-- explainable ranking whose components are visible and are not presented as an ATS score or interview probability;
-- a bundled jobs UI. JavaScript performs no network requests; Python owns the public ATS GET boundary.
+- transactional SQLite application transitions and persistent duplicate prevention;
+- one explicit-session application worker; launch remains Idle with no hidden scheduler;
+- a dedicated persistent Playwright Chromium profile under the app-managed data root;
+- localhost/loopback-only controlled form targets, with non-loopback HTTP(S) browser requests blocked;
+- exact-context approved-answer reuse keyed by question identity plus a semantic SHA-256 context fingerprint;
+- a review lane for unknown mandatory questions while other queued controlled fixtures can continue;
+- conservative blocking for CAPTCHA/challenge, assessment, login/verification, payment, and unsupported required fields;
+- bounded retries only before the submit boundary;
+- `SUBMITTING` journaled immediately before the click, explicit positive confirmation required for `CONFIRMED`, and ambiguous post-submit outcomes becoming terminal `UNCERTAIN`;
+- safe recovery of interrupted pre-submit work to the queue;
+- a bundled Phase 6 UI for the controlled queue, review lane, worker state, and application journal.
 
-The implementation intentionally uses Python's standard library for the three JSON GET feeds and reuses the existing desktop shell rather than adding a new HTTP dependency or UI framework.
+The implementation reuses the existing application package/state machine, SQLite layer, Playwright dependency, managed browser/profile paths, and desktop shell. No new runtime dependency or provider abstraction was added.
 
 ## Safety and privacy
 
@@ -31,8 +34,8 @@ The implementation intentionally uses Python's standard library for the three JS
 - Private resume sources, approved facts, generated resumes, local databases, browser state, and model weights stay outside Git under the app-managed local data root.
 - JDs, ATS payloads, employer pages, and model output are untrusted data.
 - Automatic resume tailoring still requires the current five-distinct-resume Phase 4 gate.
-- Phase 5 never fills or submits employer forms.
-- `UNCERTAIN` submission outcomes, when later phases exist, are never automatically retried.
+- Phase 6 rejects non-loopback application targets and does not implement Greenhouse, Lever, or Ashby employer-form adapters.
+- `UNCERTAIN` submission outcomes are never automatically retried.
 
 Check the private Phase 4 gate without exposing resume/JD/fact content:
 
@@ -47,26 +50,29 @@ py -3.13 -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
+$env:PLAYWRIGHT_BROWSERS_PATH="$env:LOCALAPPDATA\JobPilotLocal\browsers"
 python -m playwright install chromium
 python -m jobpilot.app.main
 ```
 
-## Phase 5 acceptance
+The Playwright browser path above matches JobPilot's app-managed browser root. The application still launches Idle; the controlled browser worker is created only after explicit Start.
 
-Windows run `34686987747` at head `76398acef947a7c09df83db40fa06b82103f04f0` passed the focused Phase 5 path:
+## Phase 6 acceptance
+
+Windows run `34743335410` at code head `8d1cb12d1a5ff096ecfc8b8df470777ee3b99c43` passed the focused Phase 6 path:
 
 - Python and bundled JavaScript syntax validation;
 - the complete non-external regression suite;
-- live normalization of one verified public Greenhouse, Lever, and Ashby board;
+- the controlled localhost Playwright acceptance covering review, exact-context answer reuse, blocking, retry, duplicate prevention, single-worker submission, confirmation, and `UNCERTAIN` handling;
 - source self-test and hidden WebView2/pywebview smoke;
 - PyInstaller onedir build;
 - packaged self-test and packaged hidden-window smoke.
 
-See `docs/PHASE5_ACCEPTANCE.md` for the exact boundary and check rationale.
+See `docs/PHASE6_ACCEPTANCE.md` for the exact boundary and check rationale.
 
 ## Local data
 
-Runtime data lives under `%LOCALAPPDATA%\JobPilotLocal`. Private candidate data and model weights must never be committed.
+Runtime data lives under `%LOCALAPPDATA%\JobPilotLocal`. Private candidate data, browser state, and model weights must never be committed.
 
 ## Project records
 
@@ -75,4 +81,4 @@ Runtime data lives under `%LOCALAPPDATA%\JobPilotLocal`. Private candidate data 
 - `DECISIONS.md` - engineering decisions.
 - `PROGRESS.md` - current handoff and exact verification evidence.
 - `AGENTS.md` - repository implementation rules, including the compact Ponytail-style code/check policy.
-- `docs/PHASE5_ACCEPTANCE.md` - Phase 5 acceptance boundary.
+- `docs/PHASE6_ACCEPTANCE.md` - Phase 6 acceptance boundary and evidence.
