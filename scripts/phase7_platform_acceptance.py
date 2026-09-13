@@ -10,7 +10,7 @@ from typing import Any
 
 from playwright.sync_api import sync_playwright
 
-from jobpilot.applications import GreenhouseAdapter, LeverAdapter
+from jobpilot.applications import AshbyAdapter, GreenhouseAdapter, LeverAdapter
 from jobpilot.jobs import fetch_board
 
 _FORM = b"""<!doctype html><html><body>
@@ -103,6 +103,7 @@ def main() -> int:
     providers = (
         (GreenhouseAdapter, "GitLab", "gitlab", "source_url"),
         (LeverAdapter, "Nium", "nium", "apply_url"),
+        (AshbyAdapter, "Ashby", "ashby", "apply_url"),
     )
     with tempfile.TemporaryDirectory(prefix="jobpilot-phase7-") as temp_dir, sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
