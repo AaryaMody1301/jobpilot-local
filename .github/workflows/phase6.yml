@@ -23,7 +23,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     env:
-      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}\JobPilotLocal\browsers
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}\.playwright-browsers
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

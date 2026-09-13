@@ -48,9 +48,12 @@ def test_phase6_journal_is_transactional_context_bound_and_crash_safe(tmp_path: 
         journal.transition(first["id"], ApplicationState.READY_TO_SUBMIT, "ready")
         assert journal.recover_pre_submit() == 1
         assert journal.attempt(first["id"])["state"] == "queued"
+        journal.claim_next("session-1")
+        journal.transition(first["id"], ApplicationState.BLOCKED, "finish recovered fixture for test isolation")
 
         second = journal.queue_controlled("fixture-2", "http://127.0.0.1:8000/form")
-        journal.claim_next("session-1")
+        claimed = journal.claim_next("session-1")
+        assert claimed and claimed["id"] == second["id"]
         journal.transition(second["id"], ApplicationState.FILLING, "fill")
         journal.transition(second["id"], ApplicationState.READY_TO_SUBMIT, "ready")
         journal.transition(second["id"], ApplicationState.SUBMITTING, "clicked")
