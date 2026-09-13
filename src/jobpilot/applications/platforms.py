@@ -236,3 +236,8 @@ class HostedApplicationAdapter:
 class GreenhouseAdapter(HostedApplicationAdapter):
     provider = "greenhouse"
     hosts = ("job-boards.greenhouse.io", "boards.greenhouse.io")
+
+
+class LeverAdapter(HostedApplicationAdapter):
+    provider = "lever"
+    hosts = ("jobs.lever.co", "jobs.eu.lever.co")
