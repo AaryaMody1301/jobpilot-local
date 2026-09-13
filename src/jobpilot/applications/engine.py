@@ -6,10 +6,8 @@ import json
 import os
 import re
 import threading
-import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any, Mapping, Sequence
 from urllib.parse import urlparse
 
@@ -47,6 +45,11 @@ def _is_loopback_host(host: str | None) -> bool:
         return ipaddress.ip_address(host).is_loopback
     except ValueError:
         return False
+
+
+def _is_explicit_external_http_url(value: object) -> bool:
+    parsed = urlparse(str(value or ""))
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc) and not _is_loopback_host(parsed.hostname)
 
 
 def require_controlled_fixture_url(value: object) -> str:
@@ -527,9 +530,7 @@ class ControlledFormEngine:
             try:
                 page.goto(target_url, wait_until="domcontentloaded", timeout=8000)
             except Exception as exc:
-                try:
-                    require_controlled_fixture_url(page.url)
-                except ControlledFixtureViolation:
+                if _is_explicit_external_http_url(page.url):
                     self.journal.transition(application_id, ApplicationState.BLOCKED, "controlled fixture attempted to leave loopback")
                     return
                 self.journal.retry_pre_submit(application_id, f"navigation failed: {exc}")

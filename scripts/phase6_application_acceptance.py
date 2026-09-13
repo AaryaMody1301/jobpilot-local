@@ -94,41 +94,43 @@ def main() -> int:
         with TemporaryDirectory(prefix="jobpilot-phase6-acceptance-") as temp_dir:
             paths = ManagedPaths(Path(temp_dir) / "JobPilotLocal")
             controller = create_controller(paths, sample_item_seconds=0.01)
-            controller.queue_controlled_application("fixture-success", base + "/success")
-            controller.start()
-            state = _wait(controller, lambda s: _attempt(s, "fixture-success")["state"] == "needs_review")
-            questions = [q for q in state["applications"]["open_questions"] if q["job_identity"] == "fixture-success"]  # type: ignore[index]
-            assert {q["question_key"] for q in questions} == {"name", "email"}
-            for question in questions:
-                answer = "Candidate Name" if question["question_key"] == "name" else "candidate@example.invalid"
-                controller.approve_application_question(question["id"], answer)
-            _wait(controller, lambda s: _attempt(s, "fixture-success")["state"] == "confirmed")
+            try:
+                controller.queue_controlled_application("fixture-success", base + "/success")
+                controller.start()
+                state = _wait(controller, lambda s: _attempt(s, "fixture-success")["state"] == "needs_review")
+                questions = [q for q in state["applications"]["open_questions"] if q["job_identity"] == "fixture-success"]  # type: ignore[index]
+                assert {q["question_key"] for q in questions} == {"name", "email"}
+                for question in questions:
+                    answer = "Candidate Name" if question["question_key"] == "name" else "candidate@example.invalid"
+                    controller.approve_application_question(question["id"], answer)
+                _wait(controller, lambda s: _attempt(s, "fixture-success")["state"] == "confirmed")
 
-            controller.queue_controlled_application("fixture-unknown", base + "/unknown")
-            controller.queue_controlled_application("fixture-known", base + "/known")
-            state = _wait(controller, lambda s: _attempt(s, "fixture-unknown")["state"] == "needs_review" and _attempt(s, "fixture-known")["state"] == "confirmed")
-            assert any(q["question_key"] == "favorite_color" for q in state["applications"]["open_questions"])  # type: ignore[index]
+                controller.queue_controlled_application("fixture-unknown", base + "/unknown")
+                controller.queue_controlled_application("fixture-known", base + "/known")
+                state = _wait(controller, lambda s: _attempt(s, "fixture-unknown")["state"] == "needs_review" and _attempt(s, "fixture-known")["state"] == "confirmed")
+                assert any(q["question_key"] == "favorite_color" for q in state["applications"]["open_questions"])  # type: ignore[index]
 
-            controller.queue_controlled_application("fixture-captcha", base + "/captcha")
-            controller.queue_controlled_application("fixture-flaky", base + "/flaky")
-            controller.queue_controlled_application("fixture-uncertain", base + "/uncertain")
-            state = _wait(
-                controller,
-                lambda s: _attempt(s, "fixture-captcha")["state"] == "blocked"
-                and _attempt(s, "fixture-flaky")["state"] == "confirmed"
-                and _attempt(s, "fixture-uncertain")["state"] == "uncertain",
-                timeout=25.0,
-            )
-            assert int(_attempt(state, "fixture-flaky")["retry_count"]) >= 1
-            before = len(state["applications"]["attempts"])  # type: ignore[index]
-            controller.queue_controlled_application("fixture-known", base + "/known")
-            after = len(controller.snapshot()["applications"]["attempts"])
-            assert before == after
-            assert FixtureHandler.max_active_posts == 1
-            assert any(paths.browser_profile.iterdir())
-            controller.stop()
-            assert controller.snapshot()["applications"]["worker"]["alive"] is False
-            controller.close()
+                controller.queue_controlled_application("fixture-captcha", base + "/captcha")
+                controller.queue_controlled_application("fixture-flaky", base + "/flaky")
+                controller.queue_controlled_application("fixture-uncertain", base + "/uncertain")
+                state = _wait(
+                    controller,
+                    lambda s: _attempt(s, "fixture-captcha")["state"] == "blocked"
+                    and _attempt(s, "fixture-flaky")["state"] == "confirmed"
+                    and _attempt(s, "fixture-uncertain")["state"] == "uncertain",
+                    timeout=25.0,
+                )
+                assert int(_attempt(state, "fixture-flaky")["retry_count"]) >= 1
+                before = len(state["applications"]["attempts"])  # type: ignore[index]
+                controller.queue_controlled_application("fixture-known", base + "/known")
+                after = len(controller.snapshot()["applications"]["attempts"])
+                assert before == after
+                assert FixtureHandler.max_active_posts == 1
+                assert any(paths.browser_profile.iterdir())
+                controller.stop()
+                assert controller.snapshot()["applications"]["worker"]["alive"] is False
+            finally:
+                controller.close()
     finally:
         server.shutdown()
         server.server_close()
