@@ -56,9 +56,19 @@ No real employer submission and no Greenhouse/Lever/Ashby employer-form adapter 
 
 Acceptance: `docs/PHASE6_ACCEPTANCE.md`.
 
-## Phase 7 - Supported hiring-platform adapters [ ]
+## Phase 7 - Supported hiring-platform adapters [x]
 
-7A Greenhouse, then 7B Lever, then 7C Ashby. Each adapter must pass controlled submissions and read-only live form recognition before the next begins. Unsupported variants are reported, not guessed.
+Completed sequentially:
+- [x] 7A Greenhouse hosted-form adapter: controlled loopback submission/confirmation and current GitLab form recognition passed before Lever work began;
+- [x] 7B Lever hosted-form adapter: controlled loopback submission/confirmation and current Nium form recognition passed before Ashby work began;
+- [x] 7C Ashby hosted-form adapter: controlled loopback submission/confirmation and current Ashby form recognition passed;
+- [x] unsupported/challenge variants are reported rather than guessed;
+- [x] live employer pages remain read-only and adapter write methods fail closed outside loopback;
+- [x] exact-head Windows Phase 7 acceptance at code head `3a95d0a32755c94b21ec77c209749986718167a6`, run `34745312735`.
+
+The current live examples for all three providers expose CAPTCHA integration and are therefore recognized but conservatively classified unsupported for automatic submission. No real employer form was filled or submitted. Phase 7 provides the provider adapter boundary only; orchestration into the application queue remains Phase 8.
+
+Acceptance: `docs/PHASE7_ACCEPTANCE.md`.
 
 ## Phase 8 - End-to-end orchestration [ ]
 
