@@ -33,7 +33,7 @@ def test_phase4_migration_upgrades_phase3_database_and_preserves_state(tmp_path:
         ]
         db.set_json_setting("targeting", {"notice_period_days": 30})
     with Database(database_path, MIGRATIONS) as db:
-        assert db.apply_migrations() == ["005_phase4_tailoring.sql", "006_phase4_tailoring_safety.sql", "007_phase5_jobs.sql"]
+        assert db.apply_migrations() == ["005_phase4_tailoring.sql", "006_phase4_tailoring_safety.sql", "007_phase5_jobs.sql", "008_phase6_applications.sql"]
         tables = {row[0] for row in db.connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert {"manual_job_descriptions", "tailored_resumes"}.issubset(tables)
         tailored_columns = {row["name"] for row in db.connection.execute("PRAGMA table_info(tailored_resumes)")}

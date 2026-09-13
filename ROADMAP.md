@@ -34,30 +34,27 @@ Remaining private product gate:
 - [ ] five distinct real tailored resumes must be explicitly approved under one current validation context;
 - [ ] automatic tailoring remains disabled until the current local gate is 5/5.
 
-The user explicitly authorized Phase 5 development on 2026-09-12 without treating that sequencing exception as completion of the private Phase 4 gate.
+The user explicitly authorized later phase development without treating that sequencing exception as completion of the private Phase 4 gate.
 
 Acceptance: `docs/PHASE4_ACCEPTANCE.md`, `docs/PHASE4_CLOSEOUT.md`.
 
 ## Phase 5 - Job discovery and matching [x]
 
-Completed:
-- [x] normalization and manual job import;
-- [x] verified Greenhouse/Lever/Ashby starter registry and explicit public discovery;
-- [x] live validation before persisting user-added board identifiers;
-- [x] conservative source/content deduplication;
-- [x] hard eligibility for targeting constraints and Brentwood exclusion;
-- [x] unknown mandatory conditions routed to review instead of guessed;
-- [x] required/preferred requirement extraction and source-verified approved-fact matching;
-- [x] explainable ranking separated from eligibility and never labelled an ATS score/interview probability;
-- [x] bundled local jobs UI with Python-owned network boundary;
-- [x] employer form filling and submission remain disabled;
-- [x] focused Windows acceptance run `34686987747` passed syntax, full non-external regression, three live public ATS contracts, source/package smoke, and PyInstaller build.
+Completed: normalized/manual discovery, verified public Greenhouse/Lever/Ashby boards, conservative deduplication, targeting eligibility, source-verified approved-fact matching, explainable ranking, local jobs UI, and current-feed retirement. Employer submission remained disabled throughout Phase 5.
 
 Acceptance: `docs/PHASE5_ACCEPTANCE.md`.
 
-## Phase 6 - Application engine using controlled forms [ ]
+## Phase 6 - Application engine using controlled forms [x]
 
-6A transactional application journal/single worker. 6B controlled Playwright fixture engine and approved answers. 6C CAPTCHA/challenge/unknown-question/duplicate/crash/network/sleep/close recovery. No real employers.
+Completed:
+- [x] 6A transactional application journal, duplicate prevention, single explicit-session worker, and crash recovery;
+- [x] 6B localhost-only Playwright controlled-form contract and exact-context approved-answer reuse;
+- [x] 6C conservative CAPTCHA/challenge/unknown-question/network/Stop/Close/`UNCERTAIN` behavior;
+- [x] exact-head Windows Phase 6 acceptance at code head `8d1cb12d1a5ff096ecfc8b8df470777ee3b99c43`, run `34743335410`.
+
+No real employer submission and no Greenhouse/Lever/Ashby employer-form adapter is part of Phase 6.
+
+Acceptance: `docs/PHASE6_ACCEPTANCE.md`.
 
 ## Phase 7 - Supported hiring-platform adapters [ ]
 
