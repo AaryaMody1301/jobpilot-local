@@ -2,43 +2,36 @@
 
 ## Current phase
 
-Phase 5 - Job discovery and matching.
+Phase 6 - Application engine using controlled forms.
 
-Status: **implementation complete; final exact-head Windows acceptance is the remaining merge check**. Phase 6 has not started and employer form filling/submission remains disabled.
+Status: **implementation in progress; Windows acceptance pending**. Phase 7 has not started. Real employer form filling/submission remains disabled.
 
-Phase 4's technical implementation is merged, but its private five-real-resume human gate remains a separate local acceptance condition. The user explicitly authorized Phase 5 development on 2026-09-12 without waiving that gate.
+PR #9 merged Phase 5 into `main` at `29234991ca824eb6d5f4d1892079360c3241431b` on 2026-09-12. Phase 4's private five-real-resume human gate remains a separate local acceptance condition and is not waived by later development authorization.
 
-## Phase 5 implementation
+## Phase 6 implementation
 
-- Added migration `007_phase5_jobs.sql` for verified job boards and normalized discovered jobs.
-- Added manual job import with credential-free absolute HTTP(S) provenance.
-- Added compact stdlib-only public GET clients for Greenhouse, Lever, and Ashby.
-- Starter registry uses current real public boards: GitLab (`greenhouse:gitlab`), Nium (`lever:nium`), and Ashby (`ashby:ashby`).
-- A user-added board identifier is persisted only after its live public endpoint returns a supported payload.
-- Successful board refreshes atomically retain provenance while marking jobs removed from the current feed inactive; failed fetches do not retire previously observed jobs.
-- Added conservative deduplication by exact source identity and exact normalized content identity.
-- Added hard eligibility checks for employer exclusion, configured role titles, permanent full-time employment, explicit experience minimums, India office-city rules, overseas relocation/sponsorship, and explicit remote-US-only restrictions.
-- Unknown mandatory employment/location/origin/sponsorship conditions become `review`; they are not guessed.
-- Preferred experience is not promoted into a hard minimum.
-- Required/preferred evidence matching reuses the Phase 4 current-approved-fact gate, so inactive historical master facts and stale/missing source evidence cannot influence ranking.
-- Ranking exposes role/evidence/clarity components and is not described as an ATS score or interview probability.
-- Added a small bundled Phase 5 jobs UI layer that reuses the Phase 4 shell. Remote ATS requests remain in Python; JavaScript performs no fetch/XHR.
-- Employer submission remains false throughout the controller/UI state.
+- Added additive migration `008_phase6_applications.sql` for controlled-attempt leasing/retry metadata, exact-context approved answers, and mandatory-question review records.
+- Reused the existing Phase 0 application state machine/journal rather than adding a second workflow model; Phase 6 only adds the review/requeue transitions required by controlled forms.
+- Added one `applications.py` module containing the transactional journal, localhost trust boundary, exact-context answer fingerprint, controlled Playwright engine, and one worker. No new dependency or provider abstraction was added.
+- Targets must be absolute credential-free localhost/loopback HTTP(S). Real employer targets are rejected before Playwright and non-loopback HTTP(S) browser requests are aborted.
+- Playwright runs on the single application-worker thread with one dedicated persistent JobPilot profile.
+- Unknown mandatory supported questions enter review and are reusable only when question key + semantic context hash match exactly; other queued controlled fixtures continue.
+- CAPTCHA/assessment/login/verification/payment/unsupported markers block before submit.
+- Pre-submit network/browser failures are safely bounded-retryable; interrupted pre-submit attempts recover to queued.
+- `SUBMITTING` is persisted immediately before the click; only an explicit positive confirmation marker can become `CONFIRMED`. Post-submit ambiguity becomes terminal `UNCERTAIN`.
+- Phase 6 UI is a small bundled layer on top of the existing shell and exposes the single worker, review lane, and controlled journal. JavaScript performs no remote networking.
+- Greenhouse, Lever, and Ashby employer-form adapters are deliberately not implemented; they remain Phase 7.
 
 ## Compact-code/check policy
 
-`AGENTS.md` records the project-wide Ponytail-style rule for later phases: avoid code when possible, then prefer stdlib/native/already-installed dependencies, write the minimum clear code, avoid speculative abstractions, and test only real trust boundaries/product decisions. Security, data integrity, accessibility, and explicit product gates are not removed for compactness.
+The repository-wide Ponytail rule remains authoritative: prefer no code, then stdlib/native/already-installed dependencies, then the minimum clear implementation. Phase 6 uses the already-pinned Playwright dependency and existing SQLite/application state machinery instead of a new automation framework.
 
-No implementation code was copied from `Rojios/ponytail`; it is a development-style reference only and is recorded in `THIRD_PARTY_NOTICES.md`.
+Checks are limited to consequential boundaries: one journal/state test plus one localhost Playwright acceptance. The full existing regression suite and desktop/package smokes remain the integration safety net.
 
-## Verification
+## Verification pending
 
-An earlier cohesive Phase 5 head passed Windows run `34686987747`: syntax, the full non-external regression suite, live Greenhouse/Lever/Ashby normalization, source/WebView2 smoke, PyInstaller onedir build, and packaged smoke all succeeded.
-
-The final code additionally tightened current-board retirement, current-master evidence scope, starter-board selection, HTML/entity normalization, URL/field limits, and consequential eligibility edge cases. The final branch head must pass the same focused Phase 5 workflow before the PR is opened, then the pull-request-context Phase 0-5 workflows must be green before merge.
-
-The focused Phase 5 tests cover external payload shapes and consequential matching/dedup/current-feed persistence decisions; they deliberately do not duplicate trivial implementation-detail tests.
+The exact Phase 6 branch head must pass `.github/workflows/phase6.yml`: syntax, the full non-external regression suite, controlled localhost Playwright acceptance, source self/window smoke, PyInstaller onedir build, and packaged self/window smoke. After that, final documentation will record the run ID before opening the PR so pull-request-context Phase 0-6 workflows verify the exact final head.
 
 ## Next boundary
 
-Open and merge the Phase 5 PR only after final exact-head Phase 5 acceptance and pull-request-context Phase 0-5 workflows are green. Do not start Phase 6 without a later explicit user request.
+Do not start Phase 7. Open and merge the Phase 6 PR only after exact-head Phase 6 acceptance and pull-request-context Phase 0-6 workflows are green.

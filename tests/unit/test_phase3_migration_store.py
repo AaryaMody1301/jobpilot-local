@@ -26,7 +26,7 @@ def test_phase3_migration_upgrades_phase2_database_without_losing_later_addition
         assert db.apply_migrations() == ["001_phase0_runtime.sql", "002_phase1_foundation.sql", "003_phase2_resume_fact_bank.sql"]
         db.set_json_setting("targeting", {"notice_period_days": 30})
     with Database(database_path, MIGRATIONS) as db:
-        assert db.apply_migrations() == ["004_phase3_local_ai.sql", "005_phase4_tailoring.sql", "006_phase4_tailoring_safety.sql", "007_phase5_jobs.sql"]
+        assert db.apply_migrations() == ["004_phase3_local_ai.sql", "005_phase4_tailoring.sql", "006_phase4_tailoring_safety.sql", "007_phase5_jobs.sql", "008_phase6_applications.sql"]
         tables = {row[0] for row in db.connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert {
             "hardware_snapshots", "runtime_installs", "model_installs", "model_evaluations",
