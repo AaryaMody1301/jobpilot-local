@@ -8,27 +8,26 @@
 - Phase 4 tailoring is technically implemented and merged. Its private five-real-resume review gate remains independently authoritative until `--phase4-gate-report` succeeds for the current local context.
 - Phase 5 job discovery and matching is complete.
 - Phase 6 controlled application-engine work is complete and accepted.
-- Phase 7 Greenhouse, Lever and Ashby hosted-form adapters are complete and accepted. Current live checks remain read-only; Phase 8 orchestration and Phase 9 real-application pilot activation have not started.
+- Phase 7 Greenhouse, Lever and Ashby hosted-form adapters are complete and accepted.
+- Phase 8 end-to-end orchestration is complete and accepted. Real employer submission remains disabled and belongs to the separately authorized Phase 9 pilot.
 
-## Phase 7
+## Phase 8
 
-Phase 7 adds the supported hiring-platform adapter boundary without enabling real submissions:
+Phase 8 connects the already-built local components without introducing a second orchestration framework:
 
-- one shared hosted-form adapter implementation under the existing `jobpilot.applications` package;
-- Greenhouse support for `job-boards.greenhouse.io` and `boards.greenhouse.io`;
-- Lever support for `jobs.lever.co` and `jobs.eu.lever.co`;
-- Ashby support for `jobs.ashbyhq.com`;
-- exact provider-host validation and credential-free absolute HTTP(S) targets;
-- read-only live form recognition of visible fields, required status and one supported submit control;
-- controlled loopback filling/submission for adapter acceptance only;
-- hard live write guards: adapter `fill()`/`submit()` cannot operate on real employer pages;
-- conservative blockers for CAPTCHA, login/verification, assessment, actual payment/card controls and unsupported required fields;
-- explicit positive confirmation required after controlled submit;
-- unsupported live variants reported instead of guessed.
+- verified public/manual discovery and evidence-backed matching feed the existing transactional application journal;
+- hard eligibility failures stop as ineligible, while unknown mandatory conditions enter an explicit attention lane;
+- eligible work reuses the existing evidence-backed tailoring service and current Phase 4 model/human-review gates;
+- immutable application packages bind one discovered-job snapshot to tailoring audit evidence and the current approved application-answer fingerprint;
+- stale/deactivated jobs, stale/tampered resume evidence, or changed approved answers invalidate prepared/queued work before submit;
+- the existing single application worker remains the only submission worker;
+- development submission remains loopback-only and requires explicit positive confirmation;
+- live Greenhouse/Lever/Ashby inspection is recognition-only and has no Phase 8 fill/submit activation;
+- resource pressure can pause new tailoring without reducing quality gates;
+- the desktop attention/history lane exposes review, stale, blocked and pilot-activation states;
+- the local-day objective shows 50 confirmed real applications as a target, not a ceiling. Controlled fixture confirmations are excluded and no eligibility/factual/review rule changes to chase the target.
 
-The implementation reuses the existing `ApplicationAdapter` contract, Playwright dependency and Phase 5 public-board discovery. No new runtime dependency, provider SDK, browser framework or duplicate application state machine was added.
-
-Current read-only live recognition on the accepted Phase 7 head found application fields and a single submit control for current GitLab/Greenhouse, Nium/Lever and Ashby/Ashby examples. Each also exposed CAPTCHA integration, so all three current examples are conservatively reported unsupported for automatic submission. No real employer form was filled or submitted.
+Application launch remains Idle. Discovery/orchestration starts only after explicit Start, and the existing Pause/Stop/Close boundaries remain authoritative.
 
 ## Safety and privacy
 
@@ -37,9 +36,9 @@ Current read-only live recognition on the accepted Phase 7 head found applicatio
 - Private resume sources, approved facts, generated resumes, local databases, browser state, and model weights stay outside Git under the app-managed local data root.
 - JDs, ATS payloads, employer pages, and model output are untrusted data.
 - Automatic resume tailoring still requires the current five-distinct-resume Phase 4 gate.
-- Phase 7 live employer pages are recognition-only; provider adapter writes require an app-controlled loopback fixture.
+- Phase 8 live employer pages are read-only. Provider adapter writes remain disabled outside controlled loopback fixtures.
 - `UNCERTAIN` submission outcomes are never automatically retried.
-- Phase 8 must still connect the provider adapters to discovery/matching/tailoring/application orchestration. Phase 9 separately requires explicit user authorization before any real-application pilot.
+- Phase 9 separately requires explicit user authorization before any real-application pilot.
 
 Check the private Phase 4 gate without exposing resume/JD/fact content:
 
@@ -59,22 +58,20 @@ python -m playwright install chromium
 python -m jobpilot.app.main
 ```
 
-The application still launches Idle. Phase 7 does not add hidden scheduling or real-employer execution.
+## Phase 8 acceptance
 
-## Phase 7 acceptance
-
-Windows run `34745312735` at code head `3a95d0a32755c94b21ec77c209749986718167a6` passed the final Phase 7 path:
+Windows run `34946104772` at runtime code head `5b2a10827a2b81533a2017dd9828395ded91a383` passed the final Phase 8 path:
 
 - Python and bundled JavaScript syntax validation;
-- the complete non-external regression suite;
-- controlled loopback fill/submit/explicit-confirmation acceptance for Greenhouse, Lever and Ashby adapters;
-- read-only live recognition for current Greenhouse, Lever and Ashby hosted forms;
-- fail-closed live write guards;
-- source self-test and hidden WebView2/pywebview smoke;
+- complete non-external regression suite: 129 passed, 1 skipped, 2 deselected;
+- focused controlled end-to-end orchestration with immutable-package freshness, two mandatory answer reviews, package refresh, single controlled submission, explicit confirmation and controlled-counter exclusion;
+- stale-package invalidation before claim when approved answers change;
+- inherited Phase 7 controlled/live-read-only provider acceptance for Greenhouse, Lever and Ashby;
+- source self-test and hidden WebView2/pywebview Phase 8 smoke;
 - PyInstaller onedir build;
 - packaged self-test and packaged hidden-window smoke.
 
-See `docs/PHASE7_ACCEPTANCE.md` for the exact boundary, live evidence and check rationale.
+No real employer form was filled or submitted. See `docs/PHASE8_ACCEPTANCE.md` for the exact boundary and evidence.
 
 ## Local data
 
@@ -87,4 +84,4 @@ Runtime data lives under `%LOCALAPPDATA%\JobPilotLocal`. Private candidate data,
 - `DECISIONS.md` - engineering decisions.
 - `PROGRESS.md` - current handoff and exact verification evidence.
 - `AGENTS.md` - repository implementation rules, including the compact Ponytail-style code/check policy.
-- `docs/PHASE7_ACCEPTANCE.md` - Phase 7 acceptance boundary and evidence.
+- `docs/PHASE8_ACCEPTANCE.md` - Phase 8 acceptance boundary and evidence.
