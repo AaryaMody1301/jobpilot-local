@@ -56,7 +56,7 @@ APPLICATION_TRANSITIONS: Mapping[ApplicationState, AbstractSet[ApplicationState]
     ApplicationState.ELIGIBILITY_CHECK: {ApplicationState.ELIGIBLE, ApplicationState.INELIGIBLE, ApplicationState.NEEDS_REVIEW, ApplicationState.BLOCKED},
     ApplicationState.ELIGIBLE: {ApplicationState.TAILORING, ApplicationState.STALE},
     ApplicationState.INELIGIBLE: set(),
-    ApplicationState.NEEDS_REVIEW: {ApplicationState.ELIGIBILITY_CHECK, ApplicationState.QUEUED, ApplicationState.BLOCKED},
+    ApplicationState.NEEDS_REVIEW: {ApplicationState.ELIGIBILITY_CHECK, ApplicationState.TAILORING, ApplicationState.QUEUED, ApplicationState.BLOCKED},
     ApplicationState.TAILORING: {ApplicationState.REVIEW_REQUIRED, ApplicationState.PREPARED, ApplicationState.NEEDS_REVIEW, ApplicationState.FAILED, ApplicationState.STALE},
     ApplicationState.REVIEW_REQUIRED: {ApplicationState.PREPARED, ApplicationState.TAILORING, ApplicationState.BLOCKED, ApplicationState.STALE},
     ApplicationState.PREPARED: {ApplicationState.QUEUED, ApplicationState.STALE},

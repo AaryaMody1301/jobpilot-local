@@ -1,4 +1,4 @@
-from jobpilot.app.phase6_main import (
+from jobpilot.app.phase8_main import (
     create_controller,
     main,
     run_desktop,

@@ -66,13 +66,25 @@ Completed sequentially:
 - [x] live employer pages remain read-only and adapter write methods fail closed outside loopback;
 - [x] exact-head Windows Phase 7 acceptance at code head `3a95d0a32755c94b21ec77c209749986718167a6`, run `34745312735`.
 
-The current live examples for all three providers expose CAPTCHA integration and are therefore recognized but conservatively classified unsupported for automatic submission. No real employer form was filled or submitted. Phase 7 provides the provider adapter boundary only; orchestration into the application queue remains Phase 8.
-
 Acceptance: `docs/PHASE7_ACCEPTANCE.md`.
 
-## Phase 8 - End-to-end orchestration [ ]
+## Phase 8 - End-to-end orchestration [x]
 
-Connect discovery, matching, tailoring, gates, queues, attention lane, submission, resource pressure, stale-package invalidation, history, and daily confirmed counter. Target 50 confirmed applications without weakening eligibility or factual quality.
+Completed:
+- [x] discovery/matching outcomes are journaled into the existing application state machine;
+- [x] eligibility unknowns use an explicit attention lane and cannot be guessed;
+- [x] eligible work reuses the existing evidence-backed tailoring service and the Phase 4 human/automatic-tailoring gates;
+- [x] immutable application packages bind the discovered job snapshot, tailoring audit evidence, current approved-answer fingerprint and submission attempt;
+- [x] prepared/queued packages are invalidated before submit when their job, resume/context evidence or approved answers become stale;
+- [x] the existing single application worker remains the only component allowed to cross the controlled submit boundary;
+- [x] provider live-form inspection is read-only and Phase 8 exposes no real-employer fill/submit activation;
+- [x] orchestration respects resource pressure and explicit Start/Pause/Stop/Close lifecycle boundaries;
+- [x] attention/history and a local-calendar-day `50 confirmed real applications` target are visible; controlled confirmations are excluded and the target never weakens eligibility/factual/review gates;
+- [x] exact-head Windows Phase 8 acceptance at code head `5b2a10827a2b81533a2017dd9828395ded91a383`, run `34946104772`.
+
+Real employer submission is still disabled. Phase 9 requires separate explicit user authorization before any real-application pilot.
+
+Acceptance: `docs/PHASE8_ACCEPTANCE.md`.
 
 ## Phase 9 - Packaging and user-authorized pilot [ ]
 
