@@ -152,13 +152,13 @@ class Phase8ApplicationController(Phase6ApplicationController):
             self.applications.resolve_question(question_id, answer)
             if application_id:
                 attempt = self.applications.attempt(application_id)
-                if attempt.get("package_id"):
+                if attempt.get("package_id") and str(attempt["state"]) == ApplicationState.QUEUED.value:
                     self.applications.prepare_from_run(application_id)
             with self._lock:
                 self.database.record_foundation_activity(
                     self.session_id,
                     "application_answer_approved",
-                    "Approved an exact-context form answer and refreshed the immutable Phase 8 package",
+                    "Approved an exact-context form answer and refreshed the immutable Phase 8 package after review completed",
                 )
                 return self.snapshot()
         finally:
