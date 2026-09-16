@@ -8,11 +8,12 @@ This file records dependencies and reference projects reviewed for `jobpilot-loc
 | --- | --- | --- |
 | Python | 3.13.15 | Python Software Foundation License |
 | pywebview | 6.2.1 | BSD-3-Clause |
-| Playwright Python | 1.62.0 | Apache-2.0 |
+| Playwright Python | 1.63.0 | Apache-2.0 |
 | psutil | 7.2.2 | BSD-3-Clause |
-| pypdf | 6.18.0 | BSD-3-Clause |
+| pypdf | 6.18.1 | BSD-3-Clause |
 | pytest | 9.1.1 | MIT |
-| PyInstaller | 6.22.2 | GPL-2.0-or-later with the PyInstaller bootloader exception |
+| pip-audit | 2.10.1 | Apache-2.0; development/CI vulnerability audit only |
+| PyInstaller | 6.22.3 | GPL-2.0-or-later with the PyInstaller bootloader exception |
 | Tectonic | 0.17.0 app-managed Windows x64 binary | MIT for Tectonic; support files derived from TeX Live carry their own upstream licenses and notices that must remain attributable in distribution |
 | llama.cpp | v0.4.0 / binary build b10809 | MIT; exact CPU/Vulkan Windows x64 archives are pinned below |
 | Qwen3 4B GGUF | `ggml-org/Qwen3-4B-GGUF`, revision `2f3b082b1356a6123f7ed71e65aea340da25d53c`, Q4_K_M | Apache-2.0; model weights are downloaded only after explicit user approval and are never committed to this repository |
@@ -24,7 +25,7 @@ Tectonic's support cache can contain separately licensed TeX/LaTeX/font resource
 
 ## Phase 9 bundled browser and WebView2 boundary
 
-Phase 9 installs Playwright browser assets hermetically with `PLAYWRIGHT_BROWSERS_PATH=0` before the PyInstaller build. The accepted baseline is Playwright Python 1.62.0, Playwright Chromium revision 1234, and Chrome for Testing 151.0.7922.34 for Windows x64, including the matching Playwright-installed Chrome Headless Shell, FFmpeg and support binaries. The bundled browser retains its upstream embedded open-source credits and third-party license material. See `packaging/BROWSER_NOTICES.md` for the distribution-specific browser and WebView2 notice.
+Phase 9 installs Playwright browser assets hermetically with `PLAYWRIGHT_BROWSERS_PATH=0` before the PyInstaller build. The current dependency baseline is Playwright Python 1.63.0, Playwright Chromium revision 1243, and Chrome for Testing 153.0.8010.12 for Windows x64, including the matching Playwright-installed Chrome Headless Shell, FFmpeg and support binaries. The bundled browser retains its upstream embedded open-source credits and third-party license material. See `packaging/BROWSER_NOTICES.md` for the distribution-specific browser and WebView2 notice.
 
 The WebView2 Evergreen Runtime is treated as an external Windows prerequisite rather than copied into the application directory. Setup checks the documented runtime registration. When absent, it downloads Microsoft's official Evergreen Bootstrapper, requires a valid Microsoft Authenticode signature, invokes the documented silent install, and verifies that the Runtime becomes available before continuing. Microsoft terms/notices remain upstream obligations.
 
@@ -38,7 +39,7 @@ JobPilot does not bundle or commit model weights. Its Phase 3 catalogue records 
 
 The Qwen3 GGUF is used as a text-only local model. JobPilot does not download or load a multimodal projection for it. Passing the controlled Phase 3 evaluation does not grant permission to fabricate resume facts and does not enable automatic tailoring; the separate Phase 4 five-resume human review gate still applies.
 
-Every future runtime/model revision must receive a new catalogue record/install identity with source revision, license, exact checksum/size and evaluation evidence before use. A metadata update check may report newer upstream versions, but it never downloads or automatically trusts them.
+Upstream may publish newer llama.cpp releases after this validated catalogue baseline. They are not silently substituted: every future runtime/model revision must receive a new catalogue record/install identity with source revision, license, exact checksum/size and evaluation evidence before use. A metadata update check may report newer upstream versions, but it never downloads or automatically trusts them.
 
 ## Reference repositories reviewed
 

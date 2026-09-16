@@ -4,10 +4,10 @@ JobPilot Local Phase 9 distributions bundle the Playwright-managed browser asset
 
 Tested distribution baseline:
 
-- Playwright Python: 1.62.0 (Apache-2.0)
-- Playwright Chromium revision: 1234
-- Chrome for Testing: 151.0.7922.34, Windows x64
-- matching Chrome Headless Shell, FFmpeg, and Playwright support binaries installed by Playwright 1.62.0
+- Playwright Python: 1.63.0 (Apache-2.0)
+- Playwright Chromium revision: 1243
+- Chrome for Testing: 153.0.8010.12, Windows x64
+- matching Chrome Headless Shell, FFmpeg, and Playwright support binaries installed by Playwright 1.63.0
 
 The Playwright browser bundle is installed hermetically with `PLAYWRIGHT_BROWSERS_PATH=0` before the PyInstaller build so the packaged application does not depend on a user- or machine-global Playwright browser cache. JobPilot does not add Google API keys, browser extensions, telemetry, or remote UI scripts.
 

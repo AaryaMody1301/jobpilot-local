@@ -34,7 +34,7 @@ Remaining private product gate:
 - [ ] five distinct real tailored resumes must be explicitly approved under one current validation context;
 - [ ] automatic tailoring remains disabled until the current local gate is 5/5.
 
-The user explicitly authorized later phase development without treating that sequencing exception as completion of the private Phase 4 gate.
+The user explicitly authorized later phase development without treating that sequencing exception as completion of the private Phase 4 gate. The post-Phase-9 hardening matrix re-ran and passed the real local Phase 4 tailoring acceptance at hardening head `75205774ad8cf444fe9081073b59c3e951849a50`, run `35077829627`; this technical acceptance does not substitute for the five human approvals.
 
 Acceptance: `docs/PHASE4_ACCEPTANCE.md`, `docs/PHASE4_CLOSEOUT.md`.
 
@@ -102,10 +102,13 @@ Measured-pilot activation path:
 - [x] implemented the minimum real-employer hosted-form write path without weakening eligibility, package freshness, approved-answer, provider-blocker, single-worker, confirmation or `UNCERTAIN` boundaries;
 - [x] every launch starts inactive, requires an exact local activation phrase, a fresh read-only inspection and explicit per-application arming, with at most five armed applications per launch;
 - [x] restart/deactivation/restore forces queued real work back to `PREPARED`, clears stale live inspection data and requires fresh inspection plus re-arming;
-- [x] exact-head Windows technical acceptance at code head `06a2f31d47dc3dbe09bcf0eda3fd34bf0278d0e5`, run `35072562186`;
+- [x] live resume upload resolves the persisted managed `pdf_relpath` and re-verifies its SHA-256 immediately before browser upload;
+- [x] post-submit success requires newly observed confirmation evidence relative to a captured pre-submit baseline, so static success-like text cannot by itself produce `CONFIRMED`;
+- [x] dependency/package hardening is current for the accepted release baseline: Playwright 1.63.0, pypdf 6.18.1, PyInstaller 6.22.3 and pinned `pip-audit` 2.10.1;
+- [x] exact-head post-audit hardening matrix passed Phase 0 through Phase 9 at code head `75205774ad8cf444fe9081073b59c3e951849a50`; Phase 9 run `35077829573`, Phase 4 run `35077829627`;
 - [ ] run the measured real-world pilot from current local/private candidate data and record actual confirmed-application throughput/quality evidence;
 - [ ] never claim 50/day without measured evidence.
 
-The accepted technical pilot implementation did not fill or submit a real employer form. CI live-provider checks remain read-only; only controlled loopback fixtures perform writes. Phase 4's private five-real-resume gate remains independently authoritative.
+The accepted technical pilot implementation and hardening acceptance did not fill or submit a real employer form. CI live-provider checks remain read-only; only controlled loopback fixtures perform writes. Phase 4's private five-real-resume gate remains independently authoritative.
 
 Acceptance: `docs/PHASE9_DISTRIBUTION_ACCEPTANCE.md`, `docs/PHASE9_PILOT_ACCEPTANCE.md`. Phase 9 remains `[~]` until measured real-pilot evidence is recorded.

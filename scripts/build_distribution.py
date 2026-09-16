@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
         "2. Run setup.cmd. Installation is per-user and does not require administrator access.\n"
         "3. Future versions use the same setup command to upgrade program files while preserving %LOCALAPPDATA%\\JobPilotLocal.\n"
         "\n"
-        "The real-employer application pilot is intentionally disabled in this distribution stage.\n",
+        "Real-employer submission is inactive on every launch. The measured pilot requires explicit local activation, a fresh supported read-only form inspection, and individual application arming; eligibility, answer-review, package-freshness and provider-blocker gates remain authoritative.\n",
         encoding="utf-8",
     )
 
