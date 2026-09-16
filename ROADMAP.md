@@ -86,6 +86,23 @@ Real employer submission is still disabled. Phase 9 requires separate explicit u
 
 Acceptance: `docs/PHASE8_ACCEPTANCE.md`.
 
-## Phase 9 - Packaging and user-authorized pilot [ ]
+## Phase 9 - Packaging and user-authorized pilot [~]
 
-Clean-machine Windows distribution, setup/upgrade, backup/restore, notices, then separate explicit real-application activation and a measured pilot. Never claim 50/day without evidence.
+Distribution/recovery completed:
+- [x] verified Windows 10/11 x64 onedir distribution and SHA-256 release metadata;
+- [x] per-user setup and rollback-safe in-place program upgrade while preserving the separate local data root;
+- [x] hermetic Playwright Chromium bundling and frozen-browser smoke without a global browser cache;
+- [x] WebView2 Evergreen Runtime detection and official Microsoft bootstrap path when absent;
+- [x] portable local backup/restore with integrity checks, restart-bound application and pre-restore safety backup;
+- [x] exact browser/WebView/legal notices in the distribution;
+- [x] exact-head Windows distribution/recovery acceptance at code head `b5ebda60793e3f61a25885b4370ebf5242d2e705`, run `35056956675`.
+
+Pilot remains separate and unstarted:
+- [ ] receive a separate explicit user authorization for real-application activation;
+- [ ] implement/enable the minimum real-employer write path without weakening provider blockers or application safety invariants;
+- [ ] run a measured pilot and record actual confirmed-application throughput/quality evidence;
+- [ ] never claim 50/day without measured evidence.
+
+Real employer form filling/submission remains disabled in the accepted distribution/recovery build.
+
+Acceptance: `docs/PHASE9_DISTRIBUTION_ACCEPTANCE.md`. Pilot acceptance will be a separate record after explicit authorization.

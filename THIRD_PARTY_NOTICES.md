@@ -16,12 +16,17 @@ This file records dependencies and reference projects reviewed for `jobpilot-loc
 | Tectonic | 0.17.0 app-managed Windows x64 binary | MIT for Tectonic; support files derived from TeX Live carry their own upstream licenses and notices that must remain attributable in distribution |
 | llama.cpp | v0.4.0 / binary build b10809 | MIT; exact CPU/Vulkan Windows x64 archives are pinned below |
 | Qwen3 4B GGUF | `ggml-org/Qwen3-4B-GGUF`, revision `2f3b082b1356a6123f7ed71e65aea340da25d53c`, Q4_K_M | Apache-2.0; model weights are downloaded only after explicit user approval and are never committed to this repository |
+| Microsoft Edge WebView2 Runtime | Evergreen system runtime | Microsoft-distributed prerequisite used by pywebview's Edge Chromium backend; not copied into the JobPilot program tree |
 
 Phase 2 pins the Tectonic Windows x64 MSVC archive `tectonic-0.17.0-x86_64-pc-windows-msvc.zip` to SHA-256 `f61ce51f0b0ade1015b7de7ef368541c5424e9756ecbd0d7af97d6d48030845f`. The application downloads it only after explicit user approval from the official Tectonic GitHub release and stores the installed executable plus integrity metadata in JobPilot's app-owned tool directory.
 
-Tectonic's support cache can contain separately licensed TeX/LaTeX/font resources. Distribution packaging must enumerate and preserve the notices applicable to the exact cached/bundled content; Phase 2 does not commit or bundle that cache in Git.
+Tectonic's support cache can contain separately licensed TeX/LaTeX/font resources. Distribution packaging must enumerate and preserve the notices applicable to the exact cached/bundled content. The Phase 9 Windows distribution does not pre-bundle the app-managed Tectonic cache/tool tree; those remain local machine-specific state.
 
-Playwright-managed Chromium carries its own upstream licensing and notice obligations. The packaged distribution must include the relevant browser notices for the exact bundled revision.
+## Phase 9 bundled browser and WebView2 boundary
+
+Phase 9 installs Playwright browser assets hermetically with `PLAYWRIGHT_BROWSERS_PATH=0` before the PyInstaller build. The accepted baseline is Playwright Python 1.62.0, Playwright Chromium revision 1234, and Chrome for Testing 151.0.7922.34 for Windows x64, including the matching Playwright-installed Chrome Headless Shell, FFmpeg and support binaries. The bundled browser retains its upstream embedded open-source credits and third-party license material. See `packaging/BROWSER_NOTICES.md` for the distribution-specific browser and WebView2 notice.
+
+The WebView2 Evergreen Runtime is treated as an external Windows prerequisite rather than copied into the application directory. Setup checks the documented runtime registration. When absent, it downloads Microsoft's official Evergreen Bootstrapper, requires a valid Microsoft Authenticode signature, invokes the documented silent install, and verifies that the Runtime becomes available before continuing. Microsoft terms/notices remain upstream obligations.
 
 ## Phase 3 local-AI artifacts
 
