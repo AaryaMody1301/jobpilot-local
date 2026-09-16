@@ -27,7 +27,7 @@ class Phase9ApplicationController(Phase8ApplicationController):
         super().__init__(paths, migrations_dir, *args, **kwargs)
         self.applications = Phase9PilotApplicationJournal(self.database, self.tailoring)
         recovered = self.applications.recover_live_pre_submit()
-        reset = self.applications.reset_live_queue_to_prepared(
+        reset = self._reset_live_pilot_queue(
             "new launch requires explicit per-application real-pilot re-arming"
         )
         self.recovery["recovered_phase9_live_pre_submit"] = recovered
@@ -36,7 +36,7 @@ class Phase9ApplicationController(Phase8ApplicationController):
         self.database.record_foundation_activity(
             self.session_id,
             "phase9_pilot_available",
-            "Phase 9 pilot implementation is available but resets to inactive on every launch; real submissions require local activation and per-application arming",
+            "Phase 9 pilot implementation is available but resets to inactive on every launch; real submissions require local activation, a fresh read-only inspection, and per-application arming",
         )
 
     def _require_open(self) -> None:
@@ -44,6 +44,19 @@ class Phase9ApplicationController(Phase8ApplicationController):
         manager = getattr(self, "backups", None)
         if manager is not None and manager.request_file.is_file() and not self._phase9_snapshot_read:
             raise RuntimeError("a restore is staged; restart JobPilot before making more changes")
+
+    def _reset_live_pilot_queue(self, reason: str) -> int:
+        reset = self.applications.reset_live_queue_to_prepared(reason)
+        with self.database.transaction() as connection:
+            connection.execute(
+                """
+                UPDATE application_attempts
+                   SET live_form_json='{}', live_form_checked_at=NULL, updated_at=?
+                 WHERE controlled_fixture=0 AND state='prepared' AND package_id IS NOT NULL
+                """,
+                (self.database.connection.execute("SELECT datetime('now')").fetchone()[0],),
+            )
+        return reset
 
     def _make_application_worker(self) -> ApplicationWorker:
         return PilotApplicationWorker(
@@ -63,22 +76,22 @@ class Phase9ApplicationController(Phase8ApplicationController):
             self.database.record_foundation_activity(
                 self.session_id,
                 "phase9_pilot_activated",
-                "Explicit per-launch real-application pilot activation recorded; each application still requires separate arming",
+                "Explicit per-launch real-application pilot activation recorded; each application still requires a fresh read-only inspection and separate arming",
             )
             return self.snapshot()
 
     def deactivate_real_application_pilot(self) -> dict[str, Any]:
         with self._lock:
             self._require_idle_onboarding()
-            reset = self.applications.reset_live_queue_to_prepared(
-                "pilot deactivation requires explicit re-arming before any later real submission"
+            reset = self._reset_live_pilot_queue(
+                "pilot deactivation requires fresh inspection and explicit re-arming before any later real submission"
             )
             self._pilot_session_authorized = False
             self._pilot_armed_application_ids.clear()
             self.database.record_foundation_activity(
                 self.session_id,
                 "phase9_pilot_deactivated",
-                f"Real-application pilot deactivated for this launch; {reset} queued live application(s) returned to prepared",
+                f"Real-application pilot deactivated for this launch; {reset} queued live application(s) returned to prepared and live inspections were cleared",
             )
             return self.snapshot()
 
@@ -125,7 +138,7 @@ class Phase9ApplicationController(Phase8ApplicationController):
                 "pilot_armed_this_launch": len(self._pilot_armed_application_ids),
                 "pilot_arm_limit": PILOT_MAX_ARMED_PER_LAUNCH,
                 "real_employer_submission_enabled": active,
-                "pilot_boundary": "This build was explicitly authorized for a measured pilot. Every launch starts inactive, every real application must be individually armed, supported-provider blockers remain fail-closed, and only the existing single worker may submit.",
+                "pilot_boundary": "This build was explicitly authorized for a measured pilot. Every launch starts inactive; each real application needs a fresh read-only inspection and explicit arming; supported-provider blockers remain fail-closed; and only the existing single worker may submit.",
             }
             return state
 
@@ -146,8 +159,8 @@ class Phase9ApplicationController(Phase8ApplicationController):
         with self._lock:
             self._require_idle_onboarding()
             result = self.backups.stage_restore(archive)
-            reset = self.applications.reset_live_queue_to_prepared(
-                "restore staging requires explicit real-pilot re-arming after restart"
+            reset = self._reset_live_pilot_queue(
+                "restore staging requires fresh inspection and explicit real-pilot re-arming after restart"
             )
             self._pilot_session_authorized = False
             self._pilot_armed_application_ids.clear()
