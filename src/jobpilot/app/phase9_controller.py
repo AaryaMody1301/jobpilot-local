@@ -13,6 +13,7 @@ class Phase9ApplicationController(Phase8ApplicationController):
 
     def __init__(self, paths: Any, migrations_dir: Path, *args: Any, **kwargs: Any) -> None:
         self._phase9_restore_applied = BackupManager.apply_pending_restore(paths, migrations_dir)
+        self._phase9_snapshot_read = False
         super().__init__(paths, migrations_dir, *args, **kwargs)
         self.backups = BackupManager(self.paths, migrations_dir)
         self.database.record_foundation_activity(
@@ -24,12 +25,16 @@ class Phase9ApplicationController(Phase8ApplicationController):
     def _require_open(self) -> None:
         super()._require_open()
         manager = getattr(self, "backups", None)
-        if manager is not None and manager.request_file.is_file():
+        if manager is not None and manager.request_file.is_file() and not self._phase9_snapshot_read:
             raise RuntimeError("a restore is staged; restart JobPilot before making more changes")
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
-            state = super().snapshot()
+            self._phase9_snapshot_read = True
+            try:
+                state = super().snapshot()
+            finally:
+                self._phase9_snapshot_read = False
             state["phase"] = 9
             state["applications"]["real_employer_submission_enabled"] = False
             state["orchestration"]["real_employer_submission_enabled"] = False
