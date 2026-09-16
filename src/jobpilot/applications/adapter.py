@@ -10,6 +10,7 @@ class FormField:
     field_type: str
     required: bool
     label: str
+    options: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
