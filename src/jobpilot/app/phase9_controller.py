@@ -13,6 +13,7 @@ from jobpilot.pilot import (
     Phase9PilotApplicationJournal,
     PilotApplicationWorker,
 )
+from jobpilot.storage.database import utc_now_text
 from jobpilot.version import __version__
 
 
@@ -54,7 +55,7 @@ class Phase9ApplicationController(Phase8ApplicationController):
                    SET live_form_json='{}', live_form_checked_at=NULL, updated_at=?
                  WHERE controlled_fixture=0 AND state='prepared' AND package_id IS NOT NULL
                 """,
-                (self.database.connection.execute("SELECT datetime('now')").fetchone()[0],),
+                (utc_now_text(),),
             )
         return reset
 
