@@ -51,9 +51,18 @@ class HostedApplicationAdapter:
     provider = ""
     hosts: tuple[str, ...] = ()
 
-    def __init__(self, page: Any, *, allow_controlled_submit: bool = False) -> None:
+    def __init__(
+        self,
+        page: Any,
+        *,
+        allow_controlled_submit: bool = False,
+        allow_live_submit: bool = False,
+    ) -> None:
+        if allow_controlled_submit and allow_live_submit:
+            raise ValueError("controlled and live adapter write modes are mutually exclusive")
         self.page = page
         self.allow_controlled_submit = allow_controlled_submit
+        self.allow_live_submit = allow_live_submit
         self._frame: Any = None
         self._fields: dict[str, Any] = {}
         self._field_types: dict[str, str] = {}
@@ -106,7 +115,8 @@ class HostedApplicationAdapter:
             input_type = str(control.get_attribute("type") or "text").casefold()
             if tag == "input" and input_type in {"hidden", "submit", "button", "reset", "image"}:
                 continue
-            kind = "select" if tag == "select" else "textarea" if tag == "textarea" else input_type
+            multiple = tag == "select" and control.get_attribute("multiple") is not None
+            kind = "select_multiple" if multiple else "select" if tag == "select" else "textarea" if tag == "textarea" else input_type
             name = str(control.get_attribute("name") or control.get_attribute("id") or "").strip() or f"field_{index}"
             if name in seen:
                 continue
@@ -117,10 +127,27 @@ class HostedApplicationAdapter:
                 or str(control.get_attribute("aria-required") or "").casefold() == "true"
                 or bool(re.search(r"(?:\*|✱)\s*$", label))
             )
-            supported = tag in {"select", "textarea"} or (tag == "input" and input_type in _SUPPORTED_INPUTS)
+            supported = tag == "textarea" or (tag == "select" and not multiple) or (tag == "input" and input_type in _SUPPORTED_INPUTS)
             if required and not supported:
                 blockers.append(f"unsupported_required_field:{kind}")
-            fields.append(FormField(name=name, field_type=kind, required=required, label=label))
+
+            options: tuple[tuple[str, str], ...] = ()
+            if tag == "select" and not multiple:
+                raw_options = control.locator("option").evaluate_all(
+                    "els => els.map(el => [String(el.value || ''), String((el.textContent || '').trim())])"
+                )
+                options = tuple((str(item[0]), str(item[1])) for item in raw_options if len(item) >= 2)
+            elif tag == "input" and input_type == "radio":
+                radios = frame.locator('input[type="radio"]')
+                radio_options: list[tuple[str, str]] = []
+                for radio_index in range(radios.count()):
+                    radio = radios.nth(radio_index)
+                    if str(radio.get_attribute("name") or "") != name:
+                        continue
+                    radio_options.append((str(radio.get_attribute("value") or ""), _label(radio)))
+                options = tuple(radio_options)
+
+            fields.append(FormField(name=name, field_type=kind, required=required, label=label, options=options))
             if supported:
                 self._fields[name] = control
                 self._field_types[name] = kind
@@ -139,7 +166,7 @@ class HostedApplicationAdapter:
         return inspection.supported
 
     def fill(self, answers: dict[str, str]) -> None:
-        self._require_controlled_write()
+        self._require_write()
         missing = sorted(name for name in self._required if not str(answers.get(name, "")).strip())
         if missing:
             raise ValueError(f"missing required approved answers: {', '.join(missing)}")
@@ -149,7 +176,7 @@ class HostedApplicationAdapter:
                 self._fill_control(name, locator, self._field_types[name], str(answer))
 
     def submit(self) -> None:
-        self._require_controlled_write()
+        self._require_write()
         if self._submit is None:
             raise RuntimeError("supported submit control is not available")
         self._submit.click(timeout=5_000)
@@ -197,9 +224,15 @@ class HostedApplicationAdapter:
             blockers.append("assessment")
         return blockers
 
-    def _require_controlled_write(self) -> None:
-        if not self.allow_controlled_submit or not _loopback(urlparse(str(self.page.url)).hostname):
+    def _require_write(self) -> None:
+        host = urlparse(str(self.page.url)).hostname or ""
+        if self.allow_controlled_submit and _loopback(host):
+            return
+        if self.allow_live_submit and host.casefold() in self.hosts:
+            return
+        if not self.allow_controlled_submit and not self.allow_live_submit and host.casefold() in self.hosts:
             raise RuntimeError("adapter writes are disabled for live employer pages")
+        raise RuntimeError("adapter writes are disabled for this application target")
 
     def _fill_control(self, name: str, locator: Any, kind: str, answer: str) -> None:
         if kind == "file":
@@ -220,10 +253,16 @@ class HostedApplicationAdapter:
             assert self._frame is not None
             radios = self._frame.locator('input[type="radio"]')
             chosen = None
+            normalized = answer.strip().casefold()
             for index in range(radios.count()):
                 radio = radios.nth(index)
-                if radio.get_attribute("name") == name and str(radio.get_attribute("value") or "") == answer:
-                    chosen = radio; break
+                if radio.get_attribute("name") != name:
+                    continue
+                value = str(radio.get_attribute("value") or "")
+                label = _label(radio)
+                if value == answer or label.casefold() == normalized:
+                    chosen = radio
+                    break
             if chosen is None:
                 raise ValueError(f"radio answer does not match an available value for {name}")
             chosen.check()

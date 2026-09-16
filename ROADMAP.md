@@ -63,7 +63,7 @@ Completed sequentially:
 - [x] 7B Lever hosted-form adapter: controlled loopback submission/confirmation and current Nium form recognition passed before Ashby work began;
 - [x] 7C Ashby hosted-form adapter: controlled loopback submission/confirmation and current Ashby form recognition passed;
 - [x] unsupported/challenge variants are reported rather than guessed;
-- [x] live employer pages remain read-only and adapter write methods fail closed outside loopback;
+- [x] live employer pages remain read-only and adapter write methods fail closed outside loopback in the Phase 7 boundary;
 - [x] exact-head Windows Phase 7 acceptance at code head `3a95d0a32755c94b21ec77c209749986718167a6`, run `34745312735`.
 
 Acceptance: `docs/PHASE7_ACCEPTANCE.md`.
@@ -82,7 +82,7 @@ Completed:
 - [x] attention/history and a local-calendar-day `50 confirmed real applications` target are visible; controlled confirmations are excluded and the target never weakens eligibility/factual/review gates;
 - [x] exact-head Windows Phase 8 acceptance at code head `5b2a10827a2b81533a2017dd9828395ded91a383`, run `34946104772`.
 
-Real employer submission is still disabled. Phase 9 requires separate explicit user authorization before any real-application pilot.
+Real employer submission remained disabled throughout Phase 8.
 
 Acceptance: `docs/PHASE8_ACCEPTANCE.md`.
 
@@ -97,12 +97,15 @@ Distribution/recovery completed:
 - [x] exact browser/WebView/legal notices in the distribution;
 - [x] exact-head Windows distribution/recovery acceptance at code head `b5ebda60793e3f61a25885b4370ebf5242d2e705`, run `35056956675`.
 
-Pilot remains separate and unstarted:
-- [ ] receive a separate explicit user authorization for real-application activation;
-- [ ] implement/enable the minimum real-employer write path without weakening provider blockers or application safety invariants;
-- [ ] run a measured pilot and record actual confirmed-application throughput/quality evidence;
+Measured-pilot activation path:
+- [x] received the later separate user authorization for the real-application pilot implementation on 2026-09-16;
+- [x] implemented the minimum real-employer hosted-form write path without weakening eligibility, package freshness, approved-answer, provider-blocker, single-worker, confirmation or `UNCERTAIN` boundaries;
+- [x] every launch starts inactive, requires an exact local activation phrase, a fresh read-only inspection and explicit per-application arming, with at most five armed applications per launch;
+- [x] restart/deactivation/restore forces queued real work back to `PREPARED`, clears stale live inspection data and requires fresh inspection plus re-arming;
+- [x] exact-head Windows technical acceptance at code head `06a2f31d47dc3dbe09bcf0eda3fd34bf0278d0e5`, run `35072562186`;
+- [ ] run the measured real-world pilot from current local/private candidate data and record actual confirmed-application throughput/quality evidence;
 - [ ] never claim 50/day without measured evidence.
 
-Real employer form filling/submission remains disabled in the accepted distribution/recovery build.
+The accepted technical pilot implementation did not fill or submit a real employer form. CI live-provider checks remain read-only; only controlled loopback fixtures perform writes. Phase 4's private five-real-resume gate remains independently authoritative.
 
-Acceptance: `docs/PHASE9_DISTRIBUTION_ACCEPTANCE.md`. Pilot acceptance will be a separate record after explicit authorization.
+Acceptance: `docs/PHASE9_DISTRIBUTION_ACCEPTANCE.md`, `docs/PHASE9_PILOT_ACCEPTANCE.md`. Phase 9 remains `[~]` until measured real-pilot evidence is recorded.

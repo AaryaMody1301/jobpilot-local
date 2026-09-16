@@ -22,6 +22,9 @@ class Phase6ApplicationController(Phase5ApplicationController):
             "Phase 6 controlled localhost application engine loaded; real employer submissions remain disabled",
         )
 
+    def _make_application_worker(self) -> ApplicationWorker:
+        return ApplicationWorker(self.paths, self.applications, self.session_id)
+
     def start(self) -> dict[str, Any]:
         with self._lock:
             self._require_open()
@@ -31,7 +34,7 @@ class Phase6ApplicationController(Phase5ApplicationController):
                 return self.snapshot()
             SESSION_MACHINE.require_transition(self._state, SessionState.RUNNING)
             if self._application_worker is None or not self._application_worker.status()["alive"]:
-                self._application_worker = ApplicationWorker(self.paths, self.applications, self.session_id)
+                self._application_worker = self._make_application_worker()
                 self._application_worker.start()
             else:
                 self._application_worker.resume()

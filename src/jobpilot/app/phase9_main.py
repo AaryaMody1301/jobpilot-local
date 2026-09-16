@@ -41,17 +41,26 @@ def run_self_test() -> dict[str, object]:
             state = controller.snapshot()
             assert state["phase"] == 9
             assert state["session_state"] == "idle"
-            assert state["distribution"]["pilot_authorized"] is False
-            assert state["distribution"]["pilot_activation_available"] is False
+            assert state["distribution"]["pilot_authorized"] is True
+            assert state["distribution"]["pilot_activation_available"] is True
+            assert state["distribution"]["pilot_session_active"] is False
             assert state["distribution"]["real_employer_submission_enabled"] is False
             assert state["distribution"]["backup"]["restore_pending"] is False
+            phrase = str(state["distribution"]["pilot_confirmation_phrase"])
+            state = controller.activate_real_application_pilot(phrase)
+            assert state["distribution"]["pilot_session_active"] is True
+            assert state["distribution"]["real_employer_submission_enabled"] is True
+            state = controller.deactivate_real_application_pilot()
+            assert state["distribution"]["pilot_session_active"] is False
+            assert state["distribution"]["real_employer_submission_enabled"] is False
         finally:
             controller.close()
     return {
         **base,
         "phase9_loaded": True,
         "backup_restore_available": True,
-        "real_application_pilot_locked": True,
+        "real_application_pilot_activation_available": True,
+        "real_application_pilot_active_by_default": False,
     }
 
 
@@ -112,7 +121,9 @@ def run_window_smoke() -> dict[str, object]:
                         "typeof window.pywebview !== 'undefined' && "
                         "typeof window.pywebview.api.choose_local_backup === 'function' && "
                         "typeof window.pywebview.api.choose_local_restore === 'function' && "
-                        "typeof window.pywebview.api.inspect_prepared_application === 'function'"
+                        "typeof window.pywebview.api.inspect_prepared_application === 'function' && "
+                        "typeof window.pywebview.api.activate_real_application_pilot === 'function' && "
+                        "typeof window.pywebview.api.queue_prepared_pilot_application === 'function'"
                     ))
                     if ready:
                         break
@@ -122,9 +133,10 @@ def run_window_smoke() -> dict[str, object]:
                 _inject_phase9_ui(window, ui_index)
                 checks["phase9_bridge_ready"] = True
                 checks["phase9_distribution_ui"] = bool(window.evaluate_js("document.getElementById('phase9-distribution') !== null"))
+                checks["phase9_pilot_ui"] = bool(window.evaluate_js("document.getElementById('phase9-activate-pilot') !== null"))
                 checks["phase8_orchestration_ui"] = bool(window.evaluate_js("document.getElementById('phase8-orchestration') !== null"))
                 checks["document_title"] = window.evaluate_js("document.title")
-                if not checks["phase9_distribution_ui"] or not checks["phase8_orchestration_ui"]:
+                if not checks["phase9_distribution_ui"] or not checks["phase9_pilot_ui"] or not checks["phase8_orchestration_ui"]:
                     raise RuntimeError("Phase 9 or inherited Phase 8 UI was not injected")
                 if checks["document_title"] != "JobPilot Local":
                     raise RuntimeError("bundled UI did not load expected document")

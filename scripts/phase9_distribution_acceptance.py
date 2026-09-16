@@ -14,6 +14,11 @@ def main() -> int:
         archive = root / "jobpilot-portable.zip"
         controller = create_controller(paths, sample_item_seconds=0.01)
         try:
+            initial = controller.snapshot()
+            assert initial["distribution"]["pilot_authorized"] is True
+            assert initial["distribution"]["pilot_activation_available"] is True
+            assert initial["distribution"]["pilot_session_active"] is False
+            assert initial["distribution"]["real_employer_submission_enabled"] is False
             controller.database.set_json_setting("phase9_acceptance", {"value": "before"})
             (paths.master_documents / "phase9.tex").write_text("portable source", encoding="utf-8")
             state = controller.create_local_backup(archive)
@@ -23,7 +28,7 @@ def main() -> int:
             (paths.models / "machine-specific.bin").write_bytes(b"preserve")
             state = controller.stage_local_restore(archive)
             assert state["distribution"]["backup"]["restore_pending"] is True
-            assert state["distribution"]["pilot_authorized"] is False
+            assert state["distribution"]["pilot_session_active"] is False
             assert state["distribution"]["real_employer_submission_enabled"] is False
             try:
                 controller.start()
@@ -40,7 +45,9 @@ def main() -> int:
             assert state["phase"] == 9
             assert state["distribution"]["restore_applied_on_launch"]["applied"] is True
             assert state["distribution"]["backup"]["restore_pending"] is False
-            assert state["distribution"]["pilot_activation_available"] is False
+            assert state["distribution"]["pilot_activation_available"] is True
+            assert state["distribution"]["pilot_session_active"] is False
+            assert state["distribution"]["real_employer_submission_enabled"] is False
             assert restored.database.get_json_setting("phase9_acceptance") == {"value": "before"}
             assert (paths.models / "machine-specific.bin").read_bytes() == b"preserve"
             assert (paths.master_documents / "phase9.tex").read_text(encoding="utf-8") == "portable source"
@@ -48,7 +55,7 @@ def main() -> int:
         finally:
             restored.close()
 
-    print("Phase 9 distribution backup/restore acceptance passed; pilot remains locked")
+    print("Phase 9 distribution backup/restore acceptance passed; authorized pilot remains inactive by default")
     return 0
 
 

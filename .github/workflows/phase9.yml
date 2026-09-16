@@ -1,4 +1,4 @@
-name: Phase 9 distribution acceptance
+name: Phase 9 acceptance
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 jobs:
-  windows-phase9-distribution:
+  windows-phase9:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
@@ -49,29 +49,53 @@ jobs:
           node --check src/jobpilot/ui/phase9.js
       - name: Run deterministic regression suite
         run: pytest -m "not external"
-      - name: Verify Phase 9 backup restore and pilot lock
+      - name: Verify explicit Phase 9 pilot safety gates
+        run: pytest tests/unit/test_phase9_pilot.py -q
+      - name: Verify backup restore and inactive-by-default pilot
         run: python scripts/phase9_distribution_acceptance.py
       - name: Preserve Phase 8 orchestration boundary
         run: python scripts/phase8_orchestration_acceptance.py
       - name: Preserve Phase 7 provider boundary
         run: python scripts/phase7_platform_acceptance.py
       - name: Run source desktop checks
+        shell: pwsh
         run: |
           python -m jobpilot.app.main --self-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m jobpilot.app.main --window-smoke
+          $windowExit = $LASTEXITCODE
+          if ($windowExit -ne 0) {
+            Write-Warning "Hidden WebView2 smoke failed once; retrying in a fresh process to distinguish transient host initialization from a persistent product failure."
+            Start-Sleep -Seconds 2
+            python -m jobpilot.app.main --window-smoke
+            $windowExit = $LASTEXITCODE
+          }
+          if ($windowExit -ne 0) { exit $windowExit }
       - name: Build onedir with hermetic Chromium
         shell: pwsh
         run: |
           $env:PLAYWRIGHT_BROWSERS_PATH = "0"
           python -m playwright install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           pyinstaller --clean --noconfirm packaging\jobpilot.spec
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify packaged app without browser environment
         shell: pwsh
         run: |
           Remove-Item Env:PLAYWRIGHT_BROWSERS_PATH -ErrorAction SilentlyContinue
           .\dist\jobpilot-local\jobpilot-local.exe --self-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           .\dist\jobpilot-local\jobpilot-local.exe --browser-smoke
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           .\dist\jobpilot-local\jobpilot-local.exe --window-smoke
+          $windowExit = $LASTEXITCODE
+          if ($windowExit -ne 0) {
+            Write-Warning "Packaged hidden WebView2 smoke failed once; retrying once in a fresh process."
+            Start-Sleep -Seconds 2
+            .\dist\jobpilot-local\jobpilot-local.exe --window-smoke
+            $windowExit = $LASTEXITCODE
+          }
+          if ($windowExit -ne 0) { exit $windowExit }
       - name: Build verified Windows distribution
         run: python scripts/build_distribution.py
       - name: Verify clean install and in-place upgrade
@@ -87,15 +111,28 @@ jobs:
           Expand-Archive -LiteralPath $archive.FullName -DestinationPath $extract
           $package = Get-ChildItem -LiteralPath $extract -Directory | Select-Object -First 1
           & (Join-Path $package.FullName "install.ps1") -InstallRoot $install -SkipShortcut
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $data = Join-Path $env:LOCALAPPDATA "JobPilotLocal"
           New-Item -ItemType Directory -Force -Path $data | Out-Null
           Set-Content -LiteralPath (Join-Path $data "upgrade-preserved.txt") -Value "preserve"
           & (Join-Path $package.FullName "install.ps1") -InstallRoot $install -SkipShortcut
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ((Get-Content -LiteralPath (Join-Path $data "upgrade-preserved.txt") -Raw).Trim() -ne "preserve") { throw "upgrade changed user data" }
           Remove-Item Env:PLAYWRIGHT_BROWSERS_PATH -ErrorAction SilentlyContinue
-          & (Join-Path $install "jobpilot-local.exe") --self-test
-          & (Join-Path $install "jobpilot-local.exe") --browser-smoke
-          & (Join-Path $install "jobpilot-local.exe") --window-smoke
+          $installedExe = Join-Path $install "jobpilot-local.exe"
+          & $installedExe --self-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $installedExe --browser-smoke
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $installedExe --window-smoke
+          $windowExit = $LASTEXITCODE
+          if ($windowExit -ne 0) {
+            Write-Warning "Installed hidden WebView2 smoke failed once; retrying once in a fresh process."
+            Start-Sleep -Seconds 2
+            & $installedExe --window-smoke
+            $windowExit = $LASTEXITCODE
+          }
+          if ($windowExit -ne 0) { exit $windowExit }
       - name: Upload verified distribution
         uses: actions/upload-artifact@v7
         with:
