@@ -69,7 +69,7 @@ def test_pilot_activation_resets_on_new_launch(tmp_path: Path) -> None:
         reopened.close()
 
 
-def test_prepared_real_application_requires_activation_and_clean_read_only_inspection(tmp_path: Path) -> None:
+def test_prepared_real_application_requires_activation_clean_inspection_and_rearming(tmp_path: Path) -> None:
     controller = create_controller(ManagedPaths(tmp_path / "JobPilotLocal"), sample_item_seconds=0.01)
     try:
         now = utc_now_text()
@@ -111,6 +111,13 @@ def test_prepared_real_application_requires_activation_and_clean_read_only_inspe
         assert attempt["controlled_fixture"] == 0
         assert attempt["target_url"] == "https://jobs.lever.co/example/apply"
         assert state["distribution"]["pilot_armed_this_launch"] == 1
+
+        state = controller.deactivate_real_application_pilot()
+        attempt = next(item for item in state["orchestration"]["history"] if item["id"] == application_id)
+        assert attempt["state"] == "prepared"
+        assert attempt["target_url"] is None
+        assert state["distribution"]["pilot_armed_this_launch"] == 0
+        assert state["distribution"]["pilot_session_active"] is False
     finally:
         controller.close()
 
