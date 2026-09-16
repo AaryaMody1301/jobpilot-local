@@ -9,6 +9,9 @@ analysis = Analysis(
     datas=[
         (str(ROOT / "migrations"), "migrations"),
         (str(ROOT / "src" / "jobpilot" / "ui"), "ui"),
+        (str(ROOT / "LICENSE"), "legal"),
+        (str(ROOT / "THIRD_PARTY_NOTICES.md"), "legal"),
+        (str(ROOT / "packaging" / "BROWSER_NOTICES.md"), "legal"),
     ],
     hiddenimports=[],
     hookspath=[],
