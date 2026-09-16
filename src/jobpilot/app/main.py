@@ -1,6 +1,7 @@
-from jobpilot.app.phase8_main import (
+from jobpilot.app.phase9_main import (
     create_controller,
     main,
+    run_browser_smoke,
     run_desktop,
     run_phase4_gate_report,
     run_self_test,
@@ -10,6 +11,7 @@ from jobpilot.app.phase8_main import (
 __all__ = [
     "create_controller",
     "main",
+    "run_browser_smoke",
     "run_desktop",
     "run_phase4_gate_report",
     "run_self_test",

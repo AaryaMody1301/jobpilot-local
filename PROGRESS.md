@@ -2,52 +2,53 @@
 
 ## Current phase
 
-Phase 8 - End-to-end orchestration.
+Phase 9 - Packaging and user-authorized pilot.
 
-Status: **implementation complete and exact-head Windows acceptance passed**. Phase 9 has not started. Real employer form filling/submission remains disabled; Phase 8 live provider checks are read-only.
+Status: **distribution/recovery implementation complete and Windows acceptance passed; Phase 9 remains in progress because real-application pilot activation has not been authorized or started**.
 
-PR #11 merged Phase 7 into `main` at `4922340766bc01a54599083ff7a69f76b6db682a` on 2026-09-13. Phase 4's private five-real-resume human gate remains a separate local acceptance condition and is not waived by later development authorization.
+PR #12 merged Phase 8 into `main` at `3c43836983b28a09df0ae8163725356a6571a53c`. Phase 4's private five-real-resume human gate remains a separate local acceptance condition and is not waived by Phase 9 development.
 
-## Phase 8 implementation
+## Phase 9 distribution/recovery implementation
 
-- Added additive migration `009_phase8_orchestration.sql` on top of the existing SQLite application journal. No second database, scheduler, state machine or submission engine was introduced.
-- Discovery/matching results now enter the existing application state machine as persisted `DISCOVERED` attempts and move transactionally through eligibility, tailoring, review/prepared, queue and application states.
-- Existing Phase 5 eligibility remains authoritative: hard failures become `INELIGIBLE`; unknown mandatory conditions become `NEEDS_REVIEW` and require an explicit recorded decision.
-- Existing Phase 4 tailoring and model-review gates remain authoritative. Phase 8 will not start unattended tailoring without a validated selected model and never treats later development authorization as completion of the private five-real-resume gate.
-- Critical resource pressure pauses new tailoring at a safe pre-submit boundary rather than reducing model/validation/review quality.
-- Added immutable `application_packages` that bind one application to the discovered job snapshot, tailoring audit hashes/context and the current exact-context approved-answer fingerprint.
-- Freshness is rechecked before controlled queue entry and again before the existing single submission worker can claim a packaged attempt. Changed/deactivated jobs, stale/tampered tailoring evidence or changed approved answers become `STALE` rather than submitted.
-- Mandatory application questions continue through the existing Phase 6 exact-context review lane. The immutable package is refreshed only after all required unknown questions are resolved and the attempt safely returns to `QUEUED`.
-- Live Greenhouse/Lever/Ashby inspection is read-only. Phase 8 records recognized fields/blockers but exposes no live provider fill/submit action; unsupported providers are reported rather than guessed.
-- The existing controlled application worker remains the only submission worker. Development submission still accepts loopback fixtures only, requires explicit positive confirmation and preserves terminal `UNCERTAIN` behavior.
-- Added an orchestration attention/history UI plus a local-calendar-day objective showing 50 confirmed real applications. Controlled fixture confirmations are counted separately and never contribute to the real target. No logic stops at 50 or weakens eligibility/factual/review gates to reach it.
-- Application launch remains Idle. Discovery/orchestration run only after explicit Start; Pause prevents new orchestration work after the current safe item; Stop/Close cancel pre-submit work using existing boundaries.
+- Added a verified Windows 10/11 x64 onedir distribution with a per-user `setup.cmd` / PowerShell installer and in-place upgrade path. Program files live separately from `%LOCALAPPDATA%\JobPilotLocal`, so upgrades do not replace private JobPilot data.
+- Playwright Chromium is installed with `PLAYWRIGHT_BROWSERS_PATH=0` before PyInstaller packaging and is verified from the frozen executable with the browser environment removed. The installed app therefore does not depend on a user-global Playwright browser cache.
+- Setup checks for the Evergreen Microsoft Edge WebView2 Runtime. If it is absent, setup downloads Microsoft's official Evergreen Bootstrapper, requires a valid Microsoft Authenticode signature, installs it silently, and rechecks availability before installing JobPilot.
+- Distribution contents have a format/version manifest with per-file byte length and SHA-256 integrity metadata, plus an archive SHA-256 sidecar. Installer upgrades stage new program files, move the prior install aside, and restore it if replacement fails.
+- Added portable local backup/restore for the SQLite database, private documents and generated/application artifacts. Models, tools, Playwright/browser profile state, Tectonic/cache data, runtime files and logs are deliberately excluded as machine-specific or reproducible state.
+- Backup creation uses SQLite's backup API and file hashes. Restore rejects unsafe archive paths, symbolic links, unexpected roots, manifest/file mismatches, incompatible newer schema migrations and failed SQLite integrity checks.
+- Restore is restart-bound: a verified archive is staged under the managed runtime root, further mutations are blocked, and the payload is applied before the next database open. A pre-restore safety backup is created and machine-specific roots are preserved.
+- Added Phase 9 desktop distribution/recovery UI and native backup/restore file dialogs.
+- There is intentionally no pilot-activation method or UI action. `pilot_authorized`, `pilot_activation_available`, and real-employer submission remain false.
 
 ## Verification
 
-Accepted Phase 8 runtime head `5b2a10827a2b81533a2017dd9828395ded91a383`, Windows run `34946104772`, concluded `success` on 2026-09-15.
+Accepted Phase 9A technical head `b5ebda60793e3f61a25885b4370ebf5242d2e705`, Windows run `35056956675`.
 
 Passed:
 
 - Python and bundled JavaScript syntax validation;
-- complete non-external regression suite: 129 passed, 1 skipped, 2 deselected;
-- focused Phase 8 controlled end-to-end acceptance covering fresh immutable package preparation, two unknown mandatory answers, review continuation, package refresh, single controlled submit, explicit confirmation and exclusion of the controlled confirmation from the real daily counter;
-- Phase 8 stale-package unit coverage proving an approved-answer change prevents a queued package from being claimed and moves it to `STALE`;
-- inherited Phase 7 controlled/live-read-only provider acceptance for Greenhouse, Lever and Ashby, including live write guards;
-- source self-test and hidden WebView2/pywebview Phase 8 bridge/UI smoke;
-- PyInstaller onedir build;
-- packaged self-test and packaged hidden-window smoke.
+- complete non-external regression suite: 131 passed, 1 skipped, 2 deselected;
+- portable backup -> mutation -> staged restore -> restart/apply roundtrip, including pre-restore safety backup and preservation of machine-specific model state;
+- explicit proof that the Phase 9 real-application pilot remains locked;
+- inherited Phase 8 controlled orchestration and stale-package boundary;
+- inherited Phase 7 Greenhouse/Lever/Ashby controlled submission plus live read-only recognition/write guards;
+- source self-test and hidden WebView2/pywebview Phase 9 bridge/UI smoke;
+- PyInstaller onedir build with hermetic Playwright Chromium;
+- frozen Chromium launch with `PLAYWRIGHT_BROWSERS_PATH` removed;
+- packaged self-test and hidden-window smoke;
+- verified Windows distribution archive build;
+- clean per-user install followed by in-place upgrade with `%LOCALAPPDATA%\JobPilotLocal` preservation;
+- installed-app self-test, bundled-browser smoke and hidden-window smoke;
+- uploaded Windows x64 distribution artifact plus SHA-256 sidecar.
 
-The inherited Phase 7 live evidence on the accepted Phase 8 head remained: Greenhouse/GitLab 29 fields, Lever/Nium 11 fields and Ashby/Ashby 26 fields; each current example exposed CAPTCHA integration and remained conservatively unsupported for automatic submission. No real employer form was filled or submitted.
+The inherited live provider evidence remains conservative: current Greenhouse/GitLab, Lever/Nium and Ashby examples expose CAPTCHA integration and remain unsupported for automatic live submission. No real employer form was filled or submitted.
 
-The first development run exposed only older migration tests whose expected lists stopped at migration `008`; the new Phase 8 stale-package test already passed. Those expectations were updated to include additive migration `009`. The same repair also tightened multi-question answer handling so package refresh occurs only after all mandatory review questions resolve. No failed safety condition was waived.
+The first Phase 9 development run found one integration defect: staging a restore also blocked the read-only snapshot needed to render the UI. The repair separated snapshot reads from mutation guards; Start and inherited mutating actions remain blocked until restart applies the restore. No safety condition was weakened or waived.
 
 ## Compact-code/check policy
 
-The repository-wide Ponytail rule remains authoritative: prefer no code, then stdlib/native/already-installed dependencies, then the minimum clear implementation. Phase 8 reuses the existing job store/matcher, tailoring service, model/resource manager, application journal/state machine, Playwright dependency, provider adapters and single submission worker.
-
-Checks remain boundary-focused: one orchestration/staleness unit test, one controlled end-to-end acceptance, the inherited Phase 7 provider acceptance, and the existing regression/desktop/package safety net.
+The repository-wide Ponytail rule remains authoritative. Phase 9 distribution/recovery uses Python stdlib `sqlite3`, `zipfile`, `hashlib`, filesystem primitives, PowerShell, the existing PyInstaller/Playwright dependencies, and the existing pywebview bridge. No updater framework, cloud backup service, second database, second browser framework, or pilot execution engine was added.
 
 ## Next boundary
 
-Open and merge the Phase 8 PR only after all pull-request-context Phase 0 through Phase 8 workflows are green. Do not start Phase 9 without a later explicit user request. Phase 9 owns clean-machine packaging/setup/upgrade/backup/restore/notices and, separately, explicit user authorization for any measured real-application pilot.
+After this distribution/recovery PR is merged, Phase 9 remains `[~]` until a later **separate explicit user authorization** starts the real-application pilot. That pilot must preserve the Phase 4 gate, eligibility/factual quality, CAPTCHA/challenge/assessment/payment blockers, terminal `UNCERTAIN` behavior, and evidence-based confirmation counting. Never claim 50/day without measured real-pilot evidence.

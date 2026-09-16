@@ -9,25 +9,52 @@
 - Phase 5 job discovery and matching is complete.
 - Phase 6 controlled application-engine work is complete and accepted.
 - Phase 7 Greenhouse, Lever and Ashby hosted-form adapters are complete and accepted.
-- Phase 8 end-to-end orchestration is complete and accepted. Real employer submission remains disabled and belongs to the separately authorized Phase 9 pilot.
+- Phase 8 end-to-end orchestration is complete and accepted.
+- Phase 9 distribution/recovery is implemented and accepted. **Phase 9 is still in progress because the separately authorized real-application pilot has not been activated or run.**
 
-## Phase 8
+## Phase 9 distribution and recovery
 
-Phase 8 connects the already-built local components without introducing a second orchestration framework:
+The current Phase 9 build adds a clean Windows distribution boundary without enabling real employer writes:
 
-- verified public/manual discovery and evidence-backed matching feed the existing transactional application journal;
-- hard eligibility failures stop as ineligible, while unknown mandatory conditions enter an explicit attention lane;
-- eligible work reuses the existing evidence-backed tailoring service and current Phase 4 model/human-review gates;
-- immutable application packages bind one discovered-job snapshot to tailoring audit evidence and the current approved application-answer fingerprint;
-- stale/deactivated jobs, stale/tampered resume evidence, or changed approved answers invalidate prepared/queued work before submit;
-- the existing single application worker remains the only submission worker;
-- development submission remains loopback-only and requires explicit positive confirmation;
-- live Greenhouse/Lever/Ashby inspection is recognition-only and has no Phase 8 fill/submit activation;
-- resource pressure can pause new tailoring without reducing quality gates;
-- the desktop attention/history lane exposes review, stale, blocked and pilot-activation states;
-- the local-day objective shows 50 confirmed real applications as a target, not a ceiling. Controlled fixture confirmations are excluded and no eligibility/factual/review rule changes to chase the target.
+- Windows 10/11 x64 onedir package with a per-user `setup.cmd` installer;
+- rollback-safe in-place program upgrades while `%LOCALAPPDATA%\JobPilotLocal` remains separate and preserved;
+- Playwright Chromium bundled hermetically into the frozen application, with packaged browser smoke independent of a global Playwright cache;
+- Microsoft Edge WebView2 Evergreen Runtime detection during setup and official Microsoft bootstrap when it is absent;
+- release integrity manifest with per-file SHA-256/size plus a ZIP SHA-256 sidecar;
+- portable local backup/restore for the SQLite database, private documents and generated/application artifacts;
+- restart-bound restore with archive/path/hash/schema/database validation and an automatic pre-restore safety backup;
+- machine-specific models, tools, browser/profile data, caches, runtime files and logs remain outside portable backups;
+- bundled legal/browser/WebView notices;
+- local Phase 9 UI for backup/restore and distribution status.
 
-Application launch remains Idle. Discovery/orchestration starts only after explicit Start, and the existing Pause/Stop/Close boundaries remain authoritative.
+There is deliberately no real-pilot activation method or UI control in this build. Live Greenhouse/Lever/Ashby pages remain read-only, provider write guards remain intact, and `UNCERTAIN` outcomes are still never automatically retried.
+
+## Install a Phase 9 distribution artifact
+
+1. Extract `JobPilotLocal-<version>-win-x64.zip`.
+2. Close any running JobPilot Local process.
+3. Run `setup.cmd` from the extracted directory.
+4. Launch **JobPilot Local** from the Start Menu shortcut.
+
+The installer is per-user by default and writes program files under `%LOCALAPPDATA%\Programs\JobPilotLocal`. Private JobPilot state remains under `%LOCALAPPDATA%\JobPilotLocal`. Running a newer package's `setup.cmd` upgrades program files in place without deleting that data root.
+
+The setup checks for WebView2. If the Evergreen Runtime is missing, it retrieves Microsoft's official bootstrapper, verifies a valid Microsoft Authenticode signature, silently installs the Runtime, and verifies availability before continuing.
+
+## Backup and restore
+
+Use **Local data -> Portable backup** in the desktop app while JobPilot is Idle.
+
+A portable backup includes:
+
+- the SQLite state database;
+- imported/private source documents;
+- generated resume and application artifacts.
+
+It excludes machine-specific or reproducible state such as model weights, downloaded tools, Playwright/browser profile state, caches, runtime files and logs.
+
+Restore validates the archive and database first, stages the payload, then requires an application restart. On the next launch JobPilot makes a pre-restore safety backup and swaps only the portable roots before opening the restored database. Machine-specific state is preserved.
+
+Portable backup ZIPs contain private candidate data and should be stored with the same care as the original resume/application files.
 
 ## Safety and privacy
 
@@ -36,9 +63,10 @@ Application launch remains Idle. Discovery/orchestration starts only after expli
 - Private resume sources, approved facts, generated resumes, local databases, browser state, and model weights stay outside Git under the app-managed local data root.
 - JDs, ATS payloads, employer pages, and model output are untrusted data.
 - Automatic resume tailoring still requires the current five-distinct-resume Phase 4 gate.
-- Phase 8 live employer pages are read-only. Provider adapter writes remain disabled outside controlled loopback fixtures.
+- Live employer pages remain read-only in the current Phase 9 distribution/recovery build.
 - `UNCERTAIN` submission outcomes are never automatically retried.
-- Phase 9 separately requires explicit user authorization before any real-application pilot.
+- A later separate explicit user authorization is required before any real-application pilot is implemented/enabled.
+- The visible 50/day objective is a target, not an established capability; no throughput claim is made without measured real-pilot evidence.
 
 Check the private Phase 4 gate without exposing resume/JD/fact content:
 
@@ -46,7 +74,7 @@ Check the private Phase 4 gate without exposing resume/JD/fact content:
 python -m jobpilot.app.main --phase4-gate-report
 ```
 
-## Run
+## Run from source
 
 ```powershell
 py -3.13 -m venv .venv
@@ -58,20 +86,24 @@ python -m playwright install chromium
 python -m jobpilot.app.main
 ```
 
-## Phase 8 acceptance
+## Phase 9 distribution acceptance
 
-Windows run `34946104772` at runtime code head `5b2a10827a2b81533a2017dd9828395ded91a383` passed the final Phase 8 path:
+Windows run `35056956675` at technical head `b5ebda60793e3f61a25885b4370ebf5242d2e705` passed the distribution/recovery path:
 
 - Python and bundled JavaScript syntax validation;
-- complete non-external regression suite: 129 passed, 1 skipped, 2 deselected;
-- focused controlled end-to-end orchestration with immutable-package freshness, two mandatory answer reviews, package refresh, single controlled submission, explicit confirmation and controlled-counter exclusion;
-- stale-package invalidation before claim when approved answers change;
-- inherited Phase 7 controlled/live-read-only provider acceptance for Greenhouse, Lever and Ashby;
-- source self-test and hidden WebView2/pywebview Phase 8 smoke;
-- PyInstaller onedir build;
-- packaged self-test and packaged hidden-window smoke.
+- complete non-external regression suite: 131 passed, 1 skipped, 2 deselected;
+- backup/restore roundtrip with pre-restore safety backup, schema/integrity checks and machine-specific-state preservation;
+- explicit pilot-lock verification;
+- inherited Phase 8 orchestration and Phase 7 provider boundaries;
+- source Phase 9 self-test and hidden WebView2/pywebview smoke;
+- PyInstaller build with hermetic Playwright Chromium;
+- packaged browser launch with the global browser environment removed;
+- verified distribution archive build;
+- clean install and in-place upgrade with private local-data preservation;
+- installed application self-test, bundled-browser smoke and hidden-window smoke;
+- distribution artifact and SHA-256 sidecar upload.
 
-No real employer form was filled or submitted. See `docs/PHASE8_ACCEPTANCE.md` for the exact boundary and evidence.
+No real employer form was filled or submitted. See `docs/PHASE9_DISTRIBUTION_ACCEPTANCE.md` for the exact boundary and evidence.
 
 ## Local data
 
@@ -84,4 +116,4 @@ Runtime data lives under `%LOCALAPPDATA%\JobPilotLocal`. Private candidate data,
 - `DECISIONS.md` - engineering decisions.
 - `PROGRESS.md` - current handoff and exact verification evidence.
 - `AGENTS.md` - repository implementation rules, including the compact Ponytail-style code/check policy.
-- `docs/PHASE8_ACCEPTANCE.md` - Phase 8 acceptance boundary and evidence.
+- `docs/PHASE9_DISTRIBUTION_ACCEPTANCE.md` - Phase 9 distribution/recovery boundary and evidence.
