@@ -230,6 +230,8 @@ class HostedApplicationAdapter:
             return
         if self.allow_live_submit and host.casefold() in self.hosts:
             return
+        if not self.allow_controlled_submit and not self.allow_live_submit and host.casefold() in self.hosts:
+            raise RuntimeError("adapter writes are disabled for live employer pages")
         raise RuntimeError("adapter writes are disabled for this application target")
 
     def _fill_control(self, name: str, locator: Any, kind: str, answer: str) -> None:
