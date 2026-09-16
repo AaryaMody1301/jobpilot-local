@@ -18,12 +18,13 @@ from jobpilot.applications.engine import (
 from jobpilot.applications.platforms import AshbyAdapter, GreenhouseAdapter, LeverAdapter
 from jobpilot.domain.states import ApplicationState
 from jobpilot.orchestration import Phase8ApplicationJournal
+from jobpilot.resume.documents import sha256_file
 from jobpilot.runtime.paths import ManagedPaths
 from jobpilot.storage.database import utc_now_text
 
 PILOT_CONFIRMATION_PHRASE = "ENABLE MEASURED REAL APPLICATION PILOT"
 PILOT_MAX_ARMED_PER_LAUNCH = 5
-PILOT_POLICY_REVISION = "phase9-pilot-v1"
+PILOT_POLICY_REVISION = "phase9-pilot-v2"
 
 _ADAPTERS = {
     "greenhouse": GreenhouseAdapter,
@@ -289,9 +290,16 @@ class LiveHostedFormEngine:
         run = self.journal.tailoring.store.get_run(run_id) if run_id else None
         if run is None:
             raise RuntimeError("pilot application has no current tailored resume")
-        path = Path(str(run.get("pdf_path") or ""))
-        if not path.is_file():
-            raise RuntimeError("tailored resume PDF is unavailable for pilot upload")
+        relative = str(run.get("pdf_relpath") or "")
+        expected_sha256 = str(run.get("pdf_sha256") or "")
+        if not relative or not expected_sha256:
+            raise RuntimeError("pilot tailored resume audit evidence is incomplete")
+        try:
+            path = self.journal.tailoring.store.absolute_path(relative)
+        except Exception as exc:
+            raise RuntimeError("tailored resume PDF path escaped managed storage") from exc
+        if not path.is_file() or sha256_file(path) != expected_sha256:
+            raise RuntimeError("tailored resume PDF is unavailable or failed integrity verification for pilot upload")
         return path
 
     @staticmethod
