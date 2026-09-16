@@ -8,7 +8,23 @@ from urllib.parse import urlparse
 from jobpilot.applications.adapter import FormField, FormInspection, SubmissionConfirmation
 
 _SUPPORTED_INPUTS = {"text", "email", "tel", "url", "number", "date", "file", "checkbox", "radio"}
-_CONFIRMATION_JS = """() => /thank you for applying|application (?:was )?submitted|application received/i.test(document.body.innerText || '') || !!document.querySelector('[data-jobpilot-confirmation=\"success\"]')"""
+_CONFIRMATION_PHRASES = (
+    "thank you for applying",
+    "application submitted",
+    "application was submitted",
+    "application received",
+)
+_CONFIRMATION_JS = """baseline => {
+  const text = String((document.body && document.body.innerText) || '').toLowerCase();
+  const markerCount = document.querySelectorAll('[data-jobpilot-confirmation="success"]').length;
+  const phrases = ['thank you for applying', 'application submitted', 'application was submitted', 'application received']
+    .filter(value => text.includes(value));
+  const previous = Array.isArray(baseline.phrases) ? baseline.phrases : [];
+  const newPhrase = phrases.some(value => !previous.includes(value));
+  const newMarker = markerCount > Number(baseline.marker_count || 0);
+  const navigated = String(location.href) !== String(baseline.url || '');
+  return newMarker || newPhrase || (navigated && phrases.length > 0);
+}"""
 
 
 def _loopback(host: str | None) -> bool:
@@ -68,6 +84,7 @@ class HostedApplicationAdapter:
         self._field_types: dict[str, str] = {}
         self._required: set[str] = set()
         self._submit: Any = None
+        self._confirmation_baseline: dict[str, Any] = {"url": "", "marker_count": 0, "phrases": []}
 
     def _validate_target(self, value: object) -> str:
         url = _url(value)
@@ -95,6 +112,7 @@ class HostedApplicationAdapter:
         except Exception:
             pass
         self._validate_landed_url()
+        self._confirmation_baseline = self._confirmation_state()
 
         frame = self._find_application_frame()
         if frame is None:
@@ -183,11 +201,26 @@ class HostedApplicationAdapter:
 
     def confirm(self) -> SubmissionConfirmation:
         try:
-            self.page.wait_for_function(_CONFIRMATION_JS, timeout=3_000)
+            self.page.wait_for_function(_CONFIRMATION_JS, arg=dict(self._confirmation_baseline), timeout=3_000)
         except Exception:
             return SubmissionConfirmation(False, None)
         text = " ".join(self.page.locator("body").inner_text().split())[:500]
-        return SubmissionConfirmation(True, text or "explicit success marker")
+        return SubmissionConfirmation(True, text or "new explicit success state")
+
+    def _confirmation_state(self) -> dict[str, Any]:
+        try:
+            text = " ".join(self.page.locator("body").inner_text().split()).casefold()
+        except Exception:
+            text = ""
+        try:
+            marker_count = int(self.page.locator('[data-jobpilot-confirmation="success"]').count())
+        except Exception:
+            marker_count = 0
+        return {
+            "url": str(getattr(self.page, "url", "") or ""),
+            "marker_count": marker_count,
+            "phrases": [phrase for phrase in _CONFIRMATION_PHRASES if phrase in text],
+        }
 
     def _reset(self) -> None:
         self._frame = None; self._fields.clear(); self._field_types.clear(); self._required.clear(); self._submit = None
