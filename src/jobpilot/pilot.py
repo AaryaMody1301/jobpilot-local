@@ -125,6 +125,37 @@ class Phase9PilotApplicationJournal(Phase8ApplicationJournal):
                 )
         return len(rows)
 
+    def reset_live_queue_to_prepared(self, reason: str) -> int:
+        """Rewind never-submitted queued live work so each launch/deactivation requires re-arming."""
+        now = utc_now_text()
+        text = " ".join(str(reason).split())[:1000]
+        with self.database.transaction() as connection:
+            rows = connection.execute(
+                """
+                SELECT id FROM application_attempts
+                 WHERE controlled_fixture=0 AND state='queued'
+                   AND package_id IS NOT NULL AND target_url IS NOT NULL
+                """
+            ).fetchall()
+            for row in rows:
+                connection.execute(
+                    """
+                    UPDATE application_attempts
+                       SET state='prepared', lease_owner=NULL, target_url=NULL,
+                           next_retry_at=NULL, last_reason=?, updated_at=?
+                     WHERE id=?
+                    """,
+                    (text, now, row["id"]),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO application_events(application_id, from_state, to_state, reason, created_at)
+                    VALUES (?, 'queued', 'prepared', ?, ?)
+                    """,
+                    (row["id"], text, now),
+                )
+        return len(rows)
+
     def queue_prepared_live(self, application_id: str) -> dict[str, Any]:
         application = self.attempt(application_id)
         if str(application["state"]) != ApplicationState.PREPARED.value or bool(application.get("controlled_fixture")):
@@ -165,20 +196,26 @@ class Phase9PilotApplicationJournal(Phase8ApplicationJournal):
             )
         return self.attempt(application_id)
 
-    def claim_next_live(self, session_id: str) -> dict[str, Any] | None:
+    def claim_next_live(self, session_id: str, allowed_ids: set[str]) -> dict[str, Any] | None:
+        allowed = {str(item) for item in allowed_ids if str(item)}
+        if not allowed:
+            return None
         while True:
             now = utc_now_text()
+            placeholders = ",".join("?" for _ in allowed)
+            params: tuple[object, ...] = (now, *sorted(allowed))
             with self.database._lock:
                 row = self.database.connection.execute(
-                    """
+                    f"""
                     SELECT id FROM application_attempts
                      WHERE controlled_fixture=0 AND state='queued'
                        AND package_id IS NOT NULL AND target_url IS NOT NULL
                        AND (next_retry_at IS NULL OR next_retry_at<=?)
+                       AND id IN ({placeholders})
                      ORDER BY COALESCE(created_at, updated_at), id
                      LIMIT 1
                     """,
-                    (now,),
+                    params,
                 ).fetchone()
             if row is None:
                 return None
@@ -425,10 +462,12 @@ class PilotApplicationWorker(ApplicationWorker):
         journal: Phase9PilotApplicationJournal,
         session_id: str,
         live_enabled: Callable[[], bool],
+        live_allowed_ids: Callable[[], set[str]],
     ) -> None:
         super().__init__(paths, journal, session_id)
         self.journal = journal
         self._live_enabled = live_enabled
+        self._live_allowed_ids = live_allowed_ids
 
     def _run(self) -> None:
         try:
@@ -438,7 +477,7 @@ class PilotApplicationWorker(ApplicationWorker):
                     continue
                 application = self.journal.claim_next(self.session_id)
                 if application is None and self._live_enabled():
-                    application = self.journal.claim_next_live(self.session_id)
+                    application = self.journal.claim_next_live(self.session_id, self._live_allowed_ids())
                 if application is None:
                     self._stop.wait(0.1)
                     continue
