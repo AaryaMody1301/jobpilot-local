@@ -70,7 +70,7 @@ $Actual = @(Get-ChildItem -LiteralPath $SourceRoot -File -Recurse -Force |
     } | Sort-Object)
 $Diff = Compare-Object -ReferenceObject $Expected -DifferenceObject $Actual
 if ($Diff) {
-    throw "distribution contents do not match the signed file manifest"
+    throw "distribution contents do not match the integrity manifest"
 }
 
 foreach ($Entry in $Manifest.files) {
