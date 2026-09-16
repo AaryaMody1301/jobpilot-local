@@ -40,3 +40,12 @@ class Phase9DesktopBridge(Phase8DesktopBridge):
         if not selected:
             return self._phase9.snapshot()
         return self._phase9.stage_local_restore(Path(selected[0]))
+
+    def activate_real_application_pilot(self, confirmation: str) -> dict[str, Any]:
+        return self._phase9.activate_real_application_pilot(confirmation)
+
+    def deactivate_real_application_pilot(self) -> dict[str, Any]:
+        return self._phase9.deactivate_real_application_pilot()
+
+    def queue_prepared_pilot_application(self, application_id: str) -> dict[str, Any]:
+        return self._phase9.queue_prepared_pilot_application(application_id)
