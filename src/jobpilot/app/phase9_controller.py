@@ -26,7 +26,12 @@ class Phase9ApplicationController(Phase8ApplicationController):
         self._pilot_armed_application_ids: set[str] = set()
         super().__init__(paths, migrations_dir, *args, **kwargs)
         self.applications = Phase9PilotApplicationJournal(self.database, self.tailoring)
-        self.recovery["requeued_phase9_live_pilot_applications"] = self.applications.recover_live_pre_submit()
+        recovered = self.applications.recover_live_pre_submit()
+        reset = self.applications.reset_live_queue_to_prepared(
+            "new launch requires explicit per-application real-pilot re-arming"
+        )
+        self.recovery["recovered_phase9_live_pre_submit"] = recovered
+        self.recovery["reset_phase9_live_queue_for_rearm"] = reset
         self.backups = BackupManager(self.paths, migrations_dir)
         self.database.record_foundation_activity(
             self.session_id,
@@ -46,6 +51,7 @@ class Phase9ApplicationController(Phase8ApplicationController):
             self.applications,
             self.session_id,
             lambda: self._pilot_session_authorized,
+            lambda: set(self._pilot_armed_application_ids),
         )
 
     def activate_real_application_pilot(self, confirmation: str) -> dict[str, Any]:
@@ -64,11 +70,15 @@ class Phase9ApplicationController(Phase8ApplicationController):
     def deactivate_real_application_pilot(self) -> dict[str, Any]:
         with self._lock:
             self._require_idle_onboarding()
+            reset = self.applications.reset_live_queue_to_prepared(
+                "pilot deactivation requires explicit re-arming before any later real submission"
+            )
             self._pilot_session_authorized = False
+            self._pilot_armed_application_ids.clear()
             self.database.record_foundation_activity(
                 self.session_id,
                 "phase9_pilot_deactivated",
-                "Real-application pilot deactivated for this launch; queued live work cannot be claimed until explicitly reactivated",
+                f"Real-application pilot deactivated for this launch; {reset} queued live application(s) returned to prepared",
             )
             return self.snapshot()
 
@@ -136,11 +146,15 @@ class Phase9ApplicationController(Phase8ApplicationController):
         with self._lock:
             self._require_idle_onboarding()
             result = self.backups.stage_restore(archive)
+            reset = self.applications.reset_live_queue_to_prepared(
+                "restore staging requires explicit real-pilot re-arming after restart"
+            )
             self._pilot_session_authorized = False
+            self._pilot_armed_application_ids.clear()
             self.database.record_foundation_activity(
                 self.session_id,
                 "phase9_restore_staged",
-                "Verified and staged a portable backup restore; restart is required and pilot activation was reset before restore",
+                f"Verified and staged a portable backup restore; restart is required, pilot activation reset, and {reset} queued live application(s) returned to prepared",
             )
             state = self.snapshot()
             state["distribution"]["staged_restore"] = result
