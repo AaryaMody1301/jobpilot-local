@@ -1,4 +1,4 @@
-name: Phase 9 distribution acceptance
+name: Phase 9 acceptance
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 jobs:
-  windows-phase9-distribution:
+  windows-phase9:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
@@ -49,7 +49,9 @@ jobs:
           node --check src/jobpilot/ui/phase9.js
       - name: Run deterministic regression suite
         run: pytest -m "not external"
-      - name: Verify Phase 9 backup restore and pilot lock
+      - name: Verify explicit Phase 9 pilot safety gates
+        run: pytest tests/unit/test_phase9_pilot.py -q
+      - name: Verify backup restore and inactive-by-default pilot
         run: python scripts/phase9_distribution_acceptance.py
       - name: Preserve Phase 8 orchestration boundary
         run: python scripts/phase8_orchestration_acceptance.py
