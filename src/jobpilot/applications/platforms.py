@@ -197,6 +197,7 @@ class HostedApplicationAdapter:
         self._require_write()
         if self._submit is None:
             raise RuntimeError("supported submit control is not available")
+        self._confirmation_baseline = self._confirmation_state()
         self._submit.click(timeout=5_000)
 
     def confirm(self) -> SubmissionConfirmation:

@@ -42,6 +42,15 @@ class _MarkerLocator:
         return self.page.marker_count
 
 
+class _SubmitLocator:
+    def __init__(self, page: "_ConfirmationPage") -> None:
+        self.page = page
+
+    def click(self, *, timeout: int) -> None:
+        assert timeout == 5000
+        self.page.submit_clicked = True
+
+
 class _ConfirmationPage:
     def __init__(self, *, body: str, marker_count: int = 0, allow_confirmation: bool = False) -> None:
         self.url = "https://jobs.lever.co/example/apply"
@@ -49,6 +58,7 @@ class _ConfirmationPage:
         self.marker_count = marker_count
         self.allow_confirmation = allow_confirmation
         self.seen_baseline: dict[str, object] | None = None
+        self.submit_clicked = False
 
     def locator(self, selector: str):
         if selector == "body":
@@ -94,6 +104,22 @@ def test_static_success_like_text_is_not_confirmation_without_new_state() -> Non
 
     result = adapter.confirm()
 
+    assert result.confirmed is False
+    assert page.seen_baseline is not None
+    assert "application received" in page.seen_baseline["phrases"]
+
+
+def test_submit_recaptures_confirmation_baseline_immediately_before_click() -> None:
+    page = _ConfirmationPage(body="Application form", allow_confirmation=False)
+    adapter = LeverAdapter(page, allow_live_submit=True)
+    adapter._confirmation_baseline = adapter._confirmation_state()
+    adapter._submit = _SubmitLocator(page)
+
+    page.body = "Application received questions and FAQ"
+    adapter.submit()
+    result = adapter.confirm()
+
+    assert page.submit_clicked is True
     assert result.confirmed is False
     assert page.seen_baseline is not None
     assert "application received" in page.seen_baseline["phrases"]
