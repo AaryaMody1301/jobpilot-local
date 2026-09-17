@@ -73,12 +73,13 @@ function render(state) {
 function renderResume(resume, session, busy) {
   const idle = session === 'idle' && !busy;
   const master = resume.master;
+  const hasEditableRegion = resume.regions.some(region => Number(region.editable) === 1);
   document.getElementById('import-master').disabled = !idle;
   document.getElementById('import-supporting').disabled = !idle;
   document.getElementById('install-tectonic').disabled = !idle || resume.tectonic.installed;
   document.getElementById('compile-cached').disabled = !idle || !master || !resume.tectonic.installed;
   document.getElementById('compile-network').disabled = !idle || !master || !resume.tectonic.installed;
-  document.getElementById('confirm-template-map').disabled = !idle || !master || !resume.regions.length || resume.template_map_status === 'confirmed';
+  document.getElementById('confirm-template-map').disabled = !idle || !master || !resume.regions.length || !hasEditableRegion || resume.template_map_status === 'confirmed';
 
   document.getElementById('master-summary').innerHTML = master
     ? `<div><strong>${escapeHtml(master.original_name)}</strong><span>Integrity: ${escapeHtml(resume.integrity)}</span><span>SHA-256: ${escapeHtml(shortHash(master.sha256))}</span><span>Imported: ${escapeHtml(master.imported_at)}</span></div>`
