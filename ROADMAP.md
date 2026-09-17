@@ -34,7 +34,7 @@ Remaining private product gate:
 - [ ] five distinct real tailored resumes must be explicitly approved under one current validation context;
 - [ ] automatic tailoring remains disabled until the current local gate is 5/5.
 
-The user explicitly authorized later phase development without treating that sequencing exception as completion of the private Phase 4 gate. The post-Phase-9 hardening matrix re-ran and passed the real local Phase 4 tailoring acceptance at hardening head `75205774ad8cf444fe9081073b59c3e951849a50`, run `35077829627`; this technical acceptance does not substitute for the five human approvals.
+The user explicitly authorized later phase development without treating that sequencing exception as completion of the private Phase 4 gate. Repository-level closeout PR #16 passed the complete Phase 0 through Phase 9 matrix before merge; this technical acceptance does not substitute for the five human approvals.
 
 Acceptance: `docs/PHASE4_ACCEPTANCE.md`, `docs/PHASE4_CLOSEOUT.md`.
 
@@ -95,7 +95,7 @@ Distribution/recovery completed:
 - [x] WebView2 Evergreen Runtime detection and official Microsoft bootstrap path when absent;
 - [x] portable local backup/restore with integrity checks, restart-bound application and pre-restore safety backup;
 - [x] exact browser/WebView/legal notices in the distribution;
-- [x] exact-head Windows distribution/recovery acceptance at code head `b5ebda60793e3f61a25885b4370ebf5242d2e705`, run `35056956675`.
+- [x] final repository-level hardening merged in PR #16 at `f5df77697b667f14df55583d94058f175ece5074` after all Phase 0 through Phase 9 PR-head workflows passed.
 
 Measured-pilot activation path:
 - [x] received the later separate user authorization for the real-application pilot implementation on 2026-09-16;
@@ -103,12 +103,14 @@ Measured-pilot activation path:
 - [x] every launch starts inactive, requires an exact local activation phrase, a fresh read-only inspection and explicit per-application arming, with at most five armed applications per launch;
 - [x] restart/deactivation/restore forces queued real work back to `PREPARED`, clears stale live inspection data and requires fresh inspection plus re-arming;
 - [x] live resume upload resolves the persisted managed `pdf_relpath` and re-verifies its SHA-256 immediately before browser upload;
-- [x] post-submit success requires newly observed confirmation evidence relative to a captured pre-submit baseline, so static success-like text cannot by itself produce `CONFIRMED`;
-- [x] dependency/package hardening is current for the accepted release baseline: Playwright 1.63.0, pypdf 6.18.1, PyInstaller 6.22.3 and pinned `pip-audit` 2.10.1;
-- [x] exact-head post-audit hardening matrix passed Phase 0 through Phase 9 at code head `75205774ad8cf444fe9081073b59c3e951849a50`; Phase 9 run `35077829573`, Phase 4 run `35077829627`;
+- [x] post-submit success is compared against confirmation state recaptured immediately before the submit click, so success-like text that appears before submission cannot produce a false `CONFIRMED`;
+- [x] final dependency/package baseline: Playwright 1.63.0, pypdf 6.19.0, setuptools 84.0.0, PyInstaller 6.22.3 and pinned `pip-audit` 2.10.1;
+- [x] final Phase 9 UI regression covers backup/restore, pilot activation/deactivation and per-application arming at the 960x660 minimum viewport;
 - [ ] run the measured real-world pilot from current local/private candidate data and record actual confirmed-application throughput/quality evidence;
 - [ ] never claim 50/day without measured evidence.
 
 The accepted technical pilot implementation and hardening acceptance did not fill or submit a real employer form. CI live-provider checks remain read-only; only controlled loopback fixtures perform writes. Phase 4's private five-real-resume gate remains independently authoritative.
+
+The validated llama.cpp runtime remains v0.4.0/b10809. Newer upstream runtime releases are metadata-only until their checksum/license records, local evaluation, and replacement review gate are completed; they are not silently substituted during cleanup.
 
 Acceptance: `docs/PHASE9_DISTRIBUTION_ACCEPTANCE.md`, `docs/PHASE9_PILOT_ACCEPTANCE.md`. Phase 9 remains `[~]` until measured real-pilot evidence is recorded.
