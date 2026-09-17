@@ -16,12 +16,21 @@ build/
 .DS_Store
 Thumbs.db
 
+# Local secrets and transient files
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+*.part
+
 # Private JobPilot runtime data
 .local-data/
 data/
 artifacts/
 models/
 browsers/
+.playwright-browsers/
 browser-profile/
 backups/
 logs/
@@ -37,6 +46,12 @@ supporting-documents/
 application-packages/
 *.pdf
 *.tex
+JobPilotBackup-*.zip
+JobPilotLocal-*-win-x64.zip
+
+# Local model weights must never be committed even if copied outside models/
+*.gguf
+*.ggml
 
 # Keep controlled test fixtures only
 !tests/fixtures/*.html
