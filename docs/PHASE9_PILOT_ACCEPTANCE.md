@@ -1,18 +1,18 @@
 # Phase 9 measured-pilot activation acceptance
 
-Date: 2026-09-16
+Date: 2026-09-17
 
-Status: **accepted for the user-authorized real-application write-path implementation and post-audit technical hardening only**. The measured real-world pilot has not yet been run, no real employer form was filled/submitted by this acceptance, and Phase 9 remains in progress.
+Status: **repository implementation and technical hardening accepted; measured real-world pilot evidence is still pending.** No acceptance step in CI fills or submits a real employer form.
 
 ## Authorization boundary
 
-After the Phase 9 distribution/recovery PR was merged, the user gave a later separate instruction to start the next Phase 9 boundary. That instruction authorizes implementation of the measured real-application pilot path.
+The user separately authorized implementation of the measured real-application pilot after the distribution/recovery boundary was merged. That authorization permits the live-write implementation but does not waive any existing product gate.
 
-Authorization does not waive any existing product gate. In particular:
+In particular:
 
 - Phase 4 automatic tailoring still requires five distinct explicitly approved real tailored resumes under the current validation context;
 - job eligibility must be resolved rather than guessed;
-- the immutable application package must still be current immediately before claim/write;
+- the immutable application package must be current immediately before claim/write;
 - mandatory application answers must be exact-context human-approved values;
 - CAPTCHA/challenge, login/verification, payment, assessment and unsupported form shapes remain hard blockers;
 - only the existing single application worker may cross the submit boundary;
@@ -37,8 +37,9 @@ The pilot path is deliberately narrow:
 12. the current tailored PDF is resolved from its app-managed relative path, its persisted SHA-256 is verified immediately before upload, and it is uploaded only to a recognized resume/CV file field; another required file upload blocks instead of guessing;
 13. missing mandatory non-file answers move the application to the existing `NEEDS_REVIEW` lane using exact live-field context fingerprints;
 14. the final pre-submit boundary checks Stop/deactivation again before the click;
-15. the adapter compares confirmation state against a pre-submit baseline, and only newly observed positive confirmation after the click can produce `CONFIRMED`;
-16. submit exceptions or missing positive confirmation after the click become `UNCERTAIN`.
+15. confirmation state is recaptured immediately before the submit click;
+16. after the click, `CONFIRMED` requires newly observed positive evidence relative to that immediate pre-submit baseline;
+17. submit exceptions or missing positive confirmation after the click become terminal `UNCERTAIN`.
 
 Optional live fields are left unchanged unless an exact-context approved answer already exists. The pilot does not synthesize or guess application answers.
 
@@ -50,40 +51,23 @@ The public employer APIs are not treated as applicant credentials:
 - Lever's programmatic apply path similarly requires employer/admin integration credentials and its hosted application form remains the normal applicant surface;
 - Ashby's application submission API requires candidate-write API permissions.
 
-JobPilot therefore continues through the supported hosted applicant forms and keeps provider-specific host/blocker recognition in front of the write path. The code does not ask the candidate for an employer API key and does not bypass CAPTCHA or other challenges.
+JobPilot therefore continues through supported hosted applicant forms and keeps provider-specific host/blocker recognition in front of the write path. The code does not ask the candidate for an employer API key and does not bypass CAPTCHA or other challenges.
 
-## Original technical acceptance
+## Final repository-level hardening
 
-Accepted technical head: `06a2f31d47dc3dbe09bcf0eda3fd34bf0278d0e5`
+PR #16, `Final JobPilot technical closeout hardening`, closed the remaining repository findings from the 2026-09-17 deep audit:
 
-Windows workflow: `35072562186` (`Phase 9 acceptance`), conclusion `success`.
+- hosted-form adapters now recapture the URL/success-marker/success-phrase baseline immediately before the submit click, eliminating the delayed pre-submit success-text false-positive window;
+- a focused regression verifies that success-like text appearing after inspection but before submit cannot confirm an application;
+- final Playwright UI interaction coverage verifies backup/restore, pilot activation/deactivation and explicit per-application arming at the minimum 960x660 viewport;
+- pypdf was refreshed to 6.19.0 and the build backend was pinned to setuptools 84.0.0 for reproducible source builds;
+- third-party notices record the final dependency baseline and explicitly keep newer llama.cpp releases metadata-only until their established local evaluation/replacement gates are satisfied.
 
-The original exact-head workflow passed the then-current non-external regression, focused pilot safety, backup/restore, Phase 8 orchestration, Phase 7 provider recognition/controlled-submit, source/frozen/installed desktop, browser, distribution and install/upgrade checks.
+PR #16 exact head: `2004157ad079ffdfe51f17f86155b8b2027f09d7`.
 
-That acceptance did not exercise the real resume-upload path end-to-end and did not require post-submit confirmation to be new relative to a baseline. A later release audit found those gaps before a measured pilot was run.
+All Phase 0 through Phase 9 pull-request workflows passed on that exact head. PR #16 merged into `main` at `f5df77697b667f14df55583d94058f175ece5074` on 2026-09-17. The subsequent Phase 0, Phase 4 and Phase 9 push workflows on that merge were also observed completing successfully before final cleanup.
 
-## Post-audit hardening acceptance
-
-PR #15 fixes the two release blockers identified by that audit:
-
-- `LiveHostedFormEngine` now reads the persisted `pdf_relpath`, resolves it only through `TailoringStore.absolute_path()`, requires the stored `pdf_sha256`, and re-hashes the file immediately before browser upload. Missing, escaped or tampered artifacts fail closed before any employer write.
-- hosted-form confirmation now captures the pre-submit URL, explicit success-marker count and known success phrases during inspection. After the click, `CONFIRMED` requires newly appearing success evidence; success-like text that was already on the page does not count.
-
-Focused regression coverage verifies both the managed resume path/hash boundary and the static-success-text false-positive case.
-
-The same hardening refreshes the validated release dependencies to Playwright 1.63.0, pypdf 6.18.1 and PyInstaller 6.22.3, adds pinned `pip-audit` 2.10.1, updates the bundled browser notices to Playwright Chromium revision 1243 / Chrome for Testing 153.0.8010.12, corrects the packaged pilot README, and runs the Phase 9 acceptance workflow on final `main` pushes.
-
-Exact hardening head: `75205774ad8cf444fe9081073b59c3e951849a50`.
-
-All Phase 0 through Phase 9 workflows passed on that exact head. Key runs:
-
-- Phase 3: `35077829489` — real local llama.cpp/model acceptance passed;
-- Phase 4: `35077829627` — real local tailoring acceptance, source/package self-tests and window smokes passed;
-- Phase 7: `35077829494` — controlled submit plus current Greenhouse/Lever/Ashby live read-only recognition passed;
-- Phase 8: `35077829506` — orchestration and stale-package boundaries passed;
-- Phase 9: `35077829573` — dependency audit, deterministic regression suite, focused pilot/hardening tests, backup/restore, inherited provider/orchestration gates, source/frozen/installed smokes, hermetic browser build, verified distribution, clean install/upgrade and artifact upload all passed.
-
-The hardening Actions artifact is `jobpilot-local-phase9-windows-x64`, artifact ID `10439455880`, 381,619,153 bytes, digest `sha256:b10e206459f58fe479a72941769e6b71cc187c38a0b1afe467ceec172afdff2d`.
+The accepted dependency/build baseline is Playwright 1.63.0, pypdf 6.19.0, setuptools 84.0.0, PyInstaller 6.22.3, pytest 9.1.1 and pip-audit 2.10.1.
 
 No failed safety condition was waived.
 
@@ -93,7 +77,7 @@ The live-provider acceptance remains intentionally read-only. It verifies curren
 
 ## Measured pilot still pending
 
-This technical acceptance did **not** fill or submit a real employer form. CI uses controlled loopback writes plus read-only live provider checks only.
+Technical acceptance did **not** fill or submit a real employer form. CI uses controlled loopback writes plus read-only live provider checks only.
 
 The remaining Phase 9 product gate is a measured real-world pilot from the user's local/private JobPilot data. Pilot evidence must record, at minimum:
 
