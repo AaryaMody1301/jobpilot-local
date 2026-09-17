@@ -7,7 +7,7 @@ This file records dependencies and reference projects reviewed for `jobpilot-loc
 | Component | Current baseline | License / source note |
 | --- | --- | --- |
 | Python | 3.13.15 | Python Software Foundation License |
-| setuptools | 84.0.0 | MIT; pinned build backend requirement for reproducible source builds |
+| setuptools | 84.0.0 | MIT; source-build backend, pinned for reproducibility |
 | pywebview | 6.2.1 | BSD-3-Clause |
 | Playwright Python | 1.63.0 | Apache-2.0 |
 | psutil | 7.2.2 | BSD-3-Clause |
@@ -40,7 +40,7 @@ JobPilot does not bundle or commit model weights. Its Phase 3 catalogue records 
 
 The Qwen3 GGUF is used as a text-only local model. JobPilot does not download or load a multimodal projection for it. Passing the controlled Phase 3 evaluation does not grant permission to fabricate resume facts and does not enable automatic tailoring; the separate Phase 4 five-resume human review gate still applies.
 
-Upstream may publish newer llama.cpp releases after this validated catalogue baseline. They are not silently substituted: every future runtime/model revision must receive a new catalogue record/install identity with source revision, license, exact checksum/size and evaluation evidence before use. A metadata update check may report newer upstream versions, but it never downloads or automatically trusts them. As of the 2026-09-17 closeout audit, upstream v0.4.1 is newer than the validated v0.4.0/b10809 baseline; it remains metadata-only until the required local runtime/model evaluation and five-resume replacement gate are completed.
+Upstream may publish newer llama.cpp releases after this validated catalogue baseline. They are not silently substituted: every future runtime/model revision must receive a new catalogue record/install identity with source revision, license, exact checksum/size and evaluation evidence before use. A metadata update check may report newer upstream versions, but it never downloads or automatically trusts them. As of the 2026-09-17 final cleanup, upstream v0.4.1 is newer than JobPilot's validated v0.4.0/b10809 baseline and remains metadata-only pending those gates.
 
 ## Reference repositories reviewed
 
