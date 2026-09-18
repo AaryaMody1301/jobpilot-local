@@ -8,6 +8,9 @@ on:
       - "migrations/**"
       - "packaging/**"
       - "pyproject.toml"
+      - "pylock.toml"
+      - "requirements-lock.in"
+      - "scripts/install_ci_dependencies.ps1"
       - "scripts/build_distribution.py"
       - "scripts/phase9_*.py"
       - "src/**"
@@ -28,15 +31,14 @@ jobs:
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}\.playwright-browsers
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.13.15'
           cache: pip
-      - name: Install pinned project dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
+      - name: Install locked project dependencies
+        shell: pwsh
+        run: .\scripts\install_ci_dependencies.ps1
       - name: Audit installed Python dependencies
         run: python -m pip_audit
       - name: Install test Chromium
@@ -136,10 +138,53 @@ jobs:
           }
           if ($windowExit -ne 0) { exit $windowExit }
       - name: Upload verified distribution
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: jobpilot-local-phase9-windows-x64
           path: |
             dist/JobPilotLocal-*-win-x64.zip
             dist/JobPilotLocal-*-win-x64.sha256
           if-no-files-found: error
+
+  publish-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: windows-phase9
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: jobpilot-local-phase9-windows-x64
+          path: release-assets
+      - name: Publish immutable version release if absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$(find release-assets -maxdepth 1 -name 'JobPilotLocal-*-win-x64.zip' -print -quit)"
+          checksum="$(find release-assets -maxdepth 1 -name 'JobPilotLocal-*-win-x64.sha256' -print -quit)"
+          test -n "$archive" && test -n "$checksum"
+          name="$(basename "$archive")"
+          version="${name#JobPilotLocal-}"
+          version="${version%-win-x64.zip}"
+          tag="v${version}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; leaving it immutable."
+          else
+            gh release create "$tag" "$archive" "$checksum" --target "$GITHUB_SHA" --title "JobPilot Local $tag" --notes "Verified Windows 10/11 x64 release. Phase 4's five-real-resume gate and Phase 9's measured real-world pilot remain private local acceptance gates; this release does not claim those gates are complete."
+          fi
+      - name: Delete obsolete merged branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          for branch in "fix-template-map-ui-guard" "phase-0-feasibility-architecture" "phase-1-desktop-foundation" "phase-2-real-resume-finalization" "phase-2-resume-fact-bank" "phase-3-local-ai-resource-manager" "phase-3-stage" "phase-3-stage-tests" "phase-3-stage-tests2" "phase-4-evidence-tailoring" "phase-4-finalization" "phase-4-stage" "phase-5-job-discovery-matching" "phase-6-controlled-application-engine" "phase-7-supported-platform-adapters" "phase-8-end-to-end-orchestration" "phase-9-distribution-backup-restore" "phase-9-final-closeout" "phase-9-final-hardening" "phase-9-pilot-activation" "tmp-no" "final-repository-cleanup"; do
+            if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+              git push origin --delete "$branch"
+            fi
+          done
+
