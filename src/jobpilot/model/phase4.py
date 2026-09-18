@@ -10,6 +10,14 @@ from jobpilot.model.manager import ModelManager
 from jobpilot.model.runtime import LlamaRuntimeSession
 
 
+def _runtime_cancellation_reason(cancel_event: threading.Event, watcher: ResourcePressureWatcher) -> str | None:
+    if cancel_event.is_set():
+        return "resume tailoring cancelled"
+    if watcher.critical:
+        return "local inference was cancelled because memory pressure became critical"
+    return None
+
+
 class Phase4ModelManager(ModelManager):
     """Phase 3 model manager plus one fail-closed selected-model inference path."""
 
@@ -89,10 +97,9 @@ class Phase4ModelManager(ModelManager):
                             max_tokens=max_tokens,
                         )
                 except RuntimeError as exc:
-                    if cancel_event.is_set():
-                        raise RuntimeError("resume tailoring cancelled") from exc
-                    if watcher.critical:
-                        raise RuntimeError("local inference was cancelled because memory pressure became critical") from exc
+                    reason = _runtime_cancellation_reason(cancel_event, watcher)
+                    if reason:
+                        raise RuntimeError(reason) from exc
                     raise
                 pressure = watcher.stop()
                 if cancel_event.is_set():
