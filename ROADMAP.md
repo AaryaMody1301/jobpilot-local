@@ -34,7 +34,7 @@ Remaining private product gate:
 - [ ] five distinct real tailored resumes must be explicitly approved under one current validation context;
 - [ ] automatic tailoring remains disabled until the current local gate is 5/5.
 
-The user explicitly authorized later phase development without treating that sequencing exception as completion of the private Phase 4 gate. Repository-level closeout PR #16 passed the complete Phase 0 through Phase 9 matrix before merge; this technical acceptance does not substitute for the five human approvals.
+The user explicitly authorized later phase development without treating that sequencing exception as completion of the private Phase 4 gate. Repository technical acceptance through PR #17 passed the complete Phase 0 through Phase 9 matrix before merge, and the current-main Phase 0/4/9 revalidation also passed; this technical acceptance does not substitute for the five human approvals.
 
 Acceptance: `docs/PHASE4_ACCEPTANCE.md`, `docs/PHASE4_CLOSEOUT.md`.
 
@@ -95,7 +95,9 @@ Distribution/recovery completed:
 - [x] WebView2 Evergreen Runtime detection and official Microsoft bootstrap path when absent;
 - [x] portable local backup/restore with integrity checks, restart-bound application and pre-restore safety backup;
 - [x] exact browser/WebView/legal notices in the distribution;
-- [x] final repository-level hardening merged in PR #16 at `f5df77697b667f14df55583d94058f175ece5074` after all Phase 0 through Phase 9 PR-head workflows passed.
+- [x] final application/local-acceptance hardening merged in PR #17 at `fca1f2e8d249b82fe089c91c5be6a885f0286307` after all Phase 0 through Phase 9 PR-head workflows passed;
+- [x] Windows x64 / CPython 3.13 transitive dependencies are locked with pip 26.2.1 in hash-addressed `pylock.toml`, and official GitHub Actions are pinned to full commit SHAs;
+- [x] successful Phase 9 `main` builds publish the current version as a durable GitHub Release if absent and remove only branches already verified as fully merged.
 
 Measured-pilot activation path:
 - [x] received the later separate user authorization for the real-application pilot implementation on 2026-09-16;
@@ -104,7 +106,7 @@ Measured-pilot activation path:
 - [x] restart/deactivation/restore forces queued real work back to `PREPARED`, clears stale live inspection data and requires fresh inspection plus re-arming;
 - [x] live resume upload resolves the persisted managed `pdf_relpath` and re-verifies its SHA-256 immediately before browser upload;
 - [x] post-submit success is compared against confirmation state recaptured immediately before the submit click, so success-like text that appears before submission cannot produce a false `CONFIRMED`;
-- [x] final dependency/package baseline: Playwright 1.63.0, pypdf 6.19.0, setuptools 84.0.0, PyInstaller 6.22.3 and pinned `pip-audit` 2.10.1;
+- [x] final direct dependency/package baseline: Playwright 1.63.0, pypdf 6.19.0, setuptools 84.0.0, PyInstaller 6.22.3 and pinned `pip-audit` 2.10.1, with pip 26.2.1 driving the committed Windows dependency lock;
 - [x] final Phase 9 UI regression covers backup/restore, pilot activation/deactivation and per-application arming at the 960x660 minimum viewport;
 - [ ] run the measured real-world pilot from current local/private candidate data and record actual confirmed-application throughput/quality evidence;
 - [ ] never claim 50/day without measured evidence.
