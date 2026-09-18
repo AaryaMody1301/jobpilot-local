@@ -11,10 +11,10 @@
 - Phase 7 Greenhouse, Lever and Ashby hosted-form adapters are complete and accepted.
 - Phase 8 end-to-end orchestration is complete and accepted.
 - Phase 9 distribution/recovery and the separately authorized measured-pilot write path are technically implemented and accepted.
-- Final repository-level closeout PR #16 merged into `main` at `f5df77697b667f14df55583d94058f175ece5074` after every Phase 0 through Phase 9 PR-head workflow passed.
+- Final application/local-acceptance hardening PR #17 merged into `main` at `fca1f2e8d249b82fe089c91c5be6a885f0286307` after its exact head passed every Phase 0 through Phase 9 pull-request workflow; post-merge Phase 0/4/9 runs also passed.
 - **Phase 9 remains in progress only because a measured real-world pilot has not yet been run and no 50/day capability claim has been established.**
 
-The final accepted Python/build baseline is Playwright 1.63.0, pypdf 6.19.0, setuptools 84.0.0, PyInstaller 6.22.3, pytest 9.1.1, pip-audit 2.10.1, psutil 7.2.2 and pywebview 6.2.1.
+The accepted direct Python/build baseline is Playwright 1.63.0, pypdf 6.19.0, setuptools 84.0.0, PyInstaller 6.22.3, pytest 9.1.1, pip-audit 2.10.1, psutil 7.2.2 and pywebview 6.2.1. CI uses pip 26.2.1 and a committed Windows x64 / CPython 3.13 `pylock.toml` with exact resolved artifact hashes; isolated sdist builds are constrained by `requirements-build.in`.
 
 ## Phase 9 distribution and recovery
 
@@ -64,6 +64,12 @@ The installer is per-user by default and writes program files under `%LOCALAPPDA
 
 The setup checks for WebView2. If the Evergreen Runtime is missing, it retrieves Microsoft's official bootstrapper, verifies a valid Microsoft Authenticode signature, silently installs the Runtime, and verifies availability before continuing.
 
+## Release publishing
+
+A successful Phase 9 workflow on `main` publishes the current project version as a GitHub Release if that version tag does not already exist. The verified Windows ZIP and SHA-256 sidecar are attached to that immutable version release instead of relying only on expiring Actions artifacts. The same post-acceptance job removes only obsolete branches already verified as merged into `main`.
+
+The JobPilot executable is not publisher Authenticode-signed because no publisher certificate/private signing identity is stored in the repository or CI. The installer still verifies Microsoft's Authenticode signature on any downloaded WebView2 bootstrapper. Add publisher signing only with an explicitly supplied protected signing identity.
+
 ## Backup and restore
 
 Use **Local data -> Portable backup** in the desktop app while JobPilot is Idle.
@@ -103,8 +109,9 @@ python -m jobpilot.app.main --phase4-gate-report
 ```powershell
 py -3.13 -m venv .venv
 .venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+python -m pip install "pip==26.2.1"
+python -m pip install --build-constraint requirements-build.in -r pylock.toml
+python -m pip install --no-deps --no-build-isolation -e .
 $env:PLAYWRIGHT_BROWSERS_PATH="$env:LOCALAPPDATA\JobPilotLocal\browsers"
 python -m playwright install chromium
 python -m jobpilot.app.main
@@ -116,7 +123,7 @@ Historical distribution/recovery acceptance is recorded at technical head `b5ebd
 
 Historical measured-pilot activation implementation acceptance is recorded at technical head `06a2f31d47dc3dbe09bcf0eda3fd34bf0278d0e5`, Windows run `35072562186`.
 
-The final repository-level closeout is PR #16. Its exact head `2004157ad079ffdfe51f17f86155b8b2027f09d7` passed all Phase 0 through Phase 9 pull-request workflows on 2026-09-17, including dependency audit, the deterministic regression suite, the delayed pre-submit confirmation regression, final Phase 9 UI interaction coverage at the 960x660 minimum viewport, backup/restore, inherited provider/orchestration gates, source/frozen/installed Windows smokes, hermetic browser build, verified distribution build, clean install/in-place upgrade, and artifact upload. It merged as `f5df77697b667f14df55583d94058f175ece5074`.
+PR #16 established the prior repository closeout baseline. The latest application/local-acceptance hardening is PR #17: exact head `87f1a31325a564e392dc8881edb51b04dd2e22f0` passed all Phase 0 through Phase 9 pull-request workflows on 2026-09-18 and merged as `fca1f2e8d249b82fe089c91c5be6a885f0286307` with the same file tree. Post-merge Phase 0 run `35330432453`, Phase 4 run `35330432442`, and Phase 9 run `35330432447` all passed. The Phase 9 merge run reported no known dependency vulnerabilities and `145 passed, 1 skipped, 2 deselected`, then completed source/frozen/installed Windows smokes, hermetic browser build, verified distribution build, clean install/in-place upgrade, and artifact upload.
 
 The accepted technical runs did **not** fill or submit a real employer form. Live Greenhouse/Lever/Ashby CI checks remain read-only; writes are exercised only against controlled loopback fixtures. See `docs/PHASE9_DISTRIBUTION_ACCEPTANCE.md` and `docs/PHASE9_PILOT_ACCEPTANCE.md` for exact boundaries and evidence.
 
@@ -135,6 +142,7 @@ Runtime data lives under `%LOCALAPPDATA%\JobPilotLocal`. Private candidate data,
 - `DECISIONS.md` - engineering decisions.
 - `PROGRESS.md` - current handoff and exact verification evidence.
 - `AGENTS.md` - repository implementation rules, including the compact Ponytail-style code/check policy.
+- `docs/REPOSITORY_GOVERNANCE.md` - required main-branch protection, immutable CI dependency, release, and publisher-signing policy.
 - `docs/PHASE9_DISTRIBUTION_ACCEPTANCE.md` - Phase 9 distribution/recovery boundary and evidence.
 - `docs/PHASE9_PILOT_ACCEPTANCE.md` - authorized pilot write-path technical boundary and measured-pilot handoff.
 

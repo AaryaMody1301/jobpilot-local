@@ -78,7 +78,7 @@ llama.cpp can enumerate several backends, but Phase 3 intentionally starts with 
 
 ### GitHub Actions maintenance
 
-Current official `actions/checkout` and `actions/setup-python` documentation uses major version 7. The repository's older v4/v5 workflow pair emitted Node runtime deprecation warnings on current hosted Windows runners, so Phase 3 updates the acceptance workflows to v7 before the final run.
+Current official `actions/checkout` and `actions/setup-python` documentation uses major version 7. The repository's older v4/v5 workflow pair emitted Node runtime deprecation warnings on current hosted Windows runners, so Phase 3 updated the acceptance workflows to v7. Final maintenance on 2026-09-18 then pinned the verified v7 commit SHAs rather than mutable tags, and Phase 9 pins upload-artifact v7 plus download-artifact v8 the same way. The Windows/Python 3.13 dependency environment is resolved by pip 26.2.1 into the committed PEP 751 `pylock.toml`; CI regenerates the lock from `requirements-lock.in` and fails if it differs before installing the locked artifacts. Because `proxy_tools` is distributed as an sdist, isolated build resolution is separately constrained by `requirements-build.in` to setuptools 84.0.0 and wheel 0.48.0.
 
 ## Safety consequence
 

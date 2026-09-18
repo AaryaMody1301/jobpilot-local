@@ -7,7 +7,8 @@ This file records dependencies and reference projects reviewed for `jobpilot-loc
 | Component | Current baseline | License / source note |
 | --- | --- | --- |
 | Python | 3.13.15 | Python Software Foundation License |
-| setuptools | 84.0.0 | MIT; source-build backend, pinned for reproducibility |
+| pip | 26.2.1 | MIT; pinned CI installer and PEP 751 lock generator |\n| setuptools | 84.0.0 | MIT; source-build backend, pinned for reproducibility |
+| wheel | 0.48.0 | MIT; constrained isolated-build toolchain for locked sdist builds |
 | pywebview | 6.2.1 | BSD-3-Clause |
 | Playwright Python | 1.63.0 | Apache-2.0 |
 | psutil | 7.2.2 | BSD-3-Clause |
@@ -20,7 +21,7 @@ This file records dependencies and reference projects reviewed for `jobpilot-loc
 | Qwen3 4B GGUF | `ggml-org/Qwen3-4B-GGUF`, revision `2f3b082b1356a6123f7ed71e65aea340da25d53c`, Q4_K_M | Apache-2.0; model weights are downloaded only after explicit user approval and are never committed to this repository |
 | Microsoft Edge WebView2 Runtime | Evergreen system runtime | Microsoft-distributed prerequisite used by pywebview's Edge Chromium backend; not copied into the JobPilot program tree |
 
-Phase 2 pins the Tectonic Windows x64 MSVC archive `tectonic-0.17.0-x86_64-pc-windows-msvc.zip` to SHA-256 `f61ce51f0b0ade1015b7de7ef368541c5424e9756ecbd0d7af97d6d48030845f`. The application downloads it only after explicit user approval from the official Tectonic GitHub release and stores the installed executable plus integrity metadata in JobPilot's app-owned tool directory.
+The CI/distribution Python environment is locked for Windows x64 + CPython 3.13 in `pylock.toml`, generated with pip 26.2.1 from the exact direct inputs in `requirements-lock.in`. The lock records exact resolved artifacts and SHA-256 hashes. Isolated sdist builds are additionally constrained by `requirements-build.in` to setuptools 84.0.0 and wheel 0.48.0. The lock is intentionally platform-specific because JobPilot v1 is Windows-only.\n\nPhase 2 pins the Tectonic Windows x64 MSVC archive `tectonic-0.17.0-x86_64-pc-windows-msvc.zip` to SHA-256 `f61ce51f0b0ade1015b7de7ef368541c5424e9756ecbd0d7af97d6d48030845f`. The application downloads it only after explicit user approval from the official Tectonic GitHub release and stores the installed executable plus integrity metadata in JobPilot's app-owned tool directory.
 
 Tectonic's support cache can contain separately licensed TeX/LaTeX/font resources. Distribution packaging must enumerate and preserve the notices applicable to the exact cached/bundled content. The Phase 9 Windows distribution does not pre-bundle the app-managed Tectonic cache/tool tree; those remain local machine-specific state.
 
@@ -40,7 +41,7 @@ JobPilot does not bundle or commit model weights. Its Phase 3 catalogue records 
 
 The Qwen3 GGUF is used as a text-only local model. JobPilot does not download or load a multimodal projection for it. Passing the controlled Phase 3 evaluation does not grant permission to fabricate resume facts and does not enable automatic tailoring; the separate Phase 4 five-resume human review gate still applies.
 
-Upstream may publish newer llama.cpp releases after this validated catalogue baseline. They are not silently substituted: every future runtime/model revision must receive a new catalogue record/install identity with source revision, license, exact checksum/size and evaluation evidence before use. A metadata update check may report newer upstream versions, but it never downloads or automatically trusts them. As of the 2026-09-17 final cleanup, upstream v0.4.1 is newer than JobPilot's validated v0.4.0/b10809 baseline and remains metadata-only pending those gates.
+Upstream may publish newer llama.cpp releases after this validated catalogue baseline. They are not silently substituted: every future runtime/model revision must receive a new catalogue record/install identity with source revision, license, exact checksum/size and evaluation evidence before use. A metadata update check may report newer upstream versions, but it never downloads or automatically trusts them. As of the 2026-09-18 final cleanup, upstream v0.4.1 is newer than JobPilot's validated v0.4.0/b10809 baseline and remains metadata-only pending those gates.
 
 ## Reference repositories reviewed
 
