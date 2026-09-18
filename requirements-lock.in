@@ -1,0 +1,10 @@
+# Windows 10/11 x64 + CPython 3.13 CI/distribution dependency inputs.
+# pylock.toml is regenerated from this file with pip 26.2.1 on windows-latest.
+playwright==1.63.0
+psutil==7.2.2
+pypdf==6.19.0
+pywebview==6.2.1
+pip-audit==2.10.1
+pyinstaller==6.22.3
+pytest==9.1.1
+setuptools==84.0.0
