@@ -86,6 +86,8 @@ class DesktopBridge:
         return self._controller.set_fact_status(fact_id, status)
 
     def close_for_window_event(self) -> bool:
+        if self._controller.cancel_onboarding_operation():
+            return False
         self._controller.close()
         return True
 
