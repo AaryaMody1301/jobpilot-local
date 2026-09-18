@@ -256,6 +256,15 @@ class ApplicationController:
             self.resume_store.set_fact_status(fact_id, status)
             return self.snapshot()
 
+    def cancel_onboarding_operation(self) -> bool:
+        with self._lock:
+            self._require_open()
+            cancel = self._onboarding_cancel
+            if cancel is None:
+                return False
+            cancel.set()
+            return True
+
     def close(self) -> None:
         with self._lock:
             if self._closed:
