@@ -73,7 +73,7 @@ The Phase 9 merge run passed:
 
 No failed safety condition was waived.
 
-Final repository maintenance additionally uses pip 26.2.1 to resolve the exact Windows x64 / CPython 3.13 environment from `requirements-lock.in` into hash-addressed `pylock.toml`. Each acceptance workflow regenerates the lock and fails if it differs before installing it. Official GitHub Actions are referenced by verified full commit SHA rather than mutable major tags. A successful Phase 9 push on `main` publishes the current project version as a GitHub Release if absent and deletes only the obsolete branches already verified as fully merged into `main`.
+Final repository maintenance additionally uses pip 26.2.1 to resolve the exact Windows x64 / CPython 3.13 environment from `requirements-lock.in` into hash-addressed `pylock.toml`. Isolated sdist builds use `requirements-build.in` with setuptools 84.0.0 and wheel 0.48.0. Each acceptance workflow regenerates the lock and fails if it differs before installing it. Official GitHub Actions are referenced by verified full commit SHA rather than mutable major tags. A successful Phase 9 push on `main` publishes the current project version as a GitHub Release if absent and deletes only the obsolete branches already verified as fully merged into `main`.
 
 ## Dependency and model baseline
 
