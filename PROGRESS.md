@@ -6,7 +6,7 @@ Phase 9 - Packaging and user-authorized pilot.
 
 Status: **repository implementation and technical hardening are complete; Phase 9 remains in progress only because the measured real-world application pilot has not yet been run. Phase 4's private five-real-resume human gate also remains independently open.**
 
-Final repository-level closeout PR #16 merged into `main` at `f5df77697b667f14df55583d94058f175ece5074` after its exact head passed all Phase 0 through Phase 9 workflows. The final cleanup then reconciled roadmap/progress metadata with that merged baseline.
+Application/local-acceptance hardening PR #17 merged into `main` at `fca1f2e8d249b82fe089c91c5be6a885f0286307` after its exact head passed all Phase 0 through Phase 9 workflows. The subsequent repository-maintenance cleanup pins the Windows dependency graph and GitHub Actions immutably, refreshes acceptance records, and adds durable version-release/merged-branch cleanup after a successful Phase 9 `main` build.
 
 ## Phase 9 distribution/recovery
 
@@ -47,13 +47,21 @@ The provider write capability is isolated behind an explicit live-write adapter 
 
 ## Final technical verification
 
-PR #16 exact head: `2004157ad079ffdfe51f17f86155b8b2027f09d7`.
+PR #17 exact head: `87f1a31325a564e392dc8881edb51b04dd2e22f0`.
 
-All Phase 0 through Phase 9 pull-request workflows completed successfully on that exact head on 2026-09-17. The final Phase 9 run passed:
+All Phase 0 through Phase 9 pull-request workflows completed successfully on that exact head on 2026-09-18. PR #17 merged into `main` at `fca1f2e8d249b82fe089c91c5be6a885f0286307`; the merge commit has the same file tree as the tested PR head.
 
-- dependency vulnerability auditing;
-- deterministic regression tests including the final Phase 9 UI interaction regression at the 960x660 minimum viewport;
-- the focused live-pilot/hardening tests, including delayed pre-submit success-text protection;
+Post-merge runs on that exact `main` commit also completed successfully:
+
+- Phase 0: `35330432453`;
+- Phase 4: `35330432442`;
+- Phase 9: `35330432447`.
+
+The Phase 9 merge run passed:
+
+- dependency vulnerability auditing with no known vulnerabilities;
+- deterministic regression tests: **145 passed, 1 skipped, 2 deselected**;
+- focused live-pilot/hardening tests: **8 passed**;
 - backup/restore and inactive-by-default pilot checks;
 - inherited Phase 8 orchestration and Phase 7 provider boundaries;
 - source desktop/window/browser checks;
@@ -63,15 +71,15 @@ All Phase 0 through Phase 9 pull-request workflows completed successfully on tha
 - clean install and in-place upgrade verification;
 - distribution artifact upload.
 
-The merged `main` commit is `f5df77697b667f14df55583d94058f175ece5074`. Its Phase 0, Phase 4 and Phase 9 push workflows were also observed completing successfully before the final cleanup request.
-
 No failed safety condition was waived.
+
+Final repository maintenance additionally uses pip 26.2.1 to resolve the exact Windows x64 / CPython 3.13 environment from `requirements-lock.in` into hash-addressed `pylock.toml`. Each acceptance workflow regenerates the lock and fails if it differs before installing it. Official GitHub Actions are referenced by verified full commit SHA rather than mutable major tags. A successful Phase 9 push on `main` publishes the current project version as a GitHub Release if absent and deletes only the obsolete branches already verified as fully merged into `main`.
 
 ## Dependency and model baseline
 
-The final Python/build baseline accepted on 2026-09-17 is:
+The direct Python/build baseline revalidated on 2026-09-18 is:
 
-- Playwright 1.63.0;
+- pip 26.2.1 (CI installer/lock generator);\n- Playwright 1.63.0;
 - pypdf 6.19.0;
 - setuptools 84.0.0;
 - PyInstaller 6.22.3;
@@ -85,6 +93,13 @@ The validated local-AI baseline deliberately remains llama.cpp v0.4.0 / build b1
 ## Provider/API choice
 
 The measured pilot continues through supported hosted applicant forms. Public Greenhouse/Lever/Ashby programmatic application APIs require employer-side integration credentials/permissions rather than candidate credentials, so JobPilot does not ask the candidate for employer API keys or pretend those server integrations are an applicant authentication mechanism.
+
+## Repository administration boundary
+
+Two distribution/governance items cannot be fabricated in source control:
+
+- `main` repository protection/rulesets must be enabled through GitHub repository administration. The desired policy is pull-request-only changes with required acceptance status checks and no force-push/deletion bypass. The connected repository automation does not expose administration writes.
+- publisher Authenticode signing requires a real publisher certificate/private signing identity. JobPilot does not create, embed, or fake one. The current distribution remains hash-verified; WebView2 bootstrap downloads are independently required to carry a valid Microsoft Authenticode signature.
 
 ## Remaining private product evidence
 
