@@ -1,0 +1,3 @@
+# Build-isolation toolchain for sdists resolved by the Windows dependency lock.
+setuptools==84.0.0
+wheel==0.48.0
