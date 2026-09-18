@@ -14,7 +14,7 @@
 - Final application/local-acceptance hardening PR #17 merged into `main` at `fca1f2e8d249b82fe089c91c5be6a885f0286307` after its exact head passed every Phase 0 through Phase 9 pull-request workflow; post-merge Phase 0/4/9 runs also passed.
 - **Phase 9 remains in progress only because a measured real-world pilot has not yet been run and no 50/day capability claim has been established.**
 
-The accepted direct Python/build baseline is Playwright 1.63.0, pypdf 6.19.0, setuptools 84.0.0, PyInstaller 6.22.3, pytest 9.1.1, pip-audit 2.10.1, psutil 7.2.2 and pywebview 6.2.1. CI uses pip 26.2.1 and a committed Windows x64 / CPython 3.13 `pylock.toml` with exact resolved artifact hashes.
+The accepted direct Python/build baseline is Playwright 1.63.0, pypdf 6.19.0, setuptools 84.0.0, PyInstaller 6.22.3, pytest 9.1.1, pip-audit 2.10.1, psutil 7.2.2 and pywebview 6.2.1. CI uses pip 26.2.1 and a committed Windows x64 / CPython 3.13 `pylock.toml` with exact resolved artifact hashes; isolated sdist builds are constrained by `requirements-build.in`.
 
 ## Phase 9 distribution and recovery
 
