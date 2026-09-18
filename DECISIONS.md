@@ -160,7 +160,7 @@ Upstream runtime/model metadata checks occur only after an explicit UI action an
 
 Status: accepted for Phase 3 maintenance, 2026-09-11.
 
-The acceptance workflows use official `actions/checkout@v7` and `actions/setup-python@v7`. The prior v4/v5 pair was still functional but emitted Node runtime deprecation warnings on current hosted runners. This maintenance change does not alter application behavior.
+The acceptance workflows use the current official v7 lines for `actions/checkout` and `actions/setup-python`, but final repository maintenance resolves those tags to immutable verified commit SHAs: checkout `3d3c42e5aac5ba805825da76410c181273ba90b1` and setup-python `5fda3b95a4ea91299a34e894583c3862153e4b97`. Phase 9 likewise pins upload-artifact v7 at `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` and download-artifact v8 at `3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c`. Major-version comments remain for maintainability, but executable workflow references are immutable. The prior v4/v5 pair was still functional but emitted Node runtime deprecation warnings on current hosted runners. This maintenance change does not alter application behavior.
 
 ## D-025 - Phase 4 facts are field-local evidence
 
