@@ -78,15 +78,22 @@ class Phase4ModelManager(ModelManager):
                 self._current_runtime = session
             try:
                 watcher.start()
-                with session:
+                try:
+                    with session:
+                        if cancel_event.is_set():
+                            raise RuntimeError("resume tailoring cancelled")
+                        response: StructuredJsonResponse = session.client.request_structured(
+                            messages,
+                            schema,
+                            timeout_seconds=120,
+                            max_tokens=max_tokens,
+                        )
+                except RuntimeError as exc:
                     if cancel_event.is_set():
-                        raise RuntimeError("resume tailoring cancelled")
-                    response: StructuredJsonResponse = session.client.request_structured(
-                        messages,
-                        schema,
-                        timeout_seconds=120,
-                        max_tokens=max_tokens,
-                    )
+                        raise RuntimeError("resume tailoring cancelled") from exc
+                    if watcher.critical:
+                        raise RuntimeError("local inference was cancelled because memory pressure became critical") from exc
+                    raise
                 pressure = watcher.stop()
                 if cancel_event.is_set():
                     raise RuntimeError("resume tailoring cancelled")
