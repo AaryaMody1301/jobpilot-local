@@ -1,6 +1,7 @@
 # Phase 9 measured-pilot activation acceptance
 
-Date: 2026-09-17
+Initial acceptance: 2026-09-17  
+Refreshed against current `main`: 2026-09-18
 
 Status: **repository implementation and technical hardening accepted; measured real-world pilot evidence is still pending.** No acceptance step in CI fills or submits a real employer form.
 
@@ -67,9 +68,25 @@ PR #16 exact head: `2004157ad079ffdfe51f17f86155b8b2027f09d7`.
 
 All Phase 0 through Phase 9 pull-request workflows passed on that exact head. PR #16 merged into `main` at `f5df77697b667f14df55583d94058f175ece5074` on 2026-09-17. The subsequent Phase 0, Phase 4 and Phase 9 push workflows on that merge were also observed completing successfully before final cleanup.
 
-The accepted dependency/build baseline is Playwright 1.63.0, pypdf 6.19.0, setuptools 84.0.0, PyInstaller 6.22.3, pytest 9.1.1 and pip-audit 2.10.1.
+The accepted direct dependency/build baseline is Playwright 1.63.0, pypdf 6.19.0, setuptools 84.0.0, PyInstaller 6.22.3, pytest 9.1.1, pip-audit 2.10.1, psutil 7.2.2 and pywebview 6.2.1. Final repository maintenance pins pip 26.2.1 and records the full Windows/Python 3.13 transitive environment in `pylock.toml`.
 
 No failed safety condition was waived.
+
+## Final local-acceptance hardening
+
+PR #17, `Harden final local acceptance gates and diagnostics`, incorporated the issues found while exercising the real local onboarding flow:
+
+- the resume template-map confirmation button is disabled until at least one detected wording region is editable, while the backend validation remains authoritative;
+- measured-pilot activation is blocked in the UI until the exact confirmation phrase is entered;
+- long onboarding operations are serialized client-side as well as backend-side, preventing model evaluation from racing an active model/runtime download, Tectonic install, baseline compile or update check;
+- closing the desktop during an active onboarding/model operation first requests cancellation and cancels that close attempt, allowing the pywebview/WebView2 bridge promise to settle before a later clean close;
+- `--phase4-gate-report` now exposes privacy-safe resume-readiness diagnostics rather than only a generic onboarding failure reason;
+- Tectonic's first cache-populating compile has a longer bounded timeout while cached-only verification remains unchanged;
+- Phase 4 runtime startup cancellation now distinguishes explicit app/user cancellation from JobPilot's critical-memory-pressure watcher instead of surfacing one ambiguous low-level error.
+
+PR #17 exact head: `87f1a31325a564e392dc8881edb51b04dd2e22f0`.
+
+All Phase 0 through Phase 9 pull-request workflows passed on that exact head. It merged into `main` as `fca1f2e8d249b82fe089c91c5be6a885f0286307` on 2026-09-18. The merge has the same file tree as the tested PR head. Post-merge Phase 0 run `35330432453`, Phase 4 run `35330432442`, and Phase 9 run `35330432447` all completed successfully. The Phase 9 run reported no known dependency vulnerabilities and **145 passed, 1 skipped, 2 deselected** in the deterministic suite.
 
 ## Current live-provider evidence
 
