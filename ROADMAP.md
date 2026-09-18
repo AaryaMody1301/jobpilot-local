@@ -96,7 +96,7 @@ Distribution/recovery completed:
 - [x] portable local backup/restore with integrity checks, restart-bound application and pre-restore safety backup;
 - [x] exact browser/WebView/legal notices in the distribution;
 - [x] final application/local-acceptance hardening merged in PR #17 at `fca1f2e8d249b82fe089c91c5be6a885f0286307` after all Phase 0 through Phase 9 PR-head workflows passed;
-- [x] Windows x64 / CPython 3.13 transitive dependencies are locked with pip 26.2.1 in hash-addressed `pylock.toml`, and official GitHub Actions are pinned to full commit SHAs;
+- [x] Windows x64 / CPython 3.13 transitive dependencies are locked with pip 26.2.1 in hash-addressed `pylock.toml`, isolated sdist build dependencies are explicitly constrained, and official GitHub Actions are pinned to full commit SHAs;
 - [x] successful Phase 9 `main` builds publish the current version as a durable GitHub Release if absent and remove only branches already verified as fully merged.
 
 Measured-pilot activation path:
