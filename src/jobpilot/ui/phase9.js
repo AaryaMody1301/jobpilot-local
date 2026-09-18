@@ -68,12 +68,13 @@
     document.getElementById('phase9-install').innerHTML = `<div><span>App version</span><strong>${escapeHtml(distribution.app_version || '')}</strong></div><div><span>Target</span><strong>Windows 10/11 x64</strong></div><div><span>Data root</span><strong>Separate from installed program files</strong></div>`;
     document.getElementById('phase9-backup').innerHTML = `<div><span>Backup format</span><strong>v${Number(backup.format_version || 1)}</strong></div><div><span>Local backups</span><strong>${Number(backup.local_backups || 0)}</strong></div><div><span>Restore staged</span><strong>${pending ? 'Yes - restart required' : 'No'}</strong></div>${backup.latest_backup ? `<div><span>Latest backup</span><strong class="path">${escapeHtml(backup.latest_backup)}</strong></div>` : ''}${distribution.restore_applied_on_launch ? `<div><span>Restore applied on launch</span><strong>Yes</strong></div>` : ''}`;
     document.getElementById('phase9-pilot').innerHTML = `<div><span>Project authorization</span><strong>${distribution.pilot_authorized ? 'Recorded' : 'Not authorized'}</strong></div><div><span>This launch</span><strong>${active ? 'ACTIVE' : 'Inactive'}</strong></div><div><span>Real employer submission lane</span><strong>${distribution.real_employer_submission_enabled ? 'Enabled for individually armed applications' : 'Disabled'}</strong></div><div><span>Armed this launch</span><strong>${Number(distribution.pilot_armed_this_launch || 0)} / ${Number(distribution.pilot_arm_limit || 0)}</strong></div><div><span>Policy</span><strong>${escapeHtml(distribution.pilot_policy_revision || '')}</strong></div>`;
-    document.getElementById('phase9-pilot-confirmation').placeholder = phrase;
+    const confirmation = document.getElementById('phase9-pilot-confirmation');
+    confirmation.placeholder = phrase;
     document.getElementById('phase9-pilot-help').textContent = active ? 'Pilot is active for this launch. Inspect a prepared application in the Attention lane, then explicitly arm it.' : `To activate, type exactly: ${phrase}`;
     document.getElementById('phase9-create-backup').disabled = pending || state.session_state !== 'idle';
     document.getElementById('phase9-restore-backup').disabled = pending || state.session_state !== 'idle';
-    document.getElementById('phase9-pilot-confirmation').disabled = active || pending || state.session_state !== 'idle';
-    document.getElementById('phase9-activate-pilot').disabled = active || pending || state.session_state !== 'idle';
+    confirmation.disabled = active || pending || state.session_state !== 'idle';
+    document.getElementById('phase9-activate-pilot').disabled = active || pending || state.session_state !== 'idle' || confirmation.value.trim() !== phrase;
     document.getElementById('phase9-deactivate-pilot').disabled = !active || pending || state.session_state !== 'idle';
     pilotQueueButtons(state);
   }
@@ -86,7 +87,18 @@
 
   document.getElementById('phase9-create-backup').addEventListener('click', () => invoke('choose_local_backup'));
   document.getElementById('phase9-restore-backup').addEventListener('click', () => invoke('choose_local_restore'));
-  document.getElementById('phase9-activate-pilot').addEventListener('click', () => invoke('activate_real_application_pilot', document.getElementById('phase9-pilot-confirmation').value));
+  document.getElementById('phase9-pilot-confirmation').addEventListener('input', event => {
+    const distribution = latestState?.distribution || {};
+    const pending = Boolean(distribution.backup?.restore_pending);
+    const active = Boolean(distribution.pilot_session_active);
+    document.getElementById('phase9-activate-pilot').disabled = active || pending || latestState?.session_state !== 'idle' || event.target.value.trim() !== (distribution.pilot_confirmation_phrase || '');
+  });
+  document.getElementById('phase9-activate-pilot').addEventListener('click', () => {
+    const confirmation = document.getElementById('phase9-pilot-confirmation').value;
+    const phrase = latestState?.distribution?.pilot_confirmation_phrase || '';
+    if (confirmation.trim() !== phrase) return;
+    invoke('activate_real_application_pilot', confirmation);
+  });
   document.getElementById('phase9-deactivate-pilot').addEventListener('click', () => invoke('deactivate_real_application_pilot'));
   document.getElementById('phase8-attention').addEventListener('click', event => {
     const id = event.target.dataset.phase9PilotQueue;
