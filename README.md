@@ -110,7 +110,7 @@ python -m jobpilot.app.main --phase4-gate-report
 py -3.13 -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install "pip==26.2.1"
-python -m pip install -r pylock.toml
+python -m pip install --build-constraint requirements-build.in -r pylock.toml
 python -m pip install --no-deps --no-build-isolation -e .
 $env:PLAYWRIGHT_BROWSERS_PATH="$env:LOCALAPPDATA\JobPilotLocal\browsers"
 python -m playwright install chromium
