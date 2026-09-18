@@ -18,7 +18,12 @@ from jobpilot.runtime.paths import ManagedPaths
 from jobpilot.runtime.process_supervisor import ProcessSupervisor
 from jobpilot.storage.database import utc_now_text
 
-COMPILE_TIMEOUT_SECONDS = 120.0
+CACHED_COMPILE_TIMEOUT_SECONDS = 120.0
+NETWORK_COMPILE_TIMEOUT_SECONDS = 600.0
+
+
+def baseline_compile_timeout_seconds(allow_package_downloads: bool) -> float:
+    return NETWORK_COMPILE_TIMEOUT_SECONDS if allow_package_downloads else CACHED_COMPILE_TIMEOUT_SECONDS
 
 
 def _relative_to_root(paths: ManagedPaths, path: Path) -> str:
@@ -74,19 +79,21 @@ class ResumeBaselineService:
         command = compiler.build_command(source, outdir, allow_package_downloads=allow_package_downloads)
         supervisor = ProcessSupervisor()
         process = supervisor.spawn(command, cwd=source.parent, env=compiler.environment())
+        timeout_seconds = baseline_compile_timeout_seconds(allow_package_downloads)
         try:
-            deadline = time.monotonic() + COMPILE_TIMEOUT_SECONDS
+            deadline = time.monotonic() + timeout_seconds
             while True:
                 if cancel_event is not None and cancel_event.is_set():
                     supervisor.terminate_owned()
                     error = "Tectonic baseline compilation was cancelled"
-                    self._record_failure(document_id, source, expected_log, error)
+                    self._record_failure(document_id, source, expected_log, error, used_network=allow_package_downloads)
                     raise RuntimeError(error)
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     supervisor.terminate_owned()
-                    error = f"Tectonic compile exceeded {int(COMPILE_TIMEOUT_SECONDS)} seconds"
-                    self._record_failure(document_id, source, expected_log, error)
+                    mode = "package-cache population" if allow_package_downloads else "cached-only baseline compile"
+                    error = f"Tectonic {mode} exceeded {int(timeout_seconds)} seconds"
+                    self._record_failure(document_id, source, expected_log, error, used_network=allow_package_downloads)
                     raise RuntimeError(error)
                 try:
                     return_code = process.wait(timeout=min(0.2, remaining))
@@ -101,7 +108,7 @@ class ResumeBaselineService:
             if expected_log.is_file():
                 log_tail = expected_log.read_text(encoding="utf-8", errors="replace")[-4000:].strip()
             error = log_tail or f"Tectonic exited with code {return_code} and produced no baseline PDF"
-            self._record_failure(document_id, source, expected_log, error)
+            self._record_failure(document_id, source, expected_log, error, used_network=allow_package_downloads)
             raise RuntimeError(error)
 
         pdf = inspect_pdf(expected_pdf)
@@ -110,11 +117,11 @@ class ResumeBaselineService:
         metrics = source_metrics(source_text, regions)
         if pdf["page_count"] < 1:
             error = "compiled baseline PDF contains no pages"
-            self._record_failure(document_id, source, expected_log, error)
+            self._record_failure(document_id, source, expected_log, error, used_network=allow_package_downloads)
             raise RuntimeError(error)
         if not str(pdf["text"]).strip():
             error = "compiled baseline PDF contains no extractable text; baseline validation cannot continue"
-            self._record_failure(document_id, source, expected_log, error)
+            self._record_failure(document_id, source, expected_log, error, used_network=allow_package_downloads)
             raise RuntimeError(error)
 
         compiled_at = utc_now_text()
@@ -136,7 +143,7 @@ class ResumeBaselineService:
         self.store.upsert_baseline(document_id, values)
         return values
 
-    def _record_failure(self, document_id: str, source: Path, log: Path, error: str) -> None:
+    def _record_failure(self, document_id: str, source: Path, log: Path, error: str, *, used_network: bool) -> None:
         source_text = source.read_text(encoding="utf-8-sig", errors="replace")
         document = self.store.get_document(document_id)
         digest = str(document["sha256"]) if document else "unknown"
@@ -150,7 +157,7 @@ class ResumeBaselineService:
                 "compile_log_relpath": _relative_to_root(self.paths, log) if log.is_file() else None,
                 "compile_error": error[-4000:],
                 "offline_verified": False,
-                "last_compile_used_network": False,
+                "last_compile_used_network": used_network,
                 "compiled_at": utc_now_text(),
             },
         )

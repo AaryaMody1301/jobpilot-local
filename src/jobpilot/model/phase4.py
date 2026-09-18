@@ -10,6 +10,14 @@ from jobpilot.model.manager import ModelManager
 from jobpilot.model.runtime import LlamaRuntimeSession
 
 
+def _runtime_cancellation_reason(cancel_event: threading.Event, watcher: ResourcePressureWatcher) -> str | None:
+    if cancel_event.is_set():
+        return "resume tailoring cancelled"
+    if watcher.critical:
+        return "local inference was cancelled because memory pressure became critical"
+    return None
+
+
 class Phase4ModelManager(ModelManager):
     """Phase 3 model manager plus one fail-closed selected-model inference path."""
 
@@ -78,15 +86,21 @@ class Phase4ModelManager(ModelManager):
                 self._current_runtime = session
             try:
                 watcher.start()
-                with session:
-                    if cancel_event.is_set():
-                        raise RuntimeError("resume tailoring cancelled")
-                    response: StructuredJsonResponse = session.client.request_structured(
-                        messages,
-                        schema,
-                        timeout_seconds=120,
-                        max_tokens=max_tokens,
-                    )
+                try:
+                    with session:
+                        if cancel_event.is_set():
+                            raise RuntimeError("resume tailoring cancelled")
+                        response: StructuredJsonResponse = session.client.request_structured(
+                            messages,
+                            schema,
+                            timeout_seconds=120,
+                            max_tokens=max_tokens,
+                        )
+                except RuntimeError as exc:
+                    reason = _runtime_cancellation_reason(cancel_event, watcher)
+                    if reason:
+                        raise RuntimeError(reason) from exc
+                    raise
                 pressure = watcher.stop()
                 if cancel_event.is_set():
                     raise RuntimeError("resume tailoring cancelled")

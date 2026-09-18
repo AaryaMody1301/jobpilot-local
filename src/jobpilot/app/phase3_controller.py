@@ -124,6 +124,12 @@ class Phase3ApplicationController(ApplicationController):
             with self._lock:
                 self._end_onboarding_operation()
 
+    def cancel_onboarding_operation(self) -> bool:
+        cancelled = super().cancel_onboarding_operation()
+        if cancelled:
+            self.models.cancel_current()
+        return cancelled
+
     def close(self) -> None:
         with self._lock:
             cancel = self._onboarding_cancel

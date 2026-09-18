@@ -19,6 +19,17 @@ def test_phase4_gate_report_is_privacy_safe_and_fail_closed(tmp_path: Path) -> N
     assert report["phase5_discovery_enabled"] is False
     assert report["employer_submission_enabled"] is False
     assert report["gate_reason"] == "no selected validated model/configuration is awaiting Phase 4 review"
+    assert report["resume_readiness"] == {
+        "onboarding_ready": False,
+        "master_present": False,
+        "master_integrity_verified": False,
+        "baseline_compiled": False,
+        "offline_baseline_verified": False,
+        "template_map_confirmed": False,
+        "candidate_facts": 0,
+        "approved_facts": 0,
+        "rejected_facts": 0,
+    }
 
     private_keys = {"manual_jds", "runs", "facts", "jd_text", "preview", "pdf_relpath", "source_relpath"}
     assert private_keys.isdisjoint(report)

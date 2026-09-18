@@ -112,6 +112,8 @@ def test_resume_view_is_local_review_gate_and_escapes_fact_values(chromium_page)
         assert chromium_page.locator("#baseline-summary").inner_text().find("Offline verified: no") >= 0
         assert chromium_page.locator(".fact-value").input_value() == 'Quoted "evidence" <safe>'
         assert chromium_page.locator("script").count() == 1
+        assert chromium_page.locator("#confirm-template-map").is_disabled()
         chromium_page.locator("#template-regions input").check()
         chromium_page.wait_for_function("window.__calls.length === 1")
         assert chromium_page.evaluate("window.__calls[0]") == ["region", "region-abc-001", True]
+        assert not chromium_page.locator("#confirm-template-map").is_disabled()

@@ -48,6 +48,21 @@ def run_phase4_gate_report(paths: ManagedPaths | None = None) -> dict[str, objec
         gate_current = False
         gate_reason: str | None = None
 
+        resume = state["resume"]
+        baseline = resume.get("baseline") or {}
+        fact_counts = resume.get("fact_counts") or {}
+        resume_readiness = {
+            "onboarding_ready": bool(resume.get("onboarding_ready")),
+            "master_present": bool(resume.get("master")),
+            "master_integrity_verified": resume.get("integrity") == "verified",
+            "baseline_compiled": baseline.get("status") == "compiled",
+            "offline_baseline_verified": bool(baseline.get("offline_verified")),
+            "template_map_confirmed": resume.get("template_map_status") == "confirmed",
+            "candidate_facts": int(fact_counts.get("candidate") or 0),
+            "approved_facts": int(fact_counts.get("approved") or 0),
+            "rejected_facts": int(fact_counts.get("rejected") or 0),
+        }
+
         if selected:
             try:
                 controller.tailoring.require_review_gate_current(str(selected))
@@ -70,6 +85,7 @@ def run_phase4_gate_report(paths: ManagedPaths | None = None) -> dict[str, objec
             "phase5_discovery_enabled": bool(tailoring.get("phase5_discovery_enabled")),
             "employer_submission_enabled": bool(tailoring.get("employer_submission_enabled")),
             "gate_reason": gate_reason,
+            "resume_readiness": resume_readiness,
         }
     finally:
         controller.close()

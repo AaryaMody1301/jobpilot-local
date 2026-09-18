@@ -23,5 +23,10 @@ def test_phase3_ui_exposes_resource_model_device_and_explicit_download_controls(
     assert "evaluate_local_model" in js
     assert "select_model_for_phase4_review" in js
     assert "model-config" in js
+    assert "clientOnboardingBusy" in js
+    assert "invokeOnboarding" in js
+    assert "invokeOnboarding('install_local_model', 'local model installation'" in js
+    assert "invokeOnboarding('evaluate_local_model', 'local model evaluation'" in js
+    assert "Boolean(state.onboarding_busy || clientOnboardingBusy)" in js
     assert "fetch(" not in js
     assert "XMLHttpRequest" not in js

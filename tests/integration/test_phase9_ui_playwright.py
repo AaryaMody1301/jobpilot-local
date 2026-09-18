@@ -129,6 +129,16 @@ def test_phase9_activation_requires_user_entered_phrase(chromium_page) -> None:
     )
 
     phrase = "ENABLE MEASURED REAL APPLICATION PILOT"
-    chromium_page.locator("#phase9-pilot-confirmation").fill(phrase)
-    chromium_page.locator("#phase9-activate-pilot").click()
+    confirmation = chromium_page.locator("#phase9-pilot-confirmation")
+    activate = chromium_page.locator("#phase9-activate-pilot")
+
+    assert activate.is_disabled()
+    confirmation.fill("enable")
+    assert activate.is_disabled()
+    chromium_page.evaluate("document.getElementById('phase9-activate-pilot').click()")
+    assert chromium_page.evaluate("window.__calls") == []
+
+    confirmation.fill(phrase)
+    assert activate.is_enabled()
+    activate.click()
     assert chromium_page.evaluate("window.__calls") == [["activate_real_application_pilot", phrase]]
