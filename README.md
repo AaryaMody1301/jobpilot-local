@@ -142,6 +142,7 @@ Runtime data lives under `%LOCALAPPDATA%\JobPilotLocal`. Private candidate data,
 - `DECISIONS.md` - engineering decisions.
 - `PROGRESS.md` - current handoff and exact verification evidence.
 - `AGENTS.md` - repository implementation rules, including the compact Ponytail-style code/check policy.
+- `docs/REPOSITORY_GOVERNANCE.md` - required main-branch protection, immutable CI dependency, release, and publisher-signing policy.
 - `docs/PHASE9_DISTRIBUTION_ACCEPTANCE.md` - Phase 9 distribution/recovery boundary and evidence.
 - `docs/PHASE9_PILOT_ACCEPTANCE.md` - authorized pilot write-path technical boundary and measured-pilot handoff.
 
