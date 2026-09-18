@@ -9,6 +9,7 @@ on:
       - "pyproject.toml"
       - "pylock.toml"
       - "requirements-lock.in"
+      - "requirements-build.in"
       - "scripts/install_ci_dependencies.ps1"
       - "scripts/phase7_*.py"
       - "src/**"
