@@ -31,4 +31,5 @@ jobs:
           git add pylock.toml
           if (git diff --cached --quiet) { exit 0 }
           git commit -m "Lock Windows CI dependencies"
+          git pull --rebase origin final-repository-cleanup
           git push origin HEAD:final-repository-cleanup
