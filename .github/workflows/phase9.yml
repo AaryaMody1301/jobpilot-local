@@ -185,7 +185,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for branch in "fix-template-map-ui-guard" "phase-0-feasibility-architecture" "phase-1-desktop-foundation" "phase-2-real-resume-finalization" "phase-2-resume-fact-bank" "phase-3-local-ai-resource-manager" "phase-3-stage" "phase-3-stage-tests" "phase-3-stage-tests2" "phase-4-evidence-tailoring" "phase-4-finalization" "phase-4-stage" "phase-5-job-discovery-matching" "phase-6-controlled-application-engine" "phase-7-supported-platform-adapters" "phase-8-end-to-end-orchestration" "phase-9-distribution-backup-restore" "phase-9-final-closeout" "phase-9-final-hardening" "phase-9-pilot-activation" "tmp-no" "final-repository-cleanup" "fix-tailoring-context-and-eligibility-ui"; do
+          for branch in "fix-template-map-ui-guard" "phase-0-feasibility-architecture" "phase-1-desktop-foundation" "phase-2-real-resume-finalization" "phase-2-resume-fact-bank" "phase-3-local-ai-resource-manager" "phase-3-stage" "phase-3-stage-tests" "phase-3-stage-tests2" "phase-4-evidence-tailoring" "phase-4-finalization" "phase-4-stage" "phase-5-job-discovery-matching" "phase-6-controlled-application-engine" "phase-7-supported-platform-adapters" "phase-8-end-to-end-orchestration" "phase-9-distribution-backup-restore" "phase-9-final-closeout" "phase-9-final-hardening" "phase-9-pilot-activation" "tmp-no" "final-repository-cleanup" "fix-tailoring-context-and-eligibility-ui" "fix-phase4-inference-timeout"; do
             if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
               git push origin --delete "$branch"
             fi
