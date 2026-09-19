@@ -123,6 +123,7 @@ class Phase4ModelManager(ModelManager):
                 self._current_runtime = session
             try:
                 watcher.start()
+                timeout_seconds = MIN_INFERENCE_TIMEOUT_SECONDS
                 try:
                     with session:
                         if cancel_event.is_set():
