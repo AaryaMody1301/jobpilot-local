@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import threading
 from typing import Any, Mapping, Sequence
 
@@ -8,6 +9,42 @@ from jobpilot.model.hardware import ResourcePressureWatcher
 from jobpilot.model.llama_server import StructuredJsonResponse
 from jobpilot.model.manager import ModelManager
 from jobpilot.model.runtime import LlamaRuntimeSession
+
+
+MIN_INFERENCE_TIMEOUT_SECONDS = 180
+MAX_INFERENCE_TIMEOUT_SECONDS = 600
+INFERENCE_TIMEOUT_SAFETY_MULTIPLIER = 2.0
+INFERENCE_TIMEOUT_MARGIN_SECONDS = 30
+FALLBACK_PROMPT_TOKENS_PER_SECOND = 10.0
+FALLBACK_GENERATION_TOKENS_PER_SECOND = 3.0
+
+
+def _positive_rate(value: object, fallback: float) -> float:
+    try:
+        rate = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return rate if rate > 0 else fallback
+
+
+def _inference_timeout_seconds(input_tokens: int, max_tokens: int, evaluation: Mapping[str, Any]) -> int:
+    prompt_rate = _positive_rate(
+        evaluation.get("prompt_tokens_per_second"),
+        FALLBACK_PROMPT_TOKENS_PER_SECOND,
+    )
+    generation_rate = _positive_rate(
+        evaluation.get("generation_tokens_per_second"),
+        FALLBACK_GENERATION_TOKENS_PER_SECOND,
+    )
+    estimated_seconds = (
+        max(1, int(input_tokens)) / prompt_rate
+        + max(1, int(max_tokens)) / generation_rate
+    )
+    budget = math.ceil(
+        estimated_seconds * INFERENCE_TIMEOUT_SAFETY_MULTIPLIER
+        + INFERENCE_TIMEOUT_MARGIN_SECONDS
+    )
+    return min(MAX_INFERENCE_TIMEOUT_SECONDS, max(MIN_INFERENCE_TIMEOUT_SECONDS, budget))
 
 
 def _runtime_cancellation_reason(cancel_event: threading.Event, watcher: ResourcePressureWatcher) -> str | None:
@@ -86,6 +123,7 @@ class Phase4ModelManager(ModelManager):
                 self._current_runtime = session
             try:
                 watcher.start()
+                timeout_seconds = MIN_INFERENCE_TIMEOUT_SECONDS
                 try:
                     with session:
                         if cancel_event.is_set():
@@ -100,12 +138,21 @@ class Phase4ModelManager(ModelManager):
                                 f"tailoring prompt needs {input_tokens} input tokens, exceeding the validated "
                                 f"{context_tokens}-token context; shorten the job description or reduce editable resume regions"
                             )
+                        timeout_seconds = _inference_timeout_seconds(input_tokens, max_tokens, evaluation)
                         response: StructuredJsonResponse = session.client.request_structured(
                             messages,
                             schema,
-                            timeout_seconds=120,
+                            timeout_seconds=timeout_seconds,
                             max_tokens=max_tokens,
                         )
+                except TimeoutError as exc:
+                    reason = _runtime_cancellation_reason(cancel_event, watcher)
+                    if reason:
+                        raise RuntimeError(reason) from exc
+                    raise RuntimeError(
+                        f"local inference exceeded its {timeout_seconds}-second performance-based timeout; "
+                        "close other heavy applications or re-evaluate the selected model configuration"
+                    ) from exc
                 except RuntimeError as exc:
                     reason = _runtime_cancellation_reason(cancel_event, watcher)
                     if reason:
