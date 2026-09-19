@@ -197,6 +197,40 @@ class LlamaServerClient:
             headers["Authorization"] = f"Bearer {self._api_key}"
         return headers
 
+    def structured_input_tokens(
+        self,
+        messages: Sequence[Mapping[str, str]],
+        schema: Mapping[str, Any],
+        *,
+        max_tokens: int,
+        timeout_seconds: int = 30,
+    ) -> int:
+        payload = self.build_structured_request(messages, schema, max_tokens=max_tokens)
+        template_request = urllib.request.Request(
+            f"{self.base_url}/apply-template",
+            data=json.dumps(payload).encode("utf-8"),
+            headers=self._headers(),
+            method="POST",
+        )
+        with urllib.request.urlopen(template_request, timeout=timeout_seconds) as response:
+            template_body = json.loads(response.read().decode("utf-8"))
+        prompt = template_body.get("prompt")
+        if not isinstance(prompt, str):
+            raise StructuredOutputError("unexpected llama.cpp apply-template response")
+
+        tokenize_request = urllib.request.Request(
+            f"{self.base_url}/tokenize",
+            data=json.dumps({"content": prompt, "add_special": True}).encode("utf-8"),
+            headers=self._headers(),
+            method="POST",
+        )
+        with urllib.request.urlopen(tokenize_request, timeout=timeout_seconds) as response:
+            token_body = json.loads(response.read().decode("utf-8"))
+        tokens = token_body.get("tokens")
+        if not isinstance(tokens, list):
+            raise StructuredOutputError("unexpected llama.cpp tokenize response")
+        return len(tokens)
+
     def request_structured(
         self,
         messages: Sequence[Mapping[str, str]],
