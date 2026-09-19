@@ -6,7 +6,7 @@ Phase 9 - Packaging and user-authorized pilot.
 
 Status: **repository implementation and technical hardening are complete; Phase 9 remains in progress only because the measured real-world application pilot has not yet been run. Phase 4's private five-real-resume human gate also remains independently open.**
 
-Application/local-acceptance hardening PR #17 merged at `fca1f2e8d249b82fe089c91c5be6a885f0286307`. Repository-maintenance PR #18 merged at `0f366244cc07d6bda279b48f93ccd8ebc1824a41`, pinned the Windows dependency graph/GitHub Actions, published verified `v0.1.0`, and removed merged obsolete branches. PR #19 is the `v0.1.1` live-acceptance repair for the Phase 4 prompt-context overflow, Phase 8 eligibility-note UI guard, and canonical package version.
+Application/local-acceptance hardening PR #17 merged at `fca1f2e8d249b82fe089c91c5be6a885f0286307`. Repository-maintenance PR #18 merged at `0f366244cc07d6bda279b48f93ccd8ebc1824a41`, pinned the Windows dependency graph/GitHub Actions, published verified `v0.1.0`, and removed merged obsolete branches. PR #19 is the `v0.1.1` live-acceptance repair for the Phase 4 prompt-context overflow, Phase 8 eligibility-note UI guard, and canonical package version. `v0.1.2` addresses the subsequent real CPU inference timeout found after the compact prompt began fitting the validated 4096-token context.
 
 ## Phase 9 distribution/recovery
 
@@ -87,6 +87,12 @@ PR #19 therefore:
 - fails with a clear local context message if the compact input itself reaches the validated context instead of surfacing an HTTP 400 traceback;
 - keeps Phase 8 eligibility decisions disabled in the UI until a nonblank note exists, while preserving the backend note guard;
 - bumps the patch release to `0.1.1` and removes the stale duplicate `jobpilot.__version__` value.
+
+## v0.1.2 CPU inference timeout repair
+
+A real local Phase 4 run on the validated CPU configuration processed a compact prompt at about 25.95 tokens/second and reached 2,048 prompt tokens (55% complete) before Python's fixed 120-second HTTP timeout expired. llama.cpp itself remained healthy and continued processing; the failure was entirely on the JobPilot client boundary.
+
+Phase 4 now calculates a per-request timeout from the selected passing evaluation's measured prompt and generation token rates, budgets for the full requested output allowance with a 2x safety factor plus margin, and clamps the result to 180-600 seconds. Missing/invalid performance metrics fail conservatively to fallback rates. User cancellation and critical-memory-pressure shutdown still terminate the managed runtime immediately. A genuine timeout is converted into a clear JobPilot runtime error.
 
 ## Dependency and model baseline
 
