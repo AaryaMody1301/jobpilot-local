@@ -15,6 +15,7 @@ from jobpilot.resume.tailoring import (
     TailoringPlan,
     build_tailoring_messages,
     latex_escape_plain_text,
+    tailoring_schema_for_context,
     render_tailored_source,
     validate_tailoring_plan,
 )
@@ -106,6 +107,25 @@ def test_tailoring_prompt_includes_only_field_local_approved_evidence() -> None:
     assert "Protected employer metadata" not in messages[1]["content"]
     assert "Unselected bullet evidence" not in messages[1]["content"]
     assert "source_ref" not in messages[1]["content"]
+
+
+def test_tailoring_schema_restricts_model_to_exact_field_and_fact_ids() -> None:
+    regions = [
+        {"id": "field-1", "display_text": "Built SQL reports", "section_name": "Experience"},
+        {"id": "field-2", "display_text": "Built Python APIs", "section_name": "Experience"},
+    ]
+    facts = [
+        _approved_fact("fact-sql", "Built SQL reports", "field-1"),
+        _approved_fact("fact-python", "Built Python APIs", "field-2"),
+        _approved_fact("fact-other", "Unselected bullet evidence", "field-3"),
+    ]
+    schema = tailoring_schema_for_context(regions, facts)
+    mapping_props = schema["properties"]["keyword_mappings"]["items"]["properties"]
+    edit_props = schema["properties"]["edits"]["items"]["properties"]
+
+    assert edit_props["field_id"]["enum"] == ["field-1", "field-2"]
+    assert mapping_props["fact_ids"]["items"]["enum"] == ["fact-python", "fact-sql"]
+    assert edit_props["fact_ids"]["items"]["enum"] == ["fact-python", "fact-sql"]
 
 
 def test_plan_requires_literal_jd_keyword_and_field_linked_approved_fact_evidence() -> None:
