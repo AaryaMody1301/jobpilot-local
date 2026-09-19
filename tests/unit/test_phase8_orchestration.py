@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from jobpilot.jobs import JobStore, normalize_manual_job
 from jobpilot.orchestration import Phase8ApplicationJournal
 from jobpilot.storage.database import Database, utc_now_text
@@ -64,6 +66,8 @@ def test_phase8_eligibility_review_and_package_staleness_are_transactional(tmp_p
             "review_reasons": ["work authorization requires review"],
         })
         assert review["state"] == "needs_review"
+        with pytest.raises(ValueError, match="requires a note"):
+            journal.resolve_eligibility(str(review["id"]), True, "   ")
         resolved = journal.resolve_eligibility(str(review["id"]), True, "candidate confirmed the mandatory condition")
         assert resolved["state"] == "eligible"
         assert resolved["eligibility_resolution"] == "approved"
