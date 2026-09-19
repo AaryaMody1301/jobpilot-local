@@ -1,5 +1,5 @@
 # Windows 10/11 x64 + CPython 3.13 CI/distribution dependency inputs.
-# pylock.toml is regenerated from this file with pip 26.2.1 on windows-latest.
+# Regenerate pylock.toml explicitly with scripts/update_dependency_lock.ps1 on Windows/Python 3.13; normal CI installs the committed lock without re-resolving.
 playwright==1.63.0
 psutil==7.2.2
 pypdf==6.19.0

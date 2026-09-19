@@ -34,7 +34,7 @@ Remaining private product gate:
 - [ ] five distinct real tailored resumes must be explicitly approved under one current validation context;
 - [ ] automatic tailoring remains disabled until the current local gate is 5/5.
 
-The user explicitly authorized later phase development without treating that sequencing exception as completion of the private Phase 4 gate. Repository technical acceptance through PR #17 passed the complete Phase 0 through Phase 9 matrix before merge, and the current-main Phase 0/4/9 revalidation also passed; this technical acceptance does not substitute for the five human approvals.
+The user explicitly authorized later phase development without treating that sequencing exception as completion of the private Phase 4 gate. Repository technical acceptance through PR #18 passed the complete Phase 0 through Phase 9 matrix before merge, and its current-main Phase 0/4/9 revalidation passed. PR #19 is the v0.1.1 live-tailoring context/eligibility-UX repair; technical acceptance never substitutes for the five human approvals.
 
 Acceptance: `docs/PHASE4_ACCEPTANCE.md`, `docs/PHASE4_CLOSEOUT.md`.
 
@@ -95,7 +95,9 @@ Distribution/recovery completed:
 - [x] WebView2 Evergreen Runtime detection and official Microsoft bootstrap path when absent;
 - [x] portable local backup/restore with integrity checks, restart-bound application and pre-restore safety backup;
 - [x] exact browser/WebView/legal notices in the distribution;
-- [x] final application/local-acceptance hardening merged in PR #17 at `fca1f2e8d249b82fe089c91c5be6a885f0286307` after all Phase 0 through Phase 9 PR-head workflows passed;
+- [x] application/local-acceptance hardening merged in PR #17 at `fca1f2e8d249b82fe089c91c5be6a885f0286307` after all Phase 0 through Phase 9 PR-head workflows passed;
+- [x] reproducible release/governance cleanup merged in PR #18 at `0f366244cc07d6bda279b48f93ccd8ebc1824a41` and published verified `v0.1.0`;
+- [x] v0.1.1 live-acceptance patch PR #19 compacts Phase 4 prompts to field-local evidence, preflights b10809 context usage, and requires eligibility notes before the Phase 8 bridge call;
 - [x] Windows x64 / CPython 3.13 transitive dependencies are locked with pip 26.2.1 in hash-addressed `pylock.toml`, isolated sdist build dependencies are explicitly constrained, and official GitHub Actions are pinned to full commit SHAs;
 - [x] successful Phase 9 `main` builds publish the current version as a durable GitHub Release if absent and remove only branches already verified as fully merged.
 

@@ -40,7 +40,7 @@
 
   function attentionAction(item) {
     if (item.attention_kind === 'eligibility_review') {
-      return `<div class="form-row"><label>Review note<input data-phase8-eligibility-note="${escapeAttr(item.id)}" maxlength="1000" placeholder="Record the evidence/decision" required></label><button data-phase8-eligibility="approved" data-id="${escapeAttr(item.id)}" class="primary">Mark eligible</button><button data-phase8-eligibility="rejected" data-id="${escapeAttr(item.id)}">Mark ineligible</button></div>`;
+      return `<div class="form-row"><label>Review note<input data-phase8-eligibility-note="${escapeAttr(item.id)}" maxlength="1000" placeholder="Record the evidence/decision" required></label><button data-phase8-eligibility="approved" data-id="${escapeAttr(item.id)}" class="primary" disabled>Mark eligible</button><button data-phase8-eligibility="rejected" data-id="${escapeAttr(item.id)}" disabled>Mark ineligible</button></div>`;
     }
     if (item.attention_kind === 'tailoring_prerequisite') {
       return `<button data-phase8-retry-tailoring="${escapeAttr(item.id)}" class="primary">Retry tailoring</button>`;
@@ -84,12 +84,26 @@
     renderPhase8(state);
   };
 
+  document.getElementById('phase8-attention').addEventListener('input', event => {
+    const input = event.target.closest('[data-phase8-eligibility-note]');
+    if (!input) return;
+    const row = input.closest('.form-row');
+    const disabled = !input.value.trim();
+    row?.querySelectorAll('[data-phase8-eligibility]').forEach(button => { button.disabled = disabled; });
+  });
+
   document.getElementById('phase8-attention').addEventListener('click', event => {
     const eligibility = event.target.dataset.phase8Eligibility;
     if (eligibility) {
       const id = event.target.dataset.id;
       const input = document.querySelector(`[data-phase8-eligibility-note="${CSS.escape(id)}"]`);
-      invoke('resolve_application_eligibility', id, eligibility === 'approved', input ? input.value : '');
+      const note = input ? input.value.trim() : '';
+      if (!note) {
+        toast('Enter a review note before resolving eligibility.');
+        input?.focus();
+        return;
+      }
+      invoke('resolve_application_eligibility', id, eligibility === 'approved', note);
       return;
     }
     const retry = event.target.dataset.phase8RetryTailoring;

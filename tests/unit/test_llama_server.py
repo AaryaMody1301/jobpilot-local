@@ -41,6 +41,46 @@ def test_request_matches_b10809_json_schema_parser_contract() -> None:
     assert payload["chat_template_kwargs"] == {"enable_thinking": False}
 
 
+def test_structured_input_tokens_uses_same_chat_template_before_tokenizing(monkeypatch) -> None:
+    calls = []
+
+    class _Response:
+        def __init__(self, body):
+            self._body = json.dumps(body).encode("utf-8")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return self._body
+
+    def fake_urlopen(request, timeout):
+        calls.append((request.full_url, json.loads(request.data.decode("utf-8")), timeout))
+        if request.full_url.endswith("/apply-template"):
+            return _Response({"prompt": "<chat>controlled fixture</chat>"})
+        if request.full_url.endswith("/tokenize"):
+            return _Response({"tokens": [1, 2, 3, 4, 5]})
+        raise AssertionError(request.full_url)
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    client = LlamaServerClient("http://127.0.0.1:8080", api_key="controlled-secret")
+    count = client.structured_input_tokens(
+        [{"role": "user", "content": "controlled fixture"}],
+        RESUME_EDIT_SCHEMA,
+        max_tokens=1000,
+    )
+
+    assert count == 5
+    assert calls[0][0].endswith("/apply-template")
+    assert calls[0][1]["max_tokens"] == 1000
+    assert calls[0][1]["chat_template_kwargs"] == {"enable_thinking": False}
+    assert calls[1][0].endswith("/tokenize")
+    assert calls[1][1] == {"content": "<chat>controlled fixture</chat>", "add_special": True}
+
+
 def test_local_schema_subset_rejects_server_output_with_extra_or_wrong_fields() -> None:
     schema = {
         "type": "object",

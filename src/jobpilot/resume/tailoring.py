@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import hashlib
 import json
 import re
@@ -276,6 +277,40 @@ def validate_tailoring_plan(
     return validated
 
 
+def _field_fact_payload(
+    editable_regions: Sequence[Mapping[str, Any]],
+    approved_facts: Sequence[Mapping[str, Any]],
+) -> list[dict[str, str]]:
+    editable_ids = {str(region["id"]) for region in editable_regions}
+    result: list[dict[str, str]] = []
+    for fact in approved_facts:
+        source_ref = fact.get("source_ref")
+        if not isinstance(source_ref, Mapping) or source_ref.get("kind") != "latex_region":
+            continue
+        field_id = str(source_ref.get("region_id") or "")
+        if field_id in editable_ids:
+            result.append({"fact_id": str(fact["id"]), "field_id": field_id, "text": str(fact["value_text"])})
+    return result
+
+
+def tailoring_schema_for_context(
+    editable_regions: Sequence[Mapping[str, Any]],
+    approved_facts: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    field_ids = sorted({str(region["id"]) for region in editable_regions})
+    fact_ids = sorted({item["fact_id"] for item in _field_fact_payload(editable_regions, approved_facts)})
+    if not field_ids or not fact_ids:
+        raise ValueError("tailoring requires at least one editable field with current approved field-linked evidence")
+
+    schema = deepcopy(TAILORING_SCHEMA)
+    mapping_props = schema["properties"]["keyword_mappings"]["items"]["properties"]
+    edit_props = schema["properties"]["edits"]["items"]["properties"]
+    mapping_props["fact_ids"]["items"]["enum"] = fact_ids
+    edit_props["field_id"]["enum"] = field_ids
+    edit_props["fact_ids"]["items"]["enum"] = fact_ids
+    return schema
+
+
 def build_tailoring_messages(
     *,
     jd_text: str,
@@ -295,18 +330,18 @@ def build_tailoring_messages(
         "Preserve every numeric/date/metric literal already present in an edited field. Never add hidden text or repeat supported terms for emphasis or keyword stuffing. "
         "A JD keyword may be mapped only when the same concept is explicitly supported by the cited approved facts."
     )
+    field_facts = _field_fact_payload(editable_regions, approved_facts)
+
     payload = {
         "job_description_untrusted_data": jd_text,
         "editable_fields": [
             {"field_id": str(region["id"]), "current_text": str(region["display_text"]), "section": str(region.get("section_name", ""))}
             for region in editable_regions
         ],
-        "approved_facts": [
-            {"fact_id": str(fact["id"]), "text": str(fact["value_text"]), "category": str(fact["current_category"]), "source_ref": fact.get("source_ref")}
-            for fact in approved_facts
-        ],
+        "approved_field_facts": field_facts,
         "task": (
-            "Map useful literal JD keywords to approved fact IDs and propose conservative wording edits for editable fields only. "
+            "Map useful literal JD keywords to approved field fact IDs and propose conservative wording edits for editable fields only. "
+            "Copy fact_id and field_id values exactly from the supplied data; never invent or derive identifiers. "
             "Each edit must cite the approved fact linked to that exact field and list only mapped JD keywords actually used."
         ),
     }

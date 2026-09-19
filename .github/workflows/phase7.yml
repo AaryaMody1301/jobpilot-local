@@ -11,6 +11,8 @@ on:
       - "requirements-lock.in"
       - "requirements-build.in"
       - "scripts/install_ci_dependencies.ps1"
+      - "scripts/verify_dependency_lock.py"
+      - "scripts/update_dependency_lock.ps1"
       - "scripts/phase7_*.py"
       - "src/**"
       - "tests/**"

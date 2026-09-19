@@ -90,6 +90,16 @@ class Phase4ModelManager(ModelManager):
                     with session:
                         if cancel_event.is_set():
                             raise RuntimeError("resume tailoring cancelled")
+                        input_tokens = session.client.structured_input_tokens(
+                            messages,
+                            schema,
+                            max_tokens=max_tokens,
+                        )
+                        if input_tokens >= context_tokens:
+                            raise RuntimeError(
+                                f"tailoring prompt needs {input_tokens} input tokens, exceeding the validated "
+                                f"{context_tokens}-token context; shorten the job description or reduce editable resume regions"
+                            )
                         response: StructuredJsonResponse = session.client.request_structured(
                             messages,
                             schema,
