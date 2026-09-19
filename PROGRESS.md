@@ -6,7 +6,7 @@ Phase 9 - Packaging and user-authorized pilot.
 
 Status: **repository implementation and technical hardening are complete; Phase 9 remains in progress only because the measured real-world application pilot has not yet been run. Phase 4's private five-real-resume human gate also remains independently open.**
 
-Application/local-acceptance hardening PR #17 merged into `main` at `fca1f2e8d249b82fe089c91c5be6a885f0286307` after its exact head passed all Phase 0 through Phase 9 workflows. The subsequent repository-maintenance cleanup pins the Windows dependency graph and GitHub Actions immutably, refreshes acceptance records, and adds durable version-release/merged-branch cleanup after a successful Phase 9 `main` build.
+Application/local-acceptance hardening PR #17 merged at `fca1f2e8d249b82fe089c91c5be6a885f0286307`. Repository-maintenance PR #18 merged at `0f366244cc07d6bda279b48f93ccd8ebc1824a41`, pinned the Windows dependency graph/GitHub Actions, published verified `v0.1.0`, and removed merged obsolete branches. PR #19 is the `v0.1.1` live-acceptance repair for the Phase 4 prompt-context overflow, Phase 8 eligibility-note UI guard, and canonical package version.
 
 ## Phase 9 distribution/recovery
 
@@ -75,11 +75,25 @@ No failed safety condition was waived.
 
 Final repository maintenance additionally uses pip 26.2.1 to resolve the exact Windows x64 / CPython 3.13 environment from `requirements-lock.in` into hash-addressed `pylock.toml`. Isolated sdist builds use `requirements-build.in` with setuptools 84.0.0 and wheel 0.48.0. Each acceptance workflow regenerates the lock and fails if it differs before installing it. Official GitHub Actions are referenced by verified full commit SHA rather than mutable major tags. A successful Phase 9 push on `main` publishes the current project version as a GitHub Release if absent and deletes only the obsolete branches already verified as fully merged into `main`.
 
+## v0.1.1 live-acceptance repair
+
+A real Phase 4 run loaded the validated Qwen3/llama.cpp configuration successfully but the generated chat request contained 10,104 input tokens for a validated 4,096-token context. The excess came from prompt construction sending all approved facts and source metadata although deterministic field-local validation allows only facts linked to currently editable LaTeX regions to support edits.
+
+PR #19 therefore:
+
+- sends only approved facts linked to editable regions to the model and serializes only fact ID, field ID and text;
+- retains the full approved fact bank and source references in deterministic validation/audit paths rather than exposing irrelevant evidence to the model;
+- uses pinned b10809's `/apply-template` and `/tokenize` endpoints to count the exact templated input before `/v1/chat/completions`;
+- fails with a clear local context message if the compact input itself reaches the validated context instead of surfacing an HTTP 400 traceback;
+- keeps Phase 8 eligibility decisions disabled in the UI until a nonblank note exists, while preserving the backend note guard;
+- bumps the patch release to `0.1.1` and removes the stale duplicate `jobpilot.__version__` value.
+
 ## Dependency and model baseline
 
 The direct Python/build baseline revalidated on 2026-09-18 is:
 
-- pip 26.2.1 (CI installer/lock generator);\n- Playwright 1.63.0;
+- pip 26.2.1 (CI installer/lock generator);
+- Playwright 1.63.0;
 - pypdf 6.19.0;
 - setuptools 84.0.0;
 - PyInstaller 6.22.3;
