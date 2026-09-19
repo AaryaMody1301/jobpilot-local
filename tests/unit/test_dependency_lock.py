@@ -1,11 +1,16 @@
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 import pytest
 
-from scripts.verify_dependency_lock import verify_lock
-
 
 ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "scripts" / "verify_dependency_lock.py"
+SPEC = spec_from_file_location("verify_dependency_lock", SCRIPT)
+assert SPEC and SPEC.loader
+MODULE = module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
+verify_lock = MODULE.verify_lock
 
 
 def test_committed_dependency_lock_matches_project_inputs_and_hashes() -> None:
