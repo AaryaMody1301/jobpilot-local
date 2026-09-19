@@ -30,7 +30,7 @@ The connected GitHub automation used during development does not expose reposito
 
 Workflow actions are pinned to verified full commit SHAs. Major-version comments are retained only to make maintenance readable. Dependency changes must update the SHA after verifying that it belongs to the official action repository.
 
-Python CI uses pip 26.2.1, `requirements-lock.in`, `requirements-build.in`, and the committed Windows x64 / CPython 3.13 `pylock.toml`. CI regenerates the lock before installation and fails if the committed lock differs.
+Python CI uses pip 26.2.1, `requirements-lock.in`, `requirements-build.in`, and the committed Windows x64 / CPython 3.13 `pylock.toml`. Normal CI verifies the direct pins and locked artifact hashes, then installs that committed lock without re-resolving dependencies. Regenerate `pylock.toml` only as an explicit dependency-maintenance change with `scripts/update_dependency_lock.ps1`; review the lock diff and run the complete Phase 0-9 matrix before merge.
 
 ## Release policy
 
