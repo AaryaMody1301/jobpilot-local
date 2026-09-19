@@ -16,9 +16,9 @@ from jobpilot.resume.documents import sha256_file
 from jobpilot.resume.jd import normalize_job_description, normalize_phrase
 from jobpilot.resume.store import ResumeStore
 from jobpilot.resume.tailoring import (
-    TAILORING_SCHEMA,
     TailoringPlan,
     build_tailoring_messages,
+    tailoring_schema_for_context,
     render_tailored_source,
     validate_tailoring_plan,
 )
@@ -100,6 +100,7 @@ class TailoringService:
         if not editable:
             raise RuntimeError("confirmed template has no approved editable wording regions")
 
+        tailoring_schema = tailoring_schema_for_context(editable, approved_facts)
         context = self._dependency_context(master, model_install_id, runtime_install_id, device_id)
         fact_revision = int(context["fact_bank_revision"])
         resume_key = hashlib.sha256(
@@ -126,7 +127,7 @@ class TailoringService:
             if cancel_event.is_set():
                 raise RuntimeError("resume tailoring cancelled")
             messages = build_tailoring_messages(jd_text=str(jd["jd_text"]), editable_regions=editable, approved_facts=approved_facts)
-            inference = self.models.infer_selected_structured(messages, TAILORING_SCHEMA, cancel_event, max_tokens=1000)
+            inference = self.models.infer_selected_structured(messages, tailoring_schema, cancel_event, max_tokens=1000)
             plan = TailoringPlan.from_value(inference["value"])
             approved_by_id = {str(fact["id"]): fact for fact in approved_facts}
             editable_by_id = {str(region["id"]): region for region in editable}
