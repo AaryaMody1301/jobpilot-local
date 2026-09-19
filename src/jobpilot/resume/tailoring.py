@@ -295,18 +295,30 @@ def build_tailoring_messages(
         "Preserve every numeric/date/metric literal already present in an edited field. Never add hidden text or repeat supported terms for emphasis or keyword stuffing. "
         "A JD keyword may be mapped only when the same concept is explicitly supported by the cited approved facts."
     )
+    editable_ids = {str(region["id"]) for region in editable_regions}
+    field_facts = []
+    for fact in approved_facts:
+        source_ref = fact.get("source_ref")
+        if not isinstance(source_ref, Mapping) or source_ref.get("kind") != "latex_region":
+            continue
+        field_id = str(source_ref.get("region_id") or "")
+        if field_id not in editable_ids:
+            continue
+        field_facts.append({
+            "fact_id": str(fact["id"]),
+            "field_id": field_id,
+            "text": str(fact["value_text"]),
+        })
+
     payload = {
         "job_description_untrusted_data": jd_text,
         "editable_fields": [
             {"field_id": str(region["id"]), "current_text": str(region["display_text"]), "section": str(region.get("section_name", ""))}
             for region in editable_regions
         ],
-        "approved_facts": [
-            {"fact_id": str(fact["id"]), "text": str(fact["value_text"]), "category": str(fact["current_category"]), "source_ref": fact.get("source_ref")}
-            for fact in approved_facts
-        ],
+        "approved_field_facts": field_facts,
         "task": (
-            "Map useful literal JD keywords to approved fact IDs and propose conservative wording edits for editable fields only. "
+            "Map useful literal JD keywords to approved field fact IDs and propose conservative wording edits for editable fields only. "
             "Each edit must cite the approved fact linked to that exact field and list only mapped JD keywords actually used."
         ),
     }
