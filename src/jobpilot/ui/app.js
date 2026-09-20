@@ -355,8 +355,6 @@ window.addEventListener('pywebviewready', async () => {
 
 // Jobs, application orchestration, backup, and measured-pilot UI are part of the single production shell.
 const jobsView = document.getElementById('jobs');
-  if (!jobsView || document.getElementById('job-discover')) return;
-
   jobsView.innerHTML = `
     <div class="banner"><strong>Public discovery only.</strong> JobPilot reads verified public Greenhouse, Lever, and Ashby posting feeds. Unknown eligibility is sent to review rather than guessed. No employer form is opened or submitted.</div>
     <div class="grid two">
@@ -430,12 +428,10 @@ const jobsView = document.getElementById('jobs');
   });
 
 
-if (document.getElementById('orchestration-panel')) return;
-
   const history = document.getElementById('history');
-  const section = document.createElement('div');
-  section.id = 'orchestration-panel';
-  section.innerHTML = `
+  const orchestrationSection = document.createElement('div');
+  orchestrationSection.id = 'orchestration-panel';
+  orchestrationSection.innerHTML = `
     <div class="banner"><strong>Submission activation boundary.</strong> Prepared real-employer applications remain read-only. Live form inspection can recognize supported fields and blockers, and JobPilot does not write to an employer page until the measured pilot is explicitly activated and the application is individually armed.</div>
     <div class="grid two">
       <article class="card">
@@ -457,7 +453,7 @@ if (document.getElementById('orchestration-panel')) return;
       <div class="card-heading"><div><h2>Application history</h2><p>Discovery, eligibility, tailoring, package, submission and terminal outcomes are persisted in the local application journal.</p></div><span id="orchestration-counts" class="muted"></span></div>
       <div id="orchestration-history" class="fact-list"></div>
     </article>`;
-  history.prepend(section);
+  history.prepend(orchestrationSection);
 
   function identity(item) {
     if (item.employer || item.title) return `${item.employer || 'Unknown employer'} · ${item.title || 'Unknown role'}`;
@@ -536,12 +532,10 @@ if (document.getElementById('orchestration-panel')) return;
   });
 
 
-if (document.getElementById('distribution-panel')) return;
-
   const system = document.getElementById('system');
-  const section = document.createElement('div');
-  section.id = 'distribution-panel';
-  section.innerHTML = `
+  const distributionSection = document.createElement('div');
+  distributionSection.id = 'distribution-panel';
+  distributionSection.innerHTML = `
     <div class="banner"><strong>Real submissions are off by default on every launch.</strong> Activation does not queue anything. A prepared application must pass read-only recognition and then be armed individually before the existing single worker can submit it.</div>
     <div class="grid two">
       <article class="card">
@@ -567,7 +561,7 @@ if (document.getElementById('distribution-panel')) return;
       <p id="pilot-help" class="muted"></p>
       <p class="muted">Activation resets on restart. It never bypasses the five-resume automatic-tailoring gate, eligibility decisions, immutable-package freshness, exact-context application answers, provider blockers, or terminal UNCERTAIN handling.</p>
     </article>`;
-  system.prepend(section);
+  system.prepend(distributionSection);
 
   function pilotQueueButtons(state) {
     const distribution = state.distribution || {};
@@ -581,9 +575,9 @@ if (document.getElementById('distribution-panel')) return;
       const eligible = distribution.pilot_session_active && live.read_only && live.supported && !(live.blockers || []).length && Number(live.submit_controls || 0) === 1;
       const container = button.parentElement;
       if (!container) return;
-      const existing = container.querySelector(`[data-pilot-status-queue="${CSS.escape(id)}"]`);
+      const existing = container.querySelector(`[data-pilot-queue="${CSS.escape(id)}"]`);
       if (eligible && !existing) {
-        button.insertAdjacentHTML('afterend', `<button data-pilot-status-queue="${escapeAttr(id)}" class="primary">Arm one measured pilot submission</button>`);
+        button.insertAdjacentHTML('afterend', `<button data-pilot-queue="${escapeAttr(id)}" class="primary">Arm one measured pilot submission</button>`);
       } else if (!eligible && existing) {
         existing.remove();
       }
