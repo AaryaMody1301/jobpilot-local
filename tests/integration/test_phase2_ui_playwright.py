@@ -45,7 +45,6 @@ def local_ui_server():
 def _state() -> dict:
     return {
         "phase": 2,
-        "development_mode": True,
         "session_id": "fixture-session",
         "session_state": "idle",
         "worker_alive": False,
@@ -59,7 +58,6 @@ def _state() -> dict:
             "salary_minimum": None, "notice_period_days": 30, "employment_types": ["permanent_full_time"],
             "excluded_employers": ["Brentwood Industries"],
         },
-        "sample_work": [], "sample_counts": {"pending": 0, "running": 0, "done": 0, "failed": 0, "blocked": 0},
         "recovery": {"crashed_sessions": 0, "requeued_work": 0, "uncertain_applications": 0},
         "activity": [], "data_root": "C:\\fixture\\JobPilotLocal",
         "resume": {
@@ -98,7 +96,6 @@ def test_resume_view_is_local_review_gate_and_escapes_fact_values(chromium_page)
           start: async () => window.__fixtureState,
           pause: async () => window.__fixtureState,
           stop: async () => window.__fixtureState,
-          reset_sample_work: async () => window.__fixtureState,
           save_targeting: async () => window.__fixtureState
         }};
         """
