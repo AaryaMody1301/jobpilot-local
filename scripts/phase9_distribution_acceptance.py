@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from jobpilot.app.phase9_main import create_controller
+from jobpilot.app.main import create_controller
 from jobpilot.runtime.paths import ManagedPaths
 
 

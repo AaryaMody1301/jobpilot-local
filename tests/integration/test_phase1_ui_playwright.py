@@ -65,7 +65,6 @@ def _resume_state() -> dict:
 def _state() -> dict:
     return {
         "phase": 4,
-        "development_mode": True,
         "session_id": "fixture-session",
         "session_state": "idle",
         "worker_alive": False,
@@ -87,10 +86,6 @@ def _state() -> dict:
             "employment_types": ["permanent_full_time"],
             "excluded_employers": ["Brentwood Industries"],
         },
-        "sample_work": [
-            {"id": "sample-001", "label": "SAMPLE - lifecycle", "state": "pending", "lease_owner": None, "updated_at": "now"}
-        ],
-        "sample_counts": {"pending": 1, "running": 0, "done": 0, "failed": 0, "blocked": 0},
         "recovery": {"crashed_sessions": 0, "requeued_work": 0, "uncertain_applications": 0},
         "activity": [],
         "data_root": "C:\\fixture\\JobPilotLocal",
@@ -112,7 +107,6 @@ def test_local_ui_navigation_and_bridge_contract(chromium_page) -> None:
           start: async () => { window.__calls.push('start'); return window.__fixtureState; },
           pause: async () => window.__fixtureState,
           stop: async () => window.__fixtureState,
-          reset_sample_work: async () => window.__fixtureState,
           save_targeting: async (value) => { window.__calls.push(['save', value.notice_period_days, value.salary_minimum, value.employment_types, value.remote_must_allow_origin]); return window.__fixtureState; }
         }};
         """
@@ -124,7 +118,6 @@ def test_local_ui_navigation_and_bridge_contract(chromium_page) -> None:
         chromium_page.wait_for_function("document.getElementById('session-badge').textContent === 'idle'")
 
         assert chromium_page.locator("text=Local tailoring review mode.").is_visible()
-        assert chromium_page.locator("text=SAMPLE - lifecycle").is_visible()
         assert chromium_page.locator("text=Confirmed today").is_visible()
         chromium_page.locator("button[data-view='settings']").click()
         assert chromium_page.locator("#page-title").inner_text() == "Targeting"
