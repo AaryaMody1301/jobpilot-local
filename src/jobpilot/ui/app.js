@@ -1,4 +1,4 @@
-const titles = { dashboard: 'Dashboard', resume: 'Resume & facts', model: 'Model & resources', tailoring: 'Tailor resume', jobs: 'Jobs', settings: 'Targeting', history: 'History', system: 'Local data' };
+const titles = { dashboard: 'Dashboard', resume: 'Resume & facts', model: 'Model & resources', tailoring: 'Tailor resume', jobs: 'Jobs', settings: 'Targeting', history: 'Applications', system: 'Local data' };
 let latestState = null;
 let refreshTimer = null;
 let inspectedRunId = null;
