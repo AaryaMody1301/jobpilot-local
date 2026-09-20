@@ -501,6 +501,7 @@ if (document.getElementById('orchestration-panel')) return;
       const packageHash = item.package_manifest_sha256 ? `<br>Package ${escapeHtml(item.package_manifest_sha256.slice(0, 16))}…` : '';
       return `<div class="fact-item"><div class="fact-meta"><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span><strong>${escapeHtml(identity(item))}</strong></div><div class="fact-source">${escapeHtml(item.provider || 'legacy')}${item.location ? ` · ${escapeHtml(item.location)}` : ''}<br>${escapeHtml(item.last_reason || '')}${packageHash}</div></div>`;
     }).join('') : '<p>No application history yet.</p>';
+    pilotQueueButtons(state);
   }
 
   document.getElementById('orchestration-attention').addEventListener('input', event => {
