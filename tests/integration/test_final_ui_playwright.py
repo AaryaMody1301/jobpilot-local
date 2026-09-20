@@ -157,3 +157,46 @@ def test_measured_pilot_actions_render_in_final_shell_and_require_exact_phrase(c
             ["choose_local_restore"],
             ["activate_real_application_pilot", phrase],
         ]
+
+
+def test_active_pilot_arming_is_available_from_applications_attention_lane(chromium_page) -> None:
+    state = _state(pilot_active=True)
+    state["orchestration"]["attention"] = [
+        {
+            "id": "app-1",
+            "state": "prepared",
+            "employer": "Example",
+            "title": "Data Engineer",
+            "eligibility": {"hard_reasons": [], "review_reasons": []},
+            "attention_kind": "pilot_activation_required",
+            "last_reason": "fresh package prepared",
+            "live_form": {
+                "read_only": True,
+                "supported": True,
+                "blockers": [],
+                "submit_controls": 1,
+            },
+        }
+    ]
+    chromium_page.add_init_script(
+        """
+        window.__calls = [];
+        window.pywebview = { api: new Proxy({}, {
+          get: (_, name) => async (...args) => {
+            window.__calls.push([String(name), ...args]);
+            return window.__fixtureState;
+          }
+        })};
+        """
+    )
+    with local_ui_server() as url:
+        chromium_page.goto(url)
+        chromium_page.evaluate("state => { window.__fixtureState = state; render(state); showView('history'); }", state)
+
+        arm = chromium_page.locator('[data-pilot-queue="app-1"]')
+        assert arm.count() == 1
+        arm.click()
+        chromium_page.wait_for_function("window.__calls.length === 1")
+        assert chromium_page.evaluate("window.__calls") == [
+            ["queue_prepared_pilot_application", "app-1"],
+        ]
