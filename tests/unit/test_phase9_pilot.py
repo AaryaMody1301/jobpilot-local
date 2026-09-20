@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from jobpilot.app.phase9_main import create_controller
+from jobpilot.app.main import create_controller
 from jobpilot.applications.platforms import LeverAdapter
 from jobpilot.pilot import PILOT_CONFIRMATION_PHRASE
 from jobpilot.runtime.paths import ManagedPaths
