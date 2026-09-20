@@ -57,9 +57,6 @@ function render(state) {
   document.getElementById('start-button').disabled = busy || !(session === 'idle' || session === 'paused');
   document.getElementById('pause-button').disabled = session !== 'running';
   document.getElementById('stop-button').disabled = !(session === 'running' || session === 'paused');
-  document.getElementById('reset-sample').disabled = busy || session !== 'idle';
-
-  document.getElementById('sample-work').innerHTML = state.sample_work.map(item => `<div class="work-item"><span>${escapeHtml(item.label)}</span><span class="pill">${escapeHtml(item.state)}</span></div>`).join('');
   document.getElementById('activity').innerHTML = state.activity.map(item => `<div class="activity-item"><strong>${escapeHtml(item.event_type)}</strong><span>${escapeHtml(item.message)}</span><br><time>${escapeHtml(item.created_at)}</time></div>`).join('');
   document.getElementById('data-root').textContent = state.data_root;
 
@@ -273,7 +270,6 @@ document.getElementById('nav').addEventListener('click', e => { const name = e.t
 document.getElementById('start-button').addEventListener('click', () => invoke('start'));
 document.getElementById('pause-button').addEventListener('click', () => invoke('pause'));
 document.getElementById('stop-button').addEventListener('click', () => invoke('stop'));
-document.getElementById('reset-sample').addEventListener('click', async () => { await invoke('reset_sample_work'); toast('Sample items reset'); });
 document.getElementById('import-master').addEventListener('click', async () => { await invoke('choose_master_resume'); toast('Master resume import finished'); });
 document.getElementById('import-supporting').addEventListener('click', async () => { await invoke('choose_supporting_document'); toast('Supporting source import finished'); });
 document.getElementById('install-tectonic').addEventListener('click', async () => { if (!window.confirm('Download the pinned Tectonic 0.17.0 Windows x64 archive from its official GitHub release and verify its SHA-256?')) return; setBusy('Installing Tectonic…'); await invokeOnboarding('install_tectonic', 'Tectonic installation'); toast('Tectonic installed and verified'); });
