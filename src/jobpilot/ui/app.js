@@ -441,7 +441,7 @@ if (document.getElementById('orchestration-panel')) return;
       <article class="card">
         <h2>Local-day objective</h2>
         <div id="orchestration-daily" class="detail-list"></div>
-        <p class="muted">50 confirmed, well-matched real applications is a target, not a ceiling. Controlled fixtures never count toward it.</p>
+        <p class="muted">50 confirmed, well-matched real applications is a target, not a ceiling. Quality and safety gates never weaken to chase the target.</p>
       </article>
       <article class="card">
         <h2>Orchestration worker</h2>
@@ -454,7 +454,7 @@ if (document.getElementById('orchestration-panel')) return;
       <div id="orchestration-attention" class="fact-list"></div>
     </article>
     <article class="card section-card">
-      <div class="card-heading"><div><h2>Application history</h2><p>Discovery, eligibility, tailoring, package, controlled submission and terminal outcomes are persisted in the existing application journal.</p></div><span id="orchestration-counts" class="muted"></span></div>
+      <div class="card-heading"><div><h2>Application history</h2><p>Discovery, eligibility, tailoring, package, submission and terminal outcomes are persisted in the local application journal.</p></div><span id="orchestration-counts" class="muted"></span></div>
       <div id="orchestration-history" class="fact-list"></div>
     </article>`;
   history.prepend(section);
@@ -483,7 +483,7 @@ if (document.getElementById('orchestration-panel')) return;
     const orchestration = state.orchestration;
     if (!orchestration) return;
     const daily = orchestration.daily || {};
-    document.getElementById('orchestration-daily').innerHTML = `<div><span>Local date</span><strong>${escapeHtml(daily.local_date || '')}</strong></div><div><span>Confirmed real</span><strong>${Number(daily.confirmed_real || 0)} / ${Number(daily.target_confirmed || 50)}</strong></div><div><span>Remaining to target</span><strong>${Number(daily.remaining_to_target || 0)}</strong></div><div><span>Controlled confirmations</span><strong>${Number(daily.confirmed_controlled || 0)} (excluded)</strong></div>`;
+    document.getElementById('orchestration-daily').innerHTML = `<div><span>Local date</span><strong>${escapeHtml(daily.local_date || '')}</strong></div><div><span>Confirmed real</span><strong>${Number(daily.confirmed_real || 0)} / ${Number(daily.target_confirmed || 50)}</strong></div><div><span>Remaining to target</span><strong>${Number(daily.remaining_to_target || 0)}</strong></div>`;
 
     const worker = orchestration.worker || {};
     document.getElementById('orchestration-worker').innerHTML = `<div><span>Status</span><strong>${escapeHtml(worker.status || (worker.alive ? 'Running' : 'Idle'))}</strong></div><div><span>Current application</span><strong>${escapeHtml(worker.current_application_id || 'None')}</strong></div><div><span>Immutable packages</span><strong>${Number(orchestration.packages || 0)}</strong></div>${worker.last_error ? `<div><span>Last worker error</span><strong class="error-text">${escapeHtml(worker.last_error)}</strong></div>` : ''}`;
@@ -499,8 +499,7 @@ if (document.getElementById('orchestration-panel')) return;
 
     document.getElementById('orchestration-history').innerHTML = orchestration.history.length ? orchestration.history.map(item => {
       const packageHash = item.package_manifest_sha256 ? `<br>Package ${escapeHtml(item.package_manifest_sha256.slice(0, 16))}…` : '';
-      const controlled = item.controlled_fixture ? ' · controlled fixture' : '';
-      return `<div class="fact-item"><div class="fact-meta"><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span><strong>${escapeHtml(identity(item))}</strong></div><div class="fact-source">${escapeHtml(item.provider || 'legacy')}${controlled}${item.location ? ` · ${escapeHtml(item.location)}` : ''}<br>${escapeHtml(item.last_reason || '')}${packageHash}</div></div>`;
+      return `<div class="fact-item"><div class="fact-meta"><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span><strong>${escapeHtml(identity(item))}</strong></div><div class="fact-source">${escapeHtml(item.provider || 'legacy')}${item.location ? ` · ${escapeHtml(item.location)}` : ''}<br>${escapeHtml(item.last_reason || '')}${packageHash}</div></div>`;
     }).join('') : '<p>No application history yet.</p>';
   }
 
