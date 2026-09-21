@@ -586,7 +586,7 @@ const jobsView = document.getElementById('jobs');
     if (!selectedApplication) {
       detail.innerHTML = '<p>Select an application to inspect its local record.</p>';
     } else {
-      const editable = state.session_state === 'idle' && !state.onboarding_busy;
+      const editable = state.session_state === 'idle' && !state.onboarding_busy && !clientOnboardingBusy;
       const packageHash = selectedApplication.package_manifest_sha256 || '';
       const resumeHash = selectedApplication.tailored_pdf_sha256 || '';
       detail.innerHTML = `<div class="card-heading"><div><h2>${escapeHtml(selectedApplication.title || 'Application')}</h2><p>${escapeHtml(selectedApplication.employer || 'Unknown employer')} · ${escapeHtml(selectedApplication.location || 'Unknown location')}</p></div><span class="pill ${escapeAttr(selectedApplication.state)}">${escapeHtml(selectedApplication.state)}</span></div>
