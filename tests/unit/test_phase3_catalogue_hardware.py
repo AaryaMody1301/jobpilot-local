@@ -17,9 +17,9 @@ from jobpilot.model.tooling import parse_llama_devices
 
 
 def test_catalogue_is_small_versioned_and_content_pinned() -> None:
-    assert CATALOGUE_VERSION == "2026-09-11.1"
+    assert CATALOGUE_VERSION == "2026-09-21.1"
     assert [model.id for model in MODELS] == ["qwen3-4b-q4_k_m"]
-    assert 1 <= len(RUNTIMES) <= 4
+    assert len(RUNTIMES) == 4
     model = MODELS[0]
     assert model.bytes == 2_497_280_640
     assert model.display_bytes == model.bytes
@@ -31,11 +31,20 @@ def test_catalogue_is_small_versioned_and_content_pinned() -> None:
     assert model.tier == "preferred"
     assert model.reference_cpu_peak_rss_bytes is not None
     assert get_model(model.id) is model
+    baseline = [runtime for runtime in RUNTIMES if runtime.trust == "validated_baseline"]
+    candidates = [runtime for runtime in RUNTIMES if runtime.trust == "maintenance_candidate"]
+    assert {(runtime.version, runtime.build, runtime.backend) for runtime in baseline} == {
+        ("0.4.0", "b10809", "cpu"),
+        ("0.4.0", "b10809", "vulkan"),
+    }
+    assert {(runtime.version, runtime.build, runtime.backend) for runtime in candidates} == {
+        ("0.4.1", "b10964", "cpu"),
+        ("0.4.1", "b10964", "vulkan"),
+    }
     for runtime in RUNTIMES:
         assert len(runtime.sha256) == 64
         int(runtime.sha256, 16)
-        assert runtime.url.startswith("https://github.com/ggml-org/llama.cpp/releases/download/b10809/")
-        assert runtime.version == "0.4.0"
+        assert runtime.url.startswith(f"https://github.com/ggml-org/llama.cpp/releases/download/{runtime.build}/")
         assert get_runtime(runtime.id) is runtime
 
 
@@ -158,3 +167,12 @@ def test_vulkan_runtime_requires_explicit_device_before_start(tmp_path: Path) ->
     command = session.command()
     assert command[command.index("--device") + 1] == "Vulkan1"
     assert command[command.index("--n-gpu-layers") + 1] == "auto"
+
+
+def test_v041_candidate_metadata_matches_published_windows_artifacts() -> None:
+    cpu = get_runtime("llama-b10964-win-cpu-x64")
+    vulkan = get_runtime("llama-b10964-win-vulkan-x64")
+    assert cpu.bytes == 18_427_629
+    assert cpu.sha256 == "917f39c076402c421224824607397af20f53625a60defc20e8dd22446bf4c5d7"
+    assert vulkan.bytes == 31_674_542
+    assert vulkan.sha256 == "1ee3ad952f4ba71f438bd6d7bebef19e1c7af04adcaa35d08b4ddabb27d4c642"
