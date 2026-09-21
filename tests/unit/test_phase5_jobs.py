@@ -28,6 +28,7 @@ def test_supported_board_payloads_normalize_to_one_job_shape() -> None:
             "hostedUrl": "https://jobs.lever.co/acme/abc",
             "applyUrl": "https://jobs.lever.co/acme/abc/apply",
             "workplaceType": "on-site",
+            "salaryRange": {"currency": "INR", "min": 1800000, "max": 2400000, "interval": "per-year-salary"},
         }],
         "ashby": {
             "jobs": [{
@@ -39,6 +40,7 @@ def test_supported_board_payloads_normalize_to_one_job_shape() -> None:
                 "employmentType": "FullTime",
                 "jobUrl": "https://jobs.ashbyhq.com/acme/job-1",
                 "applyUrl": "https://jobs.ashbyhq.com/acme/job-1/application",
+                "compensation": {"scrapeableCompensationSalarySummary": "INR 18L - 24L"},
                 "isListed": True,
             }]
         },
@@ -50,6 +52,10 @@ def test_supported_board_payloads_normalize_to_one_job_shape() -> None:
         assert jobs[0]["title"] == "Data Engineer"
         assert jobs[0]["source_url"].startswith("https://")
         assert jobs[0]["description"] == "Required SQL and Python experience."
+        if provider == "lever":
+            assert jobs[0]["compensation_text"] == "INR 1800000 - 2400000 (per-year-salary)"
+        if provider == "ashby":
+            assert jobs[0]["compensation_text"] == "INR 18L - 24L"
 
 
 def test_matching_is_conservative_explainable_and_deduplicated() -> None:
@@ -62,8 +68,12 @@ def test_matching_is_conservative_explainable_and_deduplicated() -> None:
         "workplace_type": "onsite",
         "employment_type": "permanent_full_time",
         "source_url": "https://example.invalid/jobs/1",
+        "compensation_text": "INR 18L - 24L",
+        "application_deadline": "2026-10-15",
         "description": "Permanent full-time role. Required SQL and Python experience.",
     })
+    assert job["compensation_text"] == "INR 18L - 24L"
+    assert job["application_deadline"] == "2026-10-15"
     assessed = assess_job(job, targeting, facts)
     assert assessed["eligibility"] == "eligible"
     assert assessed["matched_required"] == ["Required SQL and Python experience."]
