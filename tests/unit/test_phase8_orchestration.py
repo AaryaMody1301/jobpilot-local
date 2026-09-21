@@ -72,12 +72,15 @@ def test_phase8_eligibility_review_and_package_staleness_are_transactional(tmp_p
         assert resolved["state"] == "eligible"
         assert resolved["eligibility_resolution"] == "approved"
 
+        operational_updated_at = review["updated_at"]
         workspace = journal.update_workspace(
             str(review["id"]),
             follow_up_at="2026-10-01",
             notes="Recruiter asked for a follow-up after the screening call.",
             next_action="Send follow-up",
         )
+        assert workspace["updated_at"] == operational_updated_at
+        assert workspace["workspace_updated_at"] is not None
         assert workspace["follow_up_at"] == "2026-10-01"
         assert workspace["notes"].startswith("Recruiter asked")
         assert workspace["next_action"] == "Send follow-up"
