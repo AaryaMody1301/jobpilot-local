@@ -82,7 +82,7 @@ def _state(*, pilot_active: bool = False) -> dict:
             },
         },
         "distribution": {
-            "app_version": "0.1.2",
+            "app_version": "0.2.0",
             "pilot_authorized": True,
             "pilot_session_active": pilot_active,
             "real_employer_submission_enabled": pilot_active,
