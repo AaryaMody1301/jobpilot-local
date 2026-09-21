@@ -63,10 +63,10 @@ See `docs/PHASE9_PILOT_ACCEPTANCE.md` for the measured-pilot handoff and safety 
 Check the current local review gate without exposing resume/JD/fact content:
 
 ```powershell
-python -m jobpilot.app.main --phase4-gate-report
+python -m jobpilot.app.main --review-gate-report
 ```
 
-The historical CLI flag is retained for compatibility. The current product UI describes this as the human review gate.
+The historical `--phase4-gate-report` alias is retained for compatibility. The report contains only gate/readiness counts and booleans; private resume/JD/fact content is not emitted.
 
 See `docs/PHASE4_CLOSEOUT.md` for the private five-resume procedure.
 
