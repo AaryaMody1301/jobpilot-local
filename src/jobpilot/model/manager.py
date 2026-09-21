@@ -69,7 +69,7 @@ class ModelManager:
             "review_gate": review_gate,
             "update_check_due": self._update_check_due(state.get("last_catalogue_check_at")),
             "auto_tailoring_enabled": bool(state.get("auto_tailoring_model_install_id")),
-            "phase4_review_gate_required": True,
+            "human_review_gate_required": True,
         }
 
     def install_runtime(self, runtime_id: str, cancel_event: threading.Event) -> dict[str, Any]:
@@ -227,7 +227,7 @@ class ModelManager:
         if session is not None:
             session.close()
 
-    def select_for_phase4_review(self, model_install_id: str) -> dict[str, Any]:
+    def select_for_review(self, model_install_id: str) -> dict[str, Any]:
         model_install_id = self._resolve_model_install_id(model_install_id)
         model = self.store.model_install(model_install_id)
         if model is None or model["status"] != "validated":
@@ -257,7 +257,7 @@ class ModelManager:
         self.store.select_for_review(model_install_id, runtime_id, device_id)
         return self.snapshot()
 
-    def finalize_after_phase4_review_gate(
+    def finalize_after_review_gate(
         self,
         model_install_id: str,
         *,
