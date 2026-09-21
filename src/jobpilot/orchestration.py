@@ -484,7 +484,7 @@ class Phase8ApplicationJournal(ApplicationJournal):
             updated = connection.execute(
                 """
                 UPDATE application_attempts
-                   SET follow_up_at=?, notes=?, next_action=?, updated_at=?
+                   SET follow_up_at=?, notes=?, next_action=?, workspace_updated_at=?
                  WHERE id=?
                 """,
                 (follow_up or None, notes_text, next_action_text, now, str(application_id)),
