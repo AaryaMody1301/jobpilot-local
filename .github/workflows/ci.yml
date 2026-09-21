@@ -3,19 +3,6 @@ name: Windows CI
 on:
   pull_request:
     branches: [main]
-    paths:
-      - ".github/workflows/**"
-      - "migrations/**"
-      - "packaging/**"
-      - "pyproject.toml"
-      - "pylock.toml"
-      - "requirements-lock.in"
-      - "requirements-build.in"
-      - "scripts/**"
-      - "src/**"
-      - "tests/**"
-      - "LICENSE"
-      - "THIRD_PARTY_NOTICES.md"
   push:
     branches: [main]
     paths:
