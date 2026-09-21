@@ -200,3 +200,104 @@ def test_active_pilot_arming_is_available_from_applications_attention_lane(chrom
         assert chromium_page.evaluate("window.__calls") == [
             ["queue_prepared_pilot_application", "app-1"],
         ]
+
+
+def test_job_and_application_workspace_filters_and_saves_local_follow_up(chromium_page) -> None:
+    state = _state()
+    state["jobs"] = {
+        "counts": {"eligible": 1, "review": 0, "ineligible": 0},
+        "approved_evidence_facts": 3,
+        "boards": [],
+        "items": [{
+            "id": "job-1",
+            "provider": "lever",
+            "employer": "Acme",
+            "title": "Data Engineer",
+            "location": "Surat, India",
+            "workplace_type": "onsite",
+            "employment_type": "permanent_full_time",
+            "source_url": "https://jobs.lever.co/acme/job-1",
+            "apply_url": "https://jobs.lever.co/acme/job-1/apply",
+            "description": "Required SQL and Python experience.",
+            "published_at": "2026-09-20T00:00:00Z",
+            "last_seen_at": "2026-09-21T00:00:00Z",
+            "compensation_text": "INR 1800000 - 2400000",
+            "application_deadline": "2026-10-15",
+            "eligibility": "eligible",
+            "hard_reasons": [],
+            "review_reasons": [],
+            "required_requirements": ["Required SQL and Python experience."],
+            "preferred_requirements": [],
+            "matched_required": ["Required SQL and Python experience."],
+            "matched_preferred": [],
+            "supported_terms": ["python", "sql"],
+            "score": 95,
+            "score_reasons": {"role": 40, "required_evidence": 35, "preferred_evidence": 5, "eligibility_clarity": 15},
+        }],
+    }
+    state["orchestration"]["history"] = [{
+        "id": "app-1",
+        "state": "prepared",
+        "provider": "lever",
+        "employer": "Acme",
+        "title": "Data Engineer",
+        "location": "Surat, India",
+        "source_url": "https://jobs.lever.co/acme/job-1",
+        "apply_url": "https://jobs.lever.co/acme/job-1/apply",
+        "description": "Required SQL and Python experience.",
+        "compensation_text": "INR 1800000 - 2400000",
+        "application_deadline": "2026-10-15",
+        "created_at": "2026-09-21T00:00:00Z",
+        "submit_started_at": None,
+        "confirmed_at": None,
+        "last_reason": "immutable package prepared",
+        "follow_up_at": None,
+        "notes": "",
+        "next_action": "",
+        "tailoring_run_id": "tailor-1",
+        "tailoring_status": "approved",
+        "tailored_pdf_relpath": "artifacts/tailor-1.pdf",
+        "tailored_pdf_sha256": "a" * 64,
+        "package_id": "package-1",
+        "package_manifest_sha256": "b" * 64,
+        "eligibility": {"hard_reasons": [], "review_reasons": []},
+        "live_form": {},
+    }]
+    state["orchestration"]["counts"] = {"prepared": 1}
+
+    chromium_page.add_init_script(
+        """
+        window.__calls = [];
+        window.pywebview = { api: new Proxy({}, {
+          get: (_, name) => async (...args) => {
+            window.__calls.push([String(name), ...args]);
+            return window.__fixtureState;
+          }
+        })};
+        """
+    )
+    with local_ui_server() as url:
+        chromium_page.goto(url)
+        chromium_page.evaluate("state => { window.__fixtureState = state; render(state); showView('jobs'); }", state)
+
+        chromium_page.locator("#job-search").fill("Acme")
+        assert chromium_page.locator('[data-job-select="job-1"]').count() == 1
+        assert "INR 1800000 - 2400000" in chromium_page.locator("#job-detail").inner_text()
+        assert "Required SQL and Python experience." in chromium_page.locator("#job-detail").inner_text()
+
+        chromium_page.locator('[data-view="history"]').click()
+        assert chromium_page.locator('[data-application-select="app-1"]').count() == 1
+        assert chromium_page.locator('[data-application-preview="tailor-1"]').count() == 1
+        chromium_page.locator("#application-follow-up").fill("2026-10-01")
+        chromium_page.locator("#application-next-action").fill("Follow up with recruiter")
+        chromium_page.locator("#application-notes").fill("Screening completed.")
+        chromium_page.locator("#application-workspace-form button[type='submit']").click()
+        chromium_page.wait_for_function("window.__calls.some(call => call[0] === 'update_application_workspace')")
+        call = chromium_page.evaluate("window.__calls.find(call => call[0] === 'update_application_workspace')")
+        assert call == [
+            "update_application_workspace",
+            "app-1",
+            "2026-10-01",
+            "Screening completed.",
+            "Follow up with recruiter",
+        ]
