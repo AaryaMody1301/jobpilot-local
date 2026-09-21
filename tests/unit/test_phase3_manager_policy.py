@@ -88,3 +88,24 @@ def test_recommendation_has_no_cloud_or_unsafe_fallback_when_budget_is_too_small
         assert "no tested catalogue model fits" in result["reason"]
     finally:
         database.close()
+
+
+def test_recommendation_keeps_validated_b10809_baseline_when_maintenance_candidate_exists(tmp_path: Path) -> None:
+    database, manager = _manager(tmp_path)
+    try:
+        gib = 1024**3
+        hardware = {
+            "memory": {"total_bytes": 32 * gib},
+            "budget": {
+                "model_ram_budget_bytes": 16 * gib,
+                "model_disk_budget_bytes": 40 * gib,
+                "memory_pressure": "normal",
+            },
+            "gpus": [],
+            "runtime_devices": {},
+        }
+        result = manager._recommend(hardware)
+        assert result["runtime_id"] == "llama-b10809-win-cpu-x64"
+        assert result["alternative_runtime_id"] is None
+    finally:
+        database.close()
