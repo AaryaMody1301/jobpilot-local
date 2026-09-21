@@ -1,121 +1,39 @@
 # Roadmap
 
-Status legend: `[ ] planned`, `[~] in progress`, `[x] complete`, `[!] blocked/partial`.
+Status legend: `[ ] planned`, `[~] in progress`, `[x] complete`, `[!]` private evidence pending.
 
-## Phase 0 - Feasibility and architecture [x]
+## Completed product foundation [x]
 
-Windows/local-first architecture, lifecycle/state model, managed process/file ownership, SQLite recovery, Tectonic/llama.cpp trust boundaries, controlled browser feasibility, and Windows acceptance.
+The Windows desktop foundation, immutable resume/fact system, local AI/resource manager, evidence-backed tailoring, public Greenhouse/Lever/Ashby discovery, controlled application engine, supported hosted-form adapters, orchestration, backup/restore, Windows distribution, and explicitly user-authorized measured-pilot write path are implemented.
 
-Acceptance: `docs/PHASE0_ACCEPTANCE.md`.
+Historical build sequencing is condensed in `docs/IMPLEMENTATION_HISTORY.md`.
 
-## Phase 1 - Runnable desktop foundation [x]
+## Repository cleanup [~]
 
-Bundled pywebview desktop, persistent settings/runtime/activity state, Start/Pause/Stop/Close lifecycle, crash recovery, targeting controls, packaging, and Windows smoke acceptance.
+- [x] PR #21: production entrypoint/bridge cleanup and removal of sample-development runtime state.
+- [x] PR #23: one final production UI shell, removal of phase-injected UI and development fixture controls, active-view rendering, accessibility cleanup, and final-shell regression coverage.
+- [~] PR 3: durable CI/release workflows, deletion of obsolete phase entrypoints/bridges/UI/probes, capability-named acceptance scripts, and documentation cleanup.
 
-Acceptance: `docs/PHASE1_ACCEPTANCE.md`.
+## Job/application workspace [ ]
 
-## Phase 2 - Resume import and approved fact bank [x]
+After repository cleanup:
 
-Immutable LaTeX source import, Tectonic offline baseline, confirmed editable map, source-linked fact versions, protected non-bullet facts, explicit fact review, and real supplied-template acceptance.
+- expose job/application detail in one workspace;
+- show saved JD snapshot, employer/title/location/compensation/deadline when available;
+- keep the exact tailored resume/application package associated with the application;
+- add search/filter/grouping around current job/application state;
+- expose follow-up date, notes, and next action without weakening automation gates.
 
-Acceptance: `docs/PHASE2_ACCEPTANCE.md`.
+## Local-AI maintenance evaluation [ ]
 
-## Phase 3 - Local AI and resource manager [x]
+Evaluate newer llama.cpp releases independently. Do not replace the validated v0.4.0/b10809 runtime unless exact artifacts, license/checksum metadata, quality/resource evaluation, and replacement review-gate requirements pass.
 
-Hardware/resource evidence, pinned app-managed llama.cpp/Qwen catalogue, checksum-verified installs, local evaluation, one-inference ownership, pressure handling, revision-safe replacement/rollback, and persisted review gate.
+## Private product evidence [!]
 
-Acceptance: `docs/PHASE3_ACCEPTANCE.md`.
+These are not repository-development blockers and cannot be satisfied by synthetic CI:
 
-## Phase 4 - Evidence-based resume tailoring [!]
+- five distinct real tailored resumes must be explicitly approved under one current local review context;
+- run the measured real-world application pilot from private local data and record armed/confirmed/blocked/review/stale/`UNCERTAIN` outcomes plus elapsed/local-day throughput;
+- do not claim 50 confirmed applications/day without measured evidence.
 
-Technical implementation is complete and merged: JD-as-data handling, field-local approved-fact edits, deterministic LaTeX/PDF validation, tamper-evident run packages, staleness/context binding, review UI, and automatic-tailoring gate enforcement.
-
-Remaining private product gate:
-- [ ] five distinct real tailored resumes must be explicitly approved under one current validation context;
-- [ ] automatic tailoring remains disabled until the current local gate is 5/5.
-
-The user explicitly authorized later phase development without treating that sequencing exception as completion of the private Phase 4 gate. Repository technical acceptance through PR #19 passed the complete Phase 0 through Phase 9 matrix before merge, and its current-main Phase 0/4/9 revalidation passed. The v0.1.2 patch repairs the long-running CPU inference client timeout discovered during the next real local resume run; technical acceptance never substitutes for the five human approvals.
-
-Acceptance: `docs/PHASE4_ACCEPTANCE.md`, `docs/PHASE4_CLOSEOUT.md`.
-
-## Phase 5 - Job discovery and matching [x]
-
-Completed: normalized/manual discovery, verified public Greenhouse/Lever/Ashby boards, conservative deduplication, targeting eligibility, source-verified approved-fact matching, explainable ranking, local jobs UI, and current-feed retirement. Employer submission remained disabled throughout Phase 5.
-
-Acceptance: `docs/PHASE5_ACCEPTANCE.md`.
-
-## Phase 6 - Application engine using controlled forms [x]
-
-Completed:
-- [x] 6A transactional application journal, duplicate prevention, single explicit-session worker, and crash recovery;
-- [x] 6B localhost-only Playwright controlled-form contract and exact-context approved-answer reuse;
-- [x] 6C conservative CAPTCHA/challenge/unknown-question/network/Stop/Close/`UNCERTAIN` behavior;
-- [x] exact-head Windows Phase 6 acceptance at code head `8d1cb12d1a5ff096ecfc8b8df470777ee3b99c43`, run `34743335410`.
-
-No real employer submission and no Greenhouse/Lever/Ashby employer-form adapter is part of Phase 6.
-
-Acceptance: `docs/PHASE6_ACCEPTANCE.md`.
-
-## Phase 7 - Supported hiring-platform adapters [x]
-
-Completed sequentially:
-- [x] 7A Greenhouse hosted-form adapter: controlled loopback submission/confirmation and current GitLab form recognition passed before Lever work began;
-- [x] 7B Lever hosted-form adapter: controlled loopback submission/confirmation and current Nium form recognition passed before Ashby work began;
-- [x] 7C Ashby hosted-form adapter: controlled loopback submission/confirmation and current Ashby form recognition passed;
-- [x] unsupported/challenge variants are reported rather than guessed;
-- [x] live employer pages remain read-only and adapter write methods fail closed outside loopback in the Phase 7 boundary;
-- [x] exact-head Windows Phase 7 acceptance at code head `3a95d0a32755c94b21ec77c209749986718167a6`, run `34745312735`.
-
-Acceptance: `docs/PHASE7_ACCEPTANCE.md`.
-
-## Phase 8 - End-to-end orchestration [x]
-
-Completed:
-- [x] discovery/matching outcomes are journaled into the existing application state machine;
-- [x] eligibility unknowns use an explicit attention lane and cannot be guessed;
-- [x] eligible work reuses the existing evidence-backed tailoring service and the Phase 4 human/automatic-tailoring gates;
-- [x] immutable application packages bind the discovered job snapshot, tailoring audit evidence, current approved-answer fingerprint and submission attempt;
-- [x] prepared/queued packages are invalidated before submit when their job, resume/context evidence or approved answers become stale;
-- [x] the existing single application worker remains the only component allowed to cross the controlled submit boundary;
-- [x] provider live-form inspection is read-only and Phase 8 exposes no real-employer fill/submit activation;
-- [x] orchestration respects resource pressure and explicit Start/Pause/Stop/Close lifecycle boundaries;
-- [x] attention/history and a local-calendar-day `50 confirmed real applications` target are visible; controlled confirmations are excluded and the target never weakens eligibility/factual/review gates;
-- [x] exact-head Windows Phase 8 acceptance at code head `5b2a10827a2b81533a2017dd9828395ded91a383`, run `34946104772`.
-
-Real employer submission remained disabled throughout Phase 8.
-
-Acceptance: `docs/PHASE8_ACCEPTANCE.md`.
-
-## Phase 9 - Packaging and user-authorized pilot [~]
-
-Distribution/recovery completed:
-- [x] verified Windows 10/11 x64 onedir distribution and SHA-256 release metadata;
-- [x] per-user setup and rollback-safe in-place program upgrade while preserving the separate local data root;
-- [x] hermetic Playwright Chromium bundling and frozen-browser smoke without a global browser cache;
-- [x] WebView2 Evergreen Runtime detection and official Microsoft bootstrap path when absent;
-- [x] portable local backup/restore with integrity checks, restart-bound application and pre-restore safety backup;
-- [x] exact browser/WebView/legal notices in the distribution;
-- [x] application/local-acceptance hardening merged in PR #17 at `fca1f2e8d249b82fe089c91c5be6a885f0286307` after all Phase 0 through Phase 9 PR-head workflows passed;
-- [x] reproducible release/governance cleanup merged in PR #18 at `0f366244cc07d6bda279b48f93ccd8ebc1824a41` and published verified `v0.1.0`;
-- [x] v0.1.1 live-acceptance patch PR #19 compacts Phase 4 prompts to field-local evidence, preflights b10809 context usage, and requires eligibility notes before the Phase 8 bridge call;
-- [x] v0.1.2 bounds Phase 4 CPU inference waits from the selected passing evaluation's measured throughput instead of an invalid fixed 120-second client timeout;
-- [x] Windows x64 / CPython 3.13 transitive dependencies are locked with pip 26.2.1 in hash-addressed `pylock.toml`, isolated sdist build dependencies are explicitly constrained, and official GitHub Actions are pinned to full commit SHAs;
-- [x] successful Phase 9 `main` builds publish the current version as a durable GitHub Release if absent and remove only branches already verified as fully merged.
-
-Measured-pilot activation path:
-- [x] received the later separate user authorization for the real-application pilot implementation on 2026-09-16;
-- [x] implemented the minimum real-employer hosted-form write path without weakening eligibility, package freshness, approved-answer, provider-blocker, single-worker, confirmation or `UNCERTAIN` boundaries;
-- [x] every launch starts inactive, requires an exact local activation phrase, a fresh read-only inspection and explicit per-application arming, with at most five armed applications per launch;
-- [x] restart/deactivation/restore forces queued real work back to `PREPARED`, clears stale live inspection data and requires fresh inspection plus re-arming;
-- [x] live resume upload resolves the persisted managed `pdf_relpath` and re-verifies its SHA-256 immediately before browser upload;
-- [x] post-submit success is compared against confirmation state recaptured immediately before the submit click, so success-like text that appears before submission cannot produce a false `CONFIRMED`;
-- [x] final direct dependency/package baseline: Playwright 1.63.0, pypdf 6.19.0, setuptools 84.0.0, PyInstaller 6.22.3 and pinned `pip-audit` 2.10.1, with pip 26.2.1 driving the committed Windows dependency lock;
-- [x] final Phase 9 UI regression covers backup/restore, pilot activation/deactivation and per-application arming at the 960x660 minimum viewport;
-- [ ] run the measured real-world pilot from current local/private candidate data and record actual confirmed-application throughput/quality evidence;
-- [ ] never claim 50/day without measured evidence.
-
-The accepted technical pilot implementation and hardening acceptance did not fill or submit a real employer form. CI live-provider checks remain read-only; only controlled loopback fixtures perform writes. Phase 4's private five-real-resume gate remains independently authoritative.
-
-The validated llama.cpp runtime remains v0.4.0/b10809. Newer upstream runtime releases are metadata-only until their checksum/license records, local evaluation, and replacement review gate are completed; they are not silently substituted during cleanup.
-
-Acceptance: `docs/PHASE9_DISTRIBUTION_ACCEPTANCE.md`, `docs/PHASE9_PILOT_ACCEPTANCE.md`. Phase 9 remains `[~]` until measured real-pilot evidence is recorded.
+See `docs/PHASE4_CLOSEOUT.md` and `docs/PHASE9_PILOT_ACCEPTANCE.md`.
