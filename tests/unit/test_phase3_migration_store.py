@@ -44,7 +44,7 @@ def test_model_manager_snapshot_never_downloads_or_enables_auto_tailoring(tmp_pa
         assert state["catalogue"]["models"] and state["catalogue"]["runtimes"]
         assert state["model_installs"] == [] and state["runtime_installs"] == []
         assert state["auto_tailoring_enabled"] is False
-        assert state["phase4_review_gate_required"] is True
+        assert state["human_review_gate_required"] is True
         assert state["review_gate"] is None
         assert not any(paths.models.iterdir())
 
@@ -57,7 +57,7 @@ def test_selection_requires_passing_evaluation(tmp_path: Path) -> None:
         store.upsert_model_install(install_id=artifact.install_id, catalogue_id=artifact.id, source_revision=artifact.source_revision, model_relpath="models/test/model.gguf", artifact_sha256="0" * 64, artifact_bytes=1, status="installed")
         store.upsert_runtime_install(install_id="llama-b10809-win-cpu-x64", catalogue_id="llama-b10809-win-cpu-x64", version="0.4.0", backend="cpu", install_relpath="tools/llama.cpp/test", executable_relpath="tools/llama.cpp/test/llama-server.exe", artifact_sha256="1" * 64, status="installed")
         with pytest.raises(RuntimeError, match="validated"):
-            manager.select_for_phase4_review(artifact.install_id)
+            manager.select_for_review(artifact.install_id)
 
 
 def _install_fake_model(paths: ManagedPaths, store: ModelStore, install_id: str, revision: str, *, app_managed: bool = True) -> Path:
@@ -124,13 +124,13 @@ def test_review_gate_counts_distinct_resume_approvals_and_cannot_be_boolean_bypa
         store.record_review_approval("new", "same-resume")
         assert store.review_gate("new")["approved_distinct_resumes"] == 1
         with pytest.raises(RuntimeError, match="five-distinct-resume"):
-            manager.finalize_after_phase4_review_gate("new", delete_previous_app_managed_weights=True)
+            manager.finalize_after_review_gate("new", delete_previous_app_managed_weights=True)
         assert old_path.is_file() and new_path.is_file()
 
         for index in range(2, 6):
             store.record_review_approval("new", f"resume-{index}")
         assert store.review_gate("new")["complete"] is True
-        manager.finalize_after_phase4_review_gate("new", delete_previous_app_managed_weights=True)
+        manager.finalize_after_review_gate("new", delete_previous_app_managed_weights=True)
         assert not old_path.parent.exists() and new_path.is_file()
         assert store.model_state()["auto_tailoring_model_install_id"] == "new"
         assert store.model_install("old")["status"] == "retired"
@@ -147,7 +147,7 @@ def test_shared_or_non_app_managed_weights_are_never_deleted(tmp_path: Path) -> 
         _approve_five(store, "shared"); store.activate_after_review_gate("shared")
         store.select_for_review("replacement", "runtime", "none"); _approve_five(store, "replacement")
         with pytest.raises(RuntimeError, match="not app-managed"):
-            manager.finalize_after_phase4_review_gate("replacement", delete_previous_app_managed_weights=True)
+            manager.finalize_after_review_gate("replacement", delete_previous_app_managed_weights=True)
         assert shared.is_file()
 
 
