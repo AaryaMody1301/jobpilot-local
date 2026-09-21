@@ -95,7 +95,7 @@ class TailoringController(ModelController):
             if not model_install_id:
                 raise RuntimeError("no selected model is awaiting the human review gate")
             self.tailoring.require_review_gate_current(model_install_id)
-            result = self.models.finalize_after_phase4_review_gate(
+            result = self.models.finalize_after_review_gate(
                 model_install_id,
                 delete_previous_app_managed_weights=bool(delete_previous_app_managed_weights),
             )
