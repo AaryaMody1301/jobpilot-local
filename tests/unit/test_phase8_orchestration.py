@@ -72,7 +72,7 @@ def test_phase8_eligibility_review_and_package_staleness_are_transactional(tmp_p
         assert resolved["state"] == "eligible"
         assert resolved["eligibility_resolution"] == "approved"
 
-        operational_updated_at = review["updated_at"]
+        operational_updated_at = resolved["updated_at"]
         workspace = journal.update_workspace(
             str(review["id"]),
             follow_up_at="2026-10-01",
