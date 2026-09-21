@@ -5,7 +5,9 @@ let inspectedRunId = null;
 let clientOnboardingBusy = null;
 let activeView = 'dashboard';
 let selectedJobId = null;
+let selectedJobDetail = null;
 let selectedApplicationId = null;
+let selectedApplicationDetail = null;
 let jobSearchTerm = '';
 let jobEligibilityFilter = 'all';
 let applicationSearchTerm = '';
@@ -411,13 +413,16 @@ const jobsView = document.getElementById('jobs');
       if (!query) return true;
       return [job.employer, job.title, job.location, job.compensation_text].some(value => String(value || '').toLowerCase().includes(query));
     });
-    if (!filteredJobs.some(job => job.id === selectedJobId)) selectedJobId = filteredJobs[0]?.id || null;
+    if (!filteredJobs.some(job => job.id === selectedJobId)) {
+      selectedJobId = null;
+      selectedJobDetail = null;
+    }
     document.getElementById('job-list').innerHTML = filteredJobs.length ? filteredJobs.map(job => {
       const selected = job.id === selectedJobId ? ' selected' : '';
       return `<button type="button" class="workspace-list-item${selected}" data-job-select="${escapeAttr(job.id)}"><span><strong>${escapeHtml(job.title)}</strong><br><span class="muted">${escapeHtml(job.employer)} · ${escapeHtml(job.location)}</span></span><span><span class="pill ${escapeAttr(job.eligibility)}">${escapeHtml(job.eligibility)}</span><br><strong>${Number(job.score)}/100</strong></span></button>`;
     }).join('') : '<p>No jobs match the current filters.</p>';
 
-    const selectedJob = filteredJobs.find(job => job.id === selectedJobId);
+    const selectedJob = selectedJobDetail?.id === selectedJobId ? selectedJobDetail : null;
     const detail = document.getElementById('job-detail');
     if (!selectedJob) {
       detail.innerHTML = '<p>Select a job to inspect its saved snapshot.</p>';
@@ -456,16 +461,19 @@ const jobsView = document.getElementById('jobs');
     jobEligibilityFilter = event.target.value;
     if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
   });
-  document.getElementById('job-list').addEventListener('click', event => {
+  document.getElementById('job-list').addEventListener('click', async event => {
     const button = event.target.closest('[data-job-select]');
     if (!button) return;
     selectedJobId = button.dataset.jobSelect;
+    selectedJobDetail = await invokeRaw('job_workspace_detail', selectedJobId);
     if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
   });
   document.getElementById('job-detail').addEventListener('click', async event => {
     const jobId = event.target.dataset.jobRefreshMetadata;
     if (!jobId) return;
     await invokeOnboarding('refresh_job_metadata', 'job metadata refresh', jobId);
+    selectedJobDetail = await invokeRaw('job_workspace_detail', jobId);
+    if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
     toast('Public job metadata refreshed');
   });
 
@@ -574,14 +582,17 @@ const jobsView = document.getElementById('jobs');
       return [item.employer, item.title, item.location, item.provider, item.notes, item.next_action]
         .some(value => String(value || '').toLowerCase().includes(query));
     });
-    if (!filteredApplications.some(item => item.id === selectedApplicationId)) selectedApplicationId = filteredApplications[0]?.id || null;
+    if (!filteredApplications.some(item => item.id === selectedApplicationId)) {
+      selectedApplicationId = null;
+      selectedApplicationDetail = null;
+    }
     document.getElementById('orchestration-history').innerHTML = filteredApplications.length ? filteredApplications.map(item => {
       const selected = item.id === selectedApplicationId ? ' selected' : '';
       const followUp = item.follow_up_at ? `<br><span class="muted">Follow up ${escapeHtml(displayDate(item.follow_up_at))}</span>` : '';
       return `<button type="button" class="workspace-list-item${selected}" data-application-select="${escapeAttr(item.id)}"><span><strong>${escapeHtml(identity(item))}</strong><br><span class="muted">${escapeHtml(item.provider || 'local')} · ${escapeHtml(item.location || 'location unknown')}</span>${followUp}</span><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span></button>`;
     }).join('') : '<p>No applications match the current filters.</p>';
 
-    const selectedApplication = filteredApplications.find(item => item.id === selectedApplicationId);
+    const selectedApplication = selectedApplicationDetail?.id === selectedApplicationId ? selectedApplicationDetail : null;
     const detail = document.getElementById('application-detail');
     if (!selectedApplication) {
       detail.innerHTML = '<p>Select an application to inspect its local record.</p>';
@@ -625,10 +636,11 @@ const jobsView = document.getElementById('jobs');
     applicationStateFilter = event.target.value;
     if (latestState) renderOrchestration(latestState);
   });
-  document.getElementById('orchestration-history').addEventListener('click', event => {
+  document.getElementById('orchestration-history').addEventListener('click', async event => {
     const button = event.target.closest('[data-application-select]');
     if (!button) return;
     selectedApplicationId = button.dataset.applicationSelect;
+    selectedApplicationDetail = await invokeRaw('application_workspace_detail', selectedApplicationId);
     if (latestState) renderOrchestration(latestState);
   });
   document.getElementById('application-detail').addEventListener('submit', async event => {
@@ -641,6 +653,8 @@ const jobsView = document.getElementById('jobs');
       document.getElementById('application-notes').value,
       document.getElementById('application-next-action').value,
     );
+    selectedApplicationDetail = await invokeRaw('application_workspace_detail', selectedApplicationId);
+    if (latestState) renderOrchestration(latestState);
     toast('Application workspace saved locally');
   });
   document.getElementById('application-detail').addEventListener('click', async event => {
