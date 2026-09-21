@@ -26,20 +26,25 @@ The current feature slice implements:
 - [x] local follow-up date, notes, and next action metadata without adding another application state machine;
 - [x] merged as PR #25 after Windows CI and Windows Acceptance passed.
 
-## Local-AI maintenance evaluation [~]
+## Local-AI maintenance evaluation [x]
 
-- [x] research the current stable llama.cpp release and exact Windows x64 artifacts;
-- [x] catalogue v0.4.1/b10964 CPU/Vulkan as maintenance candidates with exact size/SHA-256;
-- [~] run the existing Windows quality/resource evaluation against b10964 using the current pinned Qwen3 4B model;
-- [ ] keep b10809 as the validated baseline unless the candidate passes and a user explicitly selects it;
-- [ ] any selected replacement must complete the existing five-distinct-resume review gate before automatic tailoring can use it.
+- [x] researched stable llama.cpp v0.4.1 and exact b10964 Windows x64 artifacts;
+- [x] catalogued b10964 CPU/Vulkan as maintenance candidates with exact size/SHA-256;
+- [x] b10964 CPU passed the existing Windows structured/factual/tailoring/resource evaluation against the pinned Qwen3 4B model;
+- [x] b10809 remained selected after candidate evaluation; there was no automatic promotion;
+- [x] any future explicit runtime change remains bound to the existing five-distinct-resume review gate.
 
-## Private product evidence [!]
+## Private product evidence
 
-These are not repository-development blockers and cannot be satisfied by synthetic CI:
+### Five-resume human review gate [~]
 
-- five distinct real tailored resumes must be explicitly approved under one current local review context;
-- run the measured real-world application pilot from private local data and record armed/confirmed/blocked/review/stale/`UNCERTAIN` outcomes plus elapsed/local-day throughput;
-- do not claim 50 confirmed applications/day without measured evidence.
+- [ ] run `python -m jobpilot.app.main --review-gate-report` on the Windows machine holding the private profile;
+- [ ] approve five distinct real tailored resumes under one unchanged current review context;
+- [ ] require the privacy-safe report to return exit code 0.
+
+### Measured real-world pilot [!]
+
+- [ ] run the measured pilot from private local data and record armed/confirmed/blocked/review/stale/`UNCERTAIN` outcomes plus elapsed/local-day throughput;
+- [ ] do not claim 50 confirmed applications/day without measured evidence.
 
 See `docs/PHASE4_CLOSEOUT.md` and `docs/PHASE9_PILOT_ACCEPTANCE.md`.
