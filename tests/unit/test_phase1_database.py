@@ -15,7 +15,7 @@ ALL = [
     "007_phase5_jobs.sql",
     "008_phase6_applications.sql",
     "009_phase8_orchestration.sql",
-            "010_job_application_workspace.sql",
+    "010_job_application_workspace.sql",
 ]
 
 
