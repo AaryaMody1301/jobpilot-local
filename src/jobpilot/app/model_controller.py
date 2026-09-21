@@ -95,7 +95,7 @@ class ModelController(ApplicationController):
     def select_model_for_review(self, model_install_id: str) -> dict[str, Any]:
         with self._lock:
             self._require_idle_onboarding()
-            result = self.models.select_for_phase4_review(model_install_id)
+            result = self.models.select_for_review(model_install_id)
             selected = result["selection"]
             self.database.record_foundation_activity(
                 self.session_id,
