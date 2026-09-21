@@ -23,7 +23,7 @@ The deterministic suite runs once per PR rather than once per historical phase. 
 
 ## Job/application workspace
 
-The current feature branch adds migration `010_job_application_workspace.sql` and keeps user-workspace metadata separate from application state transitions.
+PR #25 merged the job/application workspace with migration `010_job_application_workspace.sql`; user-workspace metadata remains separate from application state transitions.
 
 - Jobs can be searched/filtered and inspected from their saved local snapshot, including the JD, evidence match, compensation and deadline metadata when available.
 - Lever/Ashby compensation is captured from their public board payloads. Greenhouse pay/deadline metadata is refreshed only on explicit user request from the public per-job endpoint.
@@ -45,7 +45,9 @@ The current feature branch adds migration `010_job_application_workspace.sql` an
 
 The committed Windows x64 / CPython 3.13 dependency graph is hash-addressed in `pylock.toml`. Isolated sdist builds are constrained by `requirements-build.in`.
 
-The validated local-AI baseline remains llama.cpp v0.4.0 / b10809 with the accepted Qwen3 4B GGUF revision. Cleanup does not silently upgrade this trust boundary.
+The validated local-AI baseline remains llama.cpp v0.4.0 / b10809 with the accepted Qwen3 4B GGUF revision.
+
+Maintenance PR 5 evaluates stable llama.cpp v0.4.1 / b10964 as a side-by-side CPU/Vulkan candidate. The exact GitHub Windows artifacts are pinned by size and SHA-256, the existing controlled quality/resource suite must pass, and the selected baseline must not auto-switch. No model revision is changed.
 
 ## Active private gates
 
