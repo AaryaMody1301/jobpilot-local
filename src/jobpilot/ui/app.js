@@ -405,7 +405,7 @@ const jobsView = document.getElementById('jobs');
     document.getElementById('job-counts').textContent = `${jobs.counts.eligible} eligible · ${jobs.counts.review} review · ${jobs.counts.ineligible} ineligible · ${jobs.approved_evidence_facts} approved evidence facts`;
     document.getElementById('job-board-list').innerHTML = jobs.boards.map(board => `
       <label class="region-item"><input type="checkbox" data-job-board-id="${escapeAttr(board.id)}" ${Number(board.enabled) === 1 ? 'checked' : ''} ${idle ? '' : 'disabled'}><span><strong>${escapeHtml(board.employer)}</strong> · ${escapeHtml(board.provider)} · <code>${escapeHtml(board.board_token)}</code><br>${board.last_checked_at ? `Checked ${escapeHtml(board.last_checked_at)}` : 'Not checked this install'}${board.last_error ? `<br><span class="error-text">${escapeHtml(board.last_error)}</span>` : ''}</span></label>`).join('');
-    const query = jobSearchTerm.casefold ? jobSearchTerm.casefold() : jobSearchTerm.toLowerCase();
+    const query = jobSearchTerm.toLowerCase();
     const filteredJobs = jobs.items.filter(job => {
       if (jobEligibilityFilter !== 'all' && job.eligibility !== jobEligibilityFilter) return false;
       if (!query) return true;
@@ -414,7 +414,7 @@ const jobsView = document.getElementById('jobs');
     if (!filteredJobs.some(job => job.id === selectedJobId)) selectedJobId = filteredJobs[0]?.id || null;
     document.getElementById('job-list').innerHTML = filteredJobs.length ? filteredJobs.map(job => {
       const selected = job.id === selectedJobId ? ' selected' : '';
-      return \`<button type="button" class="workspace-list-item\${selected}" data-job-select="\${escapeAttr(job.id)}"><span><strong>\${escapeHtml(job.title)}</strong><br><span class="muted">\${escapeHtml(job.employer)} · \${escapeHtml(job.location)}</span></span><span><span class="pill \${escapeAttr(job.eligibility)}">\${escapeHtml(job.eligibility)}</span><br><strong>\${Number(job.score)}/100</strong></span></button>\`;
+      return `<button type="button" class="workspace-list-item${selected}" data-job-select="${escapeAttr(job.id)}"><span><strong>${escapeHtml(job.title)}</strong><br><span class="muted">${escapeHtml(job.employer)} · ${escapeHtml(job.location)}</span></span><span><span class="pill ${escapeAttr(job.eligibility)}">${escapeHtml(job.eligibility)}</span><br><strong>${Number(job.score)}/100</strong></span></button>`;
     }).join('') : '<p>No jobs match the current filters.</p>';
 
     const selectedJob = filteredJobs.find(job => job.id === selectedJobId);
@@ -427,24 +427,24 @@ const jobsView = document.getElementById('jobs');
     const missingRequired = selectedJob.required_requirements.filter(item => !selectedJob.matched_required.includes(item));
     const missingPreferred = selectedJob.preferred_requirements.filter(item => !selectedJob.matched_preferred.includes(item));
     const score = selectedJob.score_reasons || {};
-    detail.innerHTML = \`<div class="card-heading"><div><h2>\${escapeHtml(selectedJob.title)}</h2><p>\${escapeHtml(selectedJob.employer)} · \${escapeHtml(selectedJob.location)}</p></div><span class="pill \${escapeAttr(selectedJob.eligibility)}">\${escapeHtml(selectedJob.eligibility)}</span></div>
+    detail.innerHTML = `<div class="card-heading"><div><h2>${escapeHtml(selectedJob.title)}</h2><p>${escapeHtml(selectedJob.employer)} · ${escapeHtml(selectedJob.location)}</p></div><span class="pill ${escapeAttr(selectedJob.eligibility)}">${escapeHtml(selectedJob.eligibility)}</span></div>
       <div class="detail-list">
-        <div><span>Provider</span><strong>\${escapeHtml(selectedJob.provider)}</strong></div>
-        <div><span>Workplace</span><strong>\${escapeHtml(selectedJob.workplace_type || 'Unknown')}</strong></div>
-        <div><span>Employment</span><strong>\${escapeHtml(selectedJob.employment_type || 'Unknown')}</strong></div>
-        <div><span>Compensation</span><strong>\${escapeHtml(selectedJob.compensation_text || 'Not provided')}</strong></div>
-        <div><span>Application deadline</span><strong>\${escapeHtml(displayDate(selectedJob.application_deadline))}</strong></div>
-        <div><span>Published</span><strong>\${escapeHtml(displayDate(selectedJob.published_at))}</strong></div>
-        <div><span>Last seen</span><strong>\${escapeHtml(displayDate(selectedJob.last_seen_at))}</strong></div>
-        <div><span>Evidence score</span><strong>\${Number(selectedJob.score)}/100</strong></div>
+        <div><span>Provider</span><strong>${escapeHtml(selectedJob.provider)}</strong></div>
+        <div><span>Workplace</span><strong>${escapeHtml(selectedJob.workplace_type || 'Unknown')}</strong></div>
+        <div><span>Employment</span><strong>${escapeHtml(selectedJob.employment_type || 'Unknown')}</strong></div>
+        <div><span>Compensation</span><strong>${escapeHtml(selectedJob.compensation_text || 'Not provided')}</strong></div>
+        <div><span>Application deadline</span><strong>${escapeHtml(displayDate(selectedJob.application_deadline))}</strong></div>
+        <div><span>Published</span><strong>${escapeHtml(displayDate(selectedJob.published_at))}</strong></div>
+        <div><span>Last seen</span><strong>${escapeHtml(displayDate(selectedJob.last_seen_at))}</strong></div>
+        <div><span>Evidence score</span><strong>${Number(selectedJob.score)}/100</strong></div>
       </div>
-      <div class="fact-source"><strong>Source URL</strong><br>\${escapeHtml(selectedJob.source_url)}</div>
-      \${selectedJob.apply_url ? \`<div class="fact-source"><strong>Apply URL</strong><br>\${escapeHtml(selectedJob.apply_url)}</div>\` : ''}
-      \${reasons.length ? \`<div class="fact-source"><strong>Eligibility/review reasons</strong><br>\${reasons.map(escapeHtml).join('<br>')}</div>\` : ''}
-      <div class="fact-source"><strong>Evidence summary</strong><br>Required \${selectedJob.matched_required.length}/\${selectedJob.required_requirements.length} · Preferred \${selectedJob.matched_preferred.length}/\${selectedJob.preferred_requirements.length}<br>Ranking: role \${Number(score.role || 0)} · required evidence \${Number(score.required_evidence || 0)} · preferred evidence \${Number(score.preferred_evidence || 0)} · eligibility clarity \${Number(score.eligibility_clarity || 0)}</div>
-      \${missingRequired.length ? \`<div class="fact-source"><strong>Missing required evidence</strong><br>\${missingRequired.map(escapeHtml).join('<br>')}</div>\` : ''}
-      \${missingPreferred.length ? \`<div class="fact-source"><strong>Missing preferred evidence</strong><br>\${missingPreferred.map(escapeHtml).join('<br>')}</div>\` : ''}
-      <details class="workspace-description"><summary>Saved job description</summary><pre>\${escapeHtml(selectedJob.description || '')}</pre></details>\`;
+      <div class="fact-source"><strong>Source URL</strong><br>${escapeHtml(selectedJob.source_url)}</div>
+      ${selectedJob.apply_url ? `<div class="fact-source"><strong>Apply URL</strong><br>${escapeHtml(selectedJob.apply_url)}</div>` : ''}
+      ${reasons.length ? `<div class="fact-source"><strong>Eligibility/review reasons</strong><br>${reasons.map(escapeHtml).join('<br>')}</div>` : ''}
+      <div class="fact-source"><strong>Evidence summary</strong><br>Required ${selectedJob.matched_required.length}/${selectedJob.required_requirements.length} · Preferred ${selectedJob.matched_preferred.length}/${selectedJob.preferred_requirements.length}<br>Ranking: role ${Number(score.role || 0)} · required evidence ${Number(score.required_evidence || 0)} · preferred evidence ${Number(score.preferred_evidence || 0)} · eligibility clarity ${Number(score.eligibility_clarity || 0)}</div>
+      ${missingRequired.length ? `<div class="fact-source"><strong>Missing required evidence</strong><br>${missingRequired.map(escapeHtml).join('<br>')}</div>` : ''}
+      ${missingPreferred.length ? `<div class="fact-source"><strong>Missing preferred evidence</strong><br>${missingPreferred.map(escapeHtml).join('<br>')}</div>` : ''}
+      <details class="workspace-description"><summary>Saved job description</summary><pre>${escapeHtml(selectedJob.description || '')}</pre></details>`;
   }
 
   document.getElementById('job-search').addEventListener('input', event => {
