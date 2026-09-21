@@ -98,8 +98,8 @@ def _state(*, pilot_active: bool = False) -> dict:
 def test_final_shell_has_current_product_ui_without_development_fixture_controls(chromium_page) -> None:
     with local_ui_server() as url:
         chromium_page.goto(url)
-        chromium_page.wait_for_selector("#distribution-panel")
-        chromium_page.wait_for_selector("#orchestration-panel")
+        chromium_page.locator("#distribution-panel").wait_for(state="attached")
+        chromium_page.locator("#orchestration-panel").wait_for(state="attached")
 
         body = chromium_page.locator("body").inner_text()
         assert "PHASE 4" not in body
