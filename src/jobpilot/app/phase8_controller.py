@@ -122,6 +122,28 @@ class Phase8ApplicationController(Phase6ApplicationController):
             )
             return self.snapshot()
 
+    def update_application_workspace(
+        self,
+        application_id: str,
+        follow_up_at: str | None,
+        notes: str,
+        next_action: str,
+    ) -> dict[str, Any]:
+        with self._lock:
+            self._require_open()
+            self.applications.update_workspace(
+                application_id,
+                follow_up_at=follow_up_at,
+                notes=notes,
+                next_action=next_action,
+            )
+            self.database.record_foundation_activity(
+                self.session_id,
+                "application_workspace",
+                f"Updated follow-up workspace metadata for {application_id}",
+            )
+            return self.snapshot()
+
     def queue_prepared_controlled_application(self, application_id: str, target_url: str) -> dict[str, Any]:
         with self._lock:
             self._require_open()
