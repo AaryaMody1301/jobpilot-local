@@ -422,7 +422,10 @@ const jobsView = document.getElementById('jobs');
       return `<button type="button" class="workspace-list-item${selected}" data-job-select="${escapeAttr(job.id)}"><span><strong>${escapeHtml(job.title)}</strong><br><span class="muted">${escapeHtml(job.employer)} · ${escapeHtml(job.location)}</span></span><span><span class="pill ${escapeAttr(job.eligibility)}">${escapeHtml(job.eligibility)}</span><br><strong>${Number(job.score)}/100</strong></span></button>`;
     }).join('') : '<p>No jobs match the current filters.</p>';
 
-    const selectedJob = selectedJobDetail?.id === selectedJobId ? selectedJobDetail : null;
+    const selectedJobSummary = filteredJobs.find(job => job.id === selectedJobId);
+    const selectedJob = selectedJobDetail?.id === selectedJobId && selectedJobSummary
+      ? {...selectedJobDetail, ...selectedJobSummary}
+      : null;
     const detail = document.getElementById('job-detail');
     if (!selectedJob) {
       detail.innerHTML = '<p>Select a job to inspect its saved snapshot.</p>';
@@ -592,7 +595,10 @@ const jobsView = document.getElementById('jobs');
       return `<button type="button" class="workspace-list-item${selected}" data-application-select="${escapeAttr(item.id)}"><span><strong>${escapeHtml(identity(item))}</strong><br><span class="muted">${escapeHtml(item.provider || 'local')} · ${escapeHtml(item.location || 'location unknown')}</span>${followUp}</span><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span></button>`;
     }).join('') : '<p>No applications match the current filters.</p>';
 
-    const selectedApplication = selectedApplicationDetail?.id === selectedApplicationId ? selectedApplicationDetail : null;
+    const selectedApplicationSummary = filteredApplications.find(item => item.id === selectedApplicationId);
+    const selectedApplication = selectedApplicationDetail?.id === selectedApplicationId && selectedApplicationSummary
+      ? {...selectedApplicationDetail, ...selectedApplicationSummary}
+      : null;
     const detail = document.getElementById('application-detail');
     if (!selectedApplication) {
       detail.innerHTML = '<p>Select an application to inspect its local record.</p>';
