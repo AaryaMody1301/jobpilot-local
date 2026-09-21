@@ -46,7 +46,7 @@ def create_controller(
     )
 
 
-def run_phase4_gate_report(paths: ManagedPaths | None = None) -> dict[str, object]:
+def run_review_gate_report(paths: ManagedPaths | None = None) -> dict[str, object]:
     """Return a privacy-safe human-review gate report for the active local profile."""
     controller = create_controller(paths)
     try:
@@ -85,6 +85,7 @@ def run_phase4_gate_report(paths: ManagedPaths | None = None) -> dict[str, objec
             "remaining": remaining,
             "persisted_gate_complete": bool(raw_gate.get("complete")),
             "current_review_context_complete": gate_current,
+            "ready_to_close_review_gate": gate_current,
             "ready_to_close_phase4": gate_current,
             "automatic_tailoring_enabled": bool(tailoring.get("auto_tailoring_enabled")),
             "employer_submission_enabled": bool(tailoring.get("employer_submission_enabled")),
@@ -103,6 +104,10 @@ def run_phase4_gate_report(paths: ManagedPaths | None = None) -> dict[str, objec
         }
     finally:
         controller.close()
+
+
+# Backward-compatible name retained for scripts/docs that predate the final product terminology.
+run_phase4_gate_report = run_review_gate_report
 
 
 def run_self_test() -> dict[str, object]:
@@ -269,12 +274,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--self-test", action="store_true", help="run local packaged acceptance checks")
     parser.add_argument("--window-smoke", action="store_true", help="open a hidden Windows pywebview smoke window and exit")
     parser.add_argument("--browser-smoke", action="store_true", help="launch the packaged Playwright Chromium and exit")
-    parser.add_argument("--phase4-gate-report", action="store_true", help="print the privacy-safe five-resume human-gate report")
+    parser.add_argument("--review-gate-report", "--phase4-gate-report", dest="review_gate_report", action="store_true", help="print the privacy-safe five-resume human-review gate report")
     args = parser.parse_args(argv)
-    if args.phase4_gate_report:
-        report = run_phase4_gate_report()
+    if args.review_gate_report:
+        report = run_review_gate_report()
         print(json.dumps(report, sort_keys=True))
-        return 0 if report["ready_to_close_phase4"] else 2
+        return 0 if report["ready_to_close_review_gate"] else 2
     if args.self_test:
         print(json.dumps(run_self_test(), sort_keys=True))
         return 0
