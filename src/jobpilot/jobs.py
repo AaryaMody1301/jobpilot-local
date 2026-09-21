@@ -100,6 +100,52 @@ def _json_get(url: str, *, timeout: float = 20.0) -> object:
         raise RuntimeError("job board returned invalid JSON") from exc
 
 
+def _greenhouse_pay_summary(value: object) -> str:
+    if not isinstance(value, list):
+        return ""
+    parts: list[str] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            continue
+        currency = _clean(item.get("currency_type"))
+        minimum = item.get("min_cents")
+        maximum = item.get("max_cents")
+        title = _clean(item.get("title"))
+        if minimum is None or maximum is None or not currency:
+            continue
+        try:
+            low = int(minimum) / 100
+            high = int(maximum) / 100
+        except (TypeError, ValueError):
+            continue
+        amount = f"{currency} {low:g} - {high:g}"
+        parts.append(f"{title}: {amount}" if title else amount)
+    return "; ".join(parts)[:500]
+
+
+def fetch_job_metadata(job: Mapping[str, Any]) -> dict[str, str | None]:
+    provider = _clean(job.get("provider"))
+    current = {
+        "compensation_text": _clean(job.get("compensation_text")) or None,
+        "application_deadline": _clean(job.get("application_deadline")) or None,
+    }
+    if provider != "greenhouse":
+        return current
+    token = _board_token(job.get("board_token"))
+    source_job_id = _clean(job.get("source_job_id"))
+    if not source_job_id.isdigit():
+        raise ValueError("Greenhouse job identifier must be numeric")
+    payload = _json_get(
+        f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs/{source_job_id}?pay_transparency=true"
+    )
+    if not isinstance(payload, Mapping):
+        raise RuntimeError("Greenhouse job detail returned invalid JSON")
+    return {
+        "compensation_text": _greenhouse_pay_summary(payload.get("pay_input_ranges")) or current["compensation_text"],
+        "application_deadline": _clean(payload.get("application_deadline")) or current["application_deadline"],
+    }
+
+
 def _employment(value: object, description: str = "") -> str:
     text = _key(value) or _key(description[:3000])
     if any(term in text for term in ("full time", "fulltime", "permanent")):
@@ -426,6 +472,40 @@ class JobStore:
                 (board_id, provider, employer, token, int(user_added), verification_source, now),
             )
         return next(row for row in self.boards() if row["id"] == board_id)
+
+    def job(self, job_id: str) -> dict[str, Any]:
+        with self.database._lock:
+            row = self.database.connection.execute(
+                "SELECT * FROM discovered_jobs WHERE id=?",
+                (str(job_id),),
+            ).fetchone()
+        if row is None:
+            raise KeyError(job_id)
+        return dict(row)
+
+    def update_metadata(
+        self,
+        job_id: str,
+        *,
+        compensation_text: str | None,
+        application_deadline: str | None,
+    ) -> dict[str, Any]:
+        compensation = _clean(compensation_text)
+        deadline = _clean(application_deadline)
+        if len(compensation) > 500 or len(deadline) > 80:
+            raise ValueError("job metadata exceeds supported size")
+        with self.database.transaction() as connection:
+            updated = connection.execute(
+                """
+                UPDATE discovered_jobs
+                   SET compensation_text=?, application_deadline=?
+                 WHERE id=?
+                """,
+                (compensation or None, deadline or None, str(job_id)),
+            ).rowcount
+            if updated != 1:
+                raise KeyError(job_id)
+        return self.job(job_id)
 
     def set_board_enabled(self, board_id: str, enabled: bool) -> None:
         with self.database.transaction() as connection:
