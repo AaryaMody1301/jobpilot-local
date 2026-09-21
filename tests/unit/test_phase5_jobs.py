@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from jobpilot.jobs import JobStore, assess_job, dedupe_jobs, normalize_manual_job, parse_board_payload
+import jobpilot.jobs as jobs_module
+from jobpilot.jobs import JobStore, assess_job, dedupe_jobs, fetch_job_metadata, normalize_manual_job, parse_board_payload
 from jobpilot.settings import TargetingSettings
 from jobpilot.storage.database import Database
 
@@ -155,3 +156,28 @@ def test_board_refresh_hides_jobs_removed_from_the_current_feed(tmp_path: Path) 
         assert [job["source_job_id"] for job in store.jobs()] == ["keep"]
         inactive = db.connection.execute("SELECT active FROM discovered_jobs WHERE source_job_id='gone'").fetchone()
         assert inactive is not None and inactive["active"] == 0
+
+
+def test_greenhouse_detail_refresh_extracts_deadline_and_pay_without_board_crawl(monkeypatch) -> None:
+    monkeypatch.setattr(
+        jobs_module,
+        "_json_get",
+        lambda url: {
+            "application_deadline": "2026-10-31T23:59:59Z",
+            "pay_input_ranges": [{
+                "min_cents": 5000000,
+                "max_cents": 7500000,
+                "currency_type": "USD",
+                "title": "Salary Range",
+            }],
+        },
+    )
+    metadata = fetch_job_metadata({
+        "provider": "greenhouse",
+        "board_token": "acme",
+        "source_job_id": "12345",
+        "compensation_text": None,
+        "application_deadline": None,
+    })
+    assert metadata["application_deadline"] == "2026-10-31T23:59:59Z"
+    assert metadata["compensation_text"] == "Salary Range: USD 50000 - 75000"
