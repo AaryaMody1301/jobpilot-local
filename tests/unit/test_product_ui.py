@@ -95,6 +95,9 @@ def test_job_and_application_workspaces_keep_saved_job_resume_and_follow_up_toge
         "manual-job-compensation", "manual-job-deadline",
     ):
         assert f'id="{control_id}"' in js
+    assert "job_workspace_detail" in js
+    assert "application_workspace_detail" in js
+    assert "refresh_job_metadata" in js
     assert "update_application_workspace" in js
     assert "data-application-preview" in js
     assert "tailored_pdf_data_uri" in js
