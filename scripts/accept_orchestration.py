@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from jobpilot.app.phase8_main import create_controller
+from jobpilot.app.main import create_controller
 from jobpilot.domain.states import ApplicationState
 from jobpilot.runtime.paths import ManagedPaths
 
@@ -24,8 +24,8 @@ class _FixtureHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         self._send(b'''<!doctype html><html><body><form method="post" action="/apply">
-        <input data-jobpilot-key="name" data-jobpilot-label="Full name" data-jobpilot-context="phase8-v1" required>
-        <input type="email" data-jobpilot-key="email" data-jobpilot-label="Email" data-jobpilot-context="phase8-v1" required>
+        <input data-jobpilot-key="name" data-jobpilot-label="Full name" data-jobpilot-context="orchestration-v1" required>
+        <input type="email" data-jobpilot-key="email" data-jobpilot-label="Email" data-jobpilot-context="orchestration-v1" required>
         <button data-jobpilot-submit type="submit">Submit</button></form></body></html>''')
 
     def do_POST(self) -> None:
@@ -64,7 +64,7 @@ def _wait(controller: object, application_id: str, expected: str, timeout: float
         if attempt["state"] == expected:
             return state
         time.sleep(0.1)
-    raise AssertionError(f"Phase 8 application did not reach {expected}")
+    raise AssertionError(f"orchestration application did not reach {expected}")
 
 
 def main() -> int:
@@ -73,19 +73,19 @@ def main() -> int:
     thread.start()
     target = f"http://127.0.0.1:{server.server_port}/form"
     try:
-        with TemporaryDirectory(prefix="jobpilot-phase8-acceptance-") as temp_dir:
+        with TemporaryDirectory(prefix="jobpilot-orchestration-acceptance-") as temp_dir:
             controller = create_controller(ManagedPaths(Path(temp_dir) / "JobPilotLocal"), sample_item_seconds=0.01)
             try:
                 for board in controller.job_store.boards():
                     controller.set_job_board_enabled(str(board["id"]), False)
                 controller.import_manual_job({
-                    "employer": "Phase 8 Fixture Co",
+                    "employer": "orchestration Fixture Co",
                     "title": "Data Analyst",
                     "location": "Surat, India",
                     "workplace_type": "onsite",
                     "employment_type": "permanent_full_time",
-                    "source_url": "https://example.invalid/jobs/phase8-controlled",
-                    "apply_url": "https://example.invalid/jobs/phase8-controlled/apply",
+                    "source_url": "https://example.invalid/jobs/orchestration-controlled",
+                    "apply_url": "https://example.invalid/jobs/orchestration-controlled/apply",
                     "description": "Permanent full-time data analyst role in Surat.",
                 })
                 job = controller.job_store.jobs()[0]
@@ -95,7 +95,7 @@ def main() -> int:
                 application_id = str(attempt["id"])
                 controller.applications.begin_tailoring(application_id)
                 run = {
-                    "id": "phase8-controlled-run",
+                    "id": "orchestration-controlled-run",
                     "status": "approved",
                     "validation": {"overall_pass": True},
                     "manifest_sha256": "a" * 64,
@@ -134,7 +134,7 @@ def main() -> int:
         server.server_close()
         thread.join(timeout=5)
 
-    print("Phase 8 end-to-end controlled orchestration acceptance passed")
+    print("orchestration end-to-end controlled orchestration acceptance passed")
     return 0
 
 

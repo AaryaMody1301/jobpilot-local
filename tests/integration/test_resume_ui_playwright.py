@@ -44,7 +44,6 @@ def local_ui_server():
 
 def _state() -> dict:
     return {
-        "phase": 2,
         "session_id": "fixture-session",
         "session_state": "idle",
         "worker_alive": False,

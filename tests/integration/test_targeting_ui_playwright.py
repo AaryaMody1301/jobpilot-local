@@ -64,7 +64,6 @@ def _resume_state() -> dict:
 
 def _state() -> dict:
     return {
-        "phase": 4,
         "session_id": "fixture-session",
         "session_state": "idle",
         "worker_alive": False,
@@ -90,8 +89,6 @@ def _state() -> dict:
         "activity": [],
         "data_root": "C:\\fixture\\JobPilotLocal",
         "resume": _resume_state(),
-        # This regression test intentionally supplies only Phase 1-era state.
-        # Later-phase renderers are tested in their own phase-specific suites.
         "model": None,
         "tailoring": None,
     }

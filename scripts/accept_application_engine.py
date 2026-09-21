@@ -7,8 +7,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from jobpilot.app.phase6_main import create_controller
+from jobpilot.app.phase6_controller import Phase6ApplicationController
 from jobpilot.runtime.paths import ManagedPaths
+
+ROOT = Path(__file__).resolve().parents[1]
+MIGRATIONS = ROOT / "migrations"
 
 
 class FixtureHandler(BaseHTTPRequestHandler):
@@ -82,7 +85,7 @@ def _wait(controller: object, predicate: object, timeout: float = 15.0) -> dict[
         if predicate(state):  # type: ignore[operator]
             return state
         time.sleep(0.1)
-    raise AssertionError("controlled Phase 6 fixture condition timed out")
+    raise AssertionError("controlled application engine fixture condition timed out")
 
 
 def main() -> int:
@@ -91,9 +94,9 @@ def main() -> int:
     thread.start()
     base = f"http://127.0.0.1:{server.server_port}"
     try:
-        with TemporaryDirectory(prefix="jobpilot-phase6-acceptance-") as temp_dir:
+        with TemporaryDirectory(prefix="jobpilot-application-engine-acceptance-") as temp_dir:
             paths = ManagedPaths(Path(temp_dir) / "JobPilotLocal")
-            controller = create_controller(paths, sample_item_seconds=0.01)
+            controller = Phase6ApplicationController(paths, MIGRATIONS, sample_item_seconds=0.01)
             try:
                 controller.queue_controlled_application("fixture-success", base + "/success")
                 controller.start()
@@ -136,7 +139,7 @@ def main() -> int:
         server.server_close()
         thread.join(timeout=5)
 
-    print("Phase 6 controlled localhost application acceptance passed")
+    print("application engine controlled localhost application acceptance passed")
     return 0
 
 

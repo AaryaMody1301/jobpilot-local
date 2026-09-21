@@ -106,7 +106,7 @@ def main() -> int:
         (LeverAdapter, "Nium", "nium", "apply_url"),
         (AshbyAdapter, "Ashby", "ashby", "apply_url"),
     )
-    with tempfile.TemporaryDirectory(prefix="jobpilot-phase7-") as temp_dir, sync_playwright() as playwright:
+    with tempfile.TemporaryDirectory(prefix="jobpilot-platform-adapters-") as temp_dir, sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         try:
             results = {}

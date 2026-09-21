@@ -18,7 +18,7 @@ def main() -> int:
         if not fixture.is_file():
             raise RuntimeError(f"controlled resume fixture is missing: {fixture}")
 
-    with tempfile.TemporaryDirectory(prefix="jobpilot-phase2-tectonic-") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="jobpilot-resume-toolchain-tectonic-") as temp_dir:
         paths = ManagedPaths(Path(temp_dir) / "JobPilotLocal")
         controller = ApplicationController(paths, MIGRATIONS, sample_item_seconds=0.05)
         try:
