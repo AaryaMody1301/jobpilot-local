@@ -133,7 +133,8 @@ def _workplace(value: object, location: str, description: str = "") -> str:
 
 def _job(provider: str, board_token: str, employer: str, source_id: object, *, title: object, location: object,
          description: object, workplace: object = "", employment: object = "", source_url: object,
-         apply_url: object = "", published_at: object = "") -> dict[str, Any]:
+         apply_url: object = "", published_at: object = "", compensation: object = "",
+         application_deadline: object = "") -> dict[str, Any]:
     title_text = _clean(title)
     employer_text = _clean(employer)
     location_text = _clean(location) or "Unknown"
@@ -157,6 +158,8 @@ def _job(provider: str, board_token: str, employer: str, source_id: object, *, t
         "apply_url": _url(apply_url) if _clean(apply_url) else None,
         "description": description_text[:100_000],
         "published_at": _clean(published_at) or None,
+        "compensation_text": _clean(compensation) or None,
+        "application_deadline": _clean(application_deadline) or None,
     }
 
 
@@ -181,11 +184,19 @@ def parse_board_payload(provider: str, employer: str, token: str, payload: objec
             if not isinstance(item, Mapping) or not item.get("id") or not item.get("text"):
                 continue
             categories = item.get("categories") or {}
+            salary = item.get("salaryRange") or {}
+            salary_text = _clean(item.get("salaryDescriptionPlain"))
+            if isinstance(salary, Mapping) and salary.get("currency") and salary.get("min") is not None and salary.get("max") is not None:
+                salary_text = (
+                    f"{_clean(salary.get('currency'))} {salary.get('min')} - {salary.get('max')}"
+                    + (f" ({_clean(salary.get('interval'))})" if _clean(salary.get("interval")) else "")
+                )
             jobs.append(_job(
                 provider, token, employer, item["id"], title=item["text"], location=categories.get("location", ""),
                 description=item.get("descriptionPlain") or item.get("description", ""),
                 workplace=item.get("workplaceType", ""), employment=categories.get("commitment", ""),
                 source_url=item.get("hostedUrl", ""), apply_url=item.get("applyUrl", ""),
+                compensation=salary_text,
             ))
     elif provider == "ashby":
         if not isinstance(payload, Mapping) or not isinstance(payload.get("jobs"), list):
@@ -193,11 +204,19 @@ def parse_board_payload(provider: str, employer: str, token: str, payload: objec
         for item in payload["jobs"]:
             if not isinstance(item, Mapping) or item.get("isListed") is False or not item.get("title"):
                 continue
+            compensation = item.get("compensation") or {}
+            compensation_text = ""
+            if isinstance(compensation, Mapping):
+                compensation_text = _clean(
+                    compensation.get("scrapeableCompensationSalarySummary")
+                    or compensation.get("compensationTierSummary")
+                )
             jobs.append(_job(
                 provider, token, employer, item.get("id") or item.get("jobUrl", ""), title=item["title"],
                 location=item.get("location", ""), description=item.get("descriptionPlain") or item.get("descriptionHtml", ""),
                 workplace=item.get("workplaceType", ""), employment=item.get("employmentType", ""),
                 source_url=item.get("jobUrl", ""), apply_url=item.get("applyUrl", ""), published_at=item.get("publishedAt", ""),
+                compensation=compensation_text,
             ))
     else:
         raise ValueError(f"unsupported job provider: {provider}")
@@ -216,7 +235,8 @@ def normalize_manual_job(raw: Mapping[str, Any]) -> dict[str, Any]:
         "manual", "", raw.get("employer", ""), sha256(source_url.encode()).hexdigest()[:24],
         title=raw.get("title", ""), location=raw.get("location", ""), description=raw.get("description", ""),
         workplace=raw.get("workplace_type", ""), employment=raw.get("employment_type", ""), source_url=source_url,
-        apply_url=raw.get("apply_url", ""),
+        apply_url=raw.get("apply_url", ""), compensation=raw.get("compensation_text", ""),
+        application_deadline=raw.get("application_deadline", ""),
     )
 
 
@@ -422,20 +442,22 @@ class JobStore:
             INSERT INTO discovered_jobs(
                 id, provider, board_id, board_token, source_job_id, employer, title, location,
                 workplace_type, employment_type, source_url, apply_url, description, published_at,
-                active, first_seen_at, last_seen_at, content_sha256
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+                compensation_text, application_deadline, active, first_seen_at, last_seen_at, content_sha256
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 employer=excluded.employer, title=excluded.title, location=excluded.location,
                 workplace_type=excluded.workplace_type, employment_type=excluded.employment_type,
                 source_url=excluded.source_url, apply_url=excluded.apply_url, description=excluded.description,
-                published_at=excluded.published_at, active=1, last_seen_at=excluded.last_seen_at,
+                published_at=excluded.published_at, compensation_text=excluded.compensation_text,
+                application_deadline=excluded.application_deadline, active=1, last_seen_at=excluded.last_seen_at,
                 content_sha256=excluded.content_sha256
             """,
             (
                 job_id, job["provider"], board_id, job.get("board_token", ""), job["source_job_id"],
                 job["employer"], job["title"], job["location"], job.get("workplace_type"),
                 job.get("employment_type"), job["source_url"], job.get("apply_url"), job["description"],
-                job.get("published_at"), now, now, content_sha,
+                job.get("published_at"), job.get("compensation_text"), job.get("application_deadline"),
+                now, now, content_sha,
             ),
         )
 
