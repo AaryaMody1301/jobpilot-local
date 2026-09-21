@@ -46,11 +46,6 @@ def create_controller(
     )
 
 
-def _inject_product_ui(window: object, ui_index: Path) -> None:
-    for name in ("phase5.js", "phase6.js", "phase8.js", "phase9.js"):
-        window.evaluate_js(ui_index.with_name(name).read_text(encoding="utf-8"))  # type: ignore[attr-defined]
-
-
 def run_phase4_gate_report(paths: ManagedPaths | None = None) -> dict[str, object]:
     """Return a privacy-safe human-review gate report for the active local profile."""
     controller = create_controller(paths)
@@ -211,13 +206,12 @@ def run_window_smoke() -> dict[str, object]:
                     time.sleep(0.1)
                 if not ready:
                     raise RuntimeError("pywebview product JS bridge was not exposed")
-                _inject_product_ui(window, ui_index)
                 checks["bridge_ready"] = True
                 checks["distribution_ui"] = bool(
-                    window.evaluate_js("document.getElementById('phase9-distribution') !== null")
+                    window.evaluate_js("document.getElementById('distribution-panel') !== null")
                 )
                 checks["orchestration_ui"] = bool(
-                    window.evaluate_js("document.getElementById('phase8-orchestration') !== null")
+                    window.evaluate_js("document.getElementById('orchestration-panel') !== null")
                 )
                 checks["document_title"] = window.evaluate_js("document.title")
                 if not checks["distribution_ui"] or not checks["orchestration_ui"]:
@@ -261,7 +255,6 @@ def run_desktop() -> None:
         text_select=True,
     )
     bridge.bind_window(window)
-    window.events.loaded += lambda: _inject_product_ui(window, ui_index)
     window.events.closing += lambda: bridge.close_for_window_event()
     window.events.closed += lambda: controller.close()
     webview.start(gui="edgechromium", debug=False)

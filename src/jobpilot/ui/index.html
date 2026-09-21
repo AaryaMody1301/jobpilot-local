@@ -12,23 +12,23 @@
     <aside class="sidebar">
       <div class="brand"><div class="brand-mark">JP</div><div><strong>JobPilot Local</strong><span>Private desktop workspace</span></div></div>
       <nav id="nav">
-        <button class="nav-item active" data-view="dashboard">Dashboard</button>
+        <button class="nav-item active" data-view="dashboard" aria-current="page">Dashboard</button>
         <button class="nav-item" data-view="resume">Resume &amp; facts</button>
         <button class="nav-item" data-view="model">Model &amp; resources</button>
         <button class="nav-item" data-view="tailoring">Tailor resume</button>
         <button class="nav-item" data-view="jobs">Jobs</button>
         <button class="nav-item" data-view="settings">Targeting</button>
-        <button class="nav-item" data-view="history">History</button>
+        <button class="nav-item" data-view="history">Applications</button>
         <button class="nav-item" data-view="system">Local data</button>
       </nav>
-      <div class="privacy-note">No telemetry. No cloud AI. No employer submissions in Phase 4.</div>
+      <div class="privacy-note">No telemetry. No cloud AI. Real employer submission is off by default and requires explicit per-launch activation plus per-application arming.</div>
     </aside>
     <main>
-      <header class="topbar"><div><div class="eyebrow">PHASE 4 · EVIDENCE-BASED RESUME TAILORING</div><h1 id="page-title">Dashboard</h1></div><div class="session-controls"><span id="session-badge" class="status idle">Idle</span><button id="start-button" class="primary">Start</button><button id="pause-button">Pause</button><button id="stop-button">Stop</button></div></header>
+      <header class="topbar"><div><div class="eyebrow">LOCAL-FIRST JOB APPLICATION WORKSPACE</div><h1 id="page-title">Dashboard</h1></div><div class="session-controls"><span id="session-badge" class="status idle">Idle</span><button id="start-button" class="primary">Start</button><button id="pause-button">Pause</button><button id="stop-button">Stop</button></div></header>
 
       <section id="dashboard" class="view active">
-        <div class="banner"><strong>Local tailoring review mode.</strong> Start still runs only the sample lifecycle. Resume tailoring is a separate explicit action using your approved local fact bank and the selected validated local model. Job discovery, browser filling, and employer submission remain disabled.</div>
-        <div class="metrics"><article class="metric"><span>Confirmed today</span><strong>0</strong><small>Target 50 · not a ceiling</small></article><article class="metric"><span>Resume onboarding</span><strong id="resume-ready">Not ready</strong><small id="resume-ready-detail">Import and review required</small></article><article class="metric"><span>Local model</span><strong id="model-ready">Not selected</strong><small id="model-ready-detail">Device evaluation required</small></article></div>
+        <div class="banner"><strong>Local application workspace.</strong> Discovery, matching, evidence-backed tailoring, review and application orchestration stay on this device. Real employer writes start disabled on every launch and never bypass review, eligibility, challenge or stale-package gates.</div>
+        <div class="metrics"><article class="metric"><span>Confirmed today</span><strong id="confirmed-today">0</strong><small>Target 50 · not a ceiling</small></article><article class="metric"><span>Resume onboarding</span><strong id="resume-ready">Not ready</strong><small id="resume-ready-detail">Import and review required</small></article><article class="metric"><span>Local model</span><strong id="model-ready">Not selected</strong><small id="model-ready-detail">Device evaluation required</small></article></div>
         <div class="grid two"><article class="card"><h2>Session lifecycle</h2><p>Start begins the current local workflow, Pause stops new scheduling after safe boundaries, and Stop returns the app to Idle without closing it.</p><div class="facts"><span>Explicit local session</span><span>No background scheduler</span><span>Crash-safe state</span></div></article><article class="card"><h2>Recent local activity</h2><p>Stored in the local SQLite database.</p><div id="activity" class="activity-list"></div></article></div>
       </section>
 
@@ -45,19 +45,19 @@
         <div class="grid two"><article class="card"><div class="card-heading"><div><h2>Hardware &amp; reserved resources</h2><p>Unknown GPU memory is shown as unknown rather than guessed. llama.cpp device discovery is separate from OS display-adapter evidence.</p></div><button id="refresh-hardware" class="secondary">Refresh hardware</button></div><div id="hardware-summary" class="detail-list"></div></article><article class="card"><div class="card-heading"><div><h2>Recommendation</h2><p>Recommendation never starts a download or trusts a newer model automatically.</p></div><button id="check-model-updates">Check updates</button></div><div id="model-recommendation" class="detail-list"></div></article></div>
         <article class="card section-card"><h2>llama.cpp runtimes</h2><p>CPU is the compatibility baseline. Vulkan is usable only when the installed runtime reports a concrete `VulkanN` device and that exact configuration passes local evaluation.</p><div id="runtime-catalogue" class="fact-list"></div></article>
         <article class="card section-card"><h2>Model catalogue</h2><p>Every revision is installed separately and content-pinned by exact SHA-256 and byte size. Catalogue size is intentionally small.</p><div id="model-catalogue" class="fact-list"></div></article>
-        <article class="card section-card"><h2>Phase 4 review gate</h2><p>The selected model/configuration must earn five human approvals from five distinct real tailored resumes before automatic tailoring can be enabled.</p><div id="model-review-gate" class="detail-list"></div></article>
+        <article class="card section-card"><h2>Human review gate</h2><p>The selected model/configuration must earn five human approvals from five distinct real tailored resumes before automatic tailoring can be enabled.</p><div id="model-review-gate" class="detail-list"></div></article>
         <article class="card section-card"><h2>Evaluation history</h2><p>Structured output, malicious-JD/factual adherence, controlled tailoring, resource pressure, and memory budget checks must all pass.</p><div id="model-evaluations" class="activity-list"></div></article>
       </section>
 
       <section id="tailoring" class="view">
-        <div class="banner"><strong>Manual JD only in Phase 4.</strong> Paste job-description text below. It is stored as untrusted local data; embedded instructions never become model instructions. The model can propose plain-text edits only for confirmed editable regions and every factual content word must be supported by the existing text or cited approved fact IDs.</div>
+        <div class="banner"><strong>Manual job descriptions stay untrusted.</strong> Paste job-description text below. Embedded instructions never become model instructions. The model can propose plain-text edits only for confirmed editable regions and every factual content word must be supported by existing text or cited approved fact IDs.</div>
         <div class="grid two">
           <article class="card">
             <h2>Add job description</h2>
             <form id="jd-form">
               <label>Source URL (optional record only)<input id="jd-source-url" type="text" maxlength="2000" placeholder="https://company.example/job/123"></label>
               <label>Job description<textarea id="jd-text" rows="14" maxlength="50000" placeholder="Paste the complete job description here"></textarea></label>
-              <small>The URL is not fetched in Phase 4. Pasted text is the only JD input.</small>
+              <small>The URL is recorded only. Pasted text is the job-description input.</small>
               <button id="save-jd" type="submit" class="primary">Save local JD</button>
             </form>
           </article>
@@ -73,9 +73,9 @@
         <article id="tailoring-inspector" class="card section-card hidden"><div class="card-heading"><div><h2>Selected tailored resume</h2><p id="tailoring-inspector-meta" class="muted"></p></div><button id="close-tailoring-inspector">Close preview</button></div><div class="grid two"><div><h3>Wording diff</h3><div id="tailoring-diff" class="activity-list"></div><h3>JD keywords → approved facts</h3><div id="tailoring-keywords" class="activity-list"></div><h3>Validation</h3><div id="tailoring-validation" class="detail-list"></div></div><div><h3>PDF preview</h3><iframe id="tailored-pdf-preview" class="pdf-preview" title="Tailored resume PDF preview"></iframe></div></div></article>
       </section>
 
-      <section id="jobs" class="view"><div class="empty-state"><h2>Job discovery is not enabled yet</h2><p>Phase 5 will add verified Greenhouse, Lever, Ashby discovery and manual URL normalization after Phase 4's five real resume reviews.</p></div></section>
+      <section id="jobs" class="view"></section>
       <section id="settings" class="view"><div class="card settings-card"><div class="card-heading"><div><h2>Targeting preferences</h2><p>Saved only to the local SQLite database.</p></div><span id="save-state" class="muted"></span></div><form id="targeting-form"><label>Roles<input id="roles" type="text" autocomplete="off"><small>Comma-separated</small></label><div class="form-row"><label>Target experience from<input id="min-years" type="number" min="0" step="1"></label><label>to<input id="max-years" type="number" min="0" step="1"></label></div><label>India office / hybrid cities<input id="india-cities" type="text" autocomplete="off"><small>Default is Surat only</small></label><div class="form-row"><label>Remote work origin city<input id="remote-city" type="text"></label><label>Country<input id="remote-country" type="text"></label></div><label class="checkbox"><input id="remote-origin-required" type="checkbox"><span>Remote roles must explicitly permit working from this origin</span></label><div class="form-row"><label>Salary minimum<input id="salary-minimum" type="number" min="0" step="1" placeholder="No minimum"><small>Leave blank for no minimum</small></label><label>Notice period (days)<input id="notice-days" type="number" min="0" step="1"></label></div><label>Employment types<input id="employment-types" type="text" autocomplete="off"><small>Comma-separated; default is permanent_full_time</small></label><label>Excluded employers<input id="excluded-employers" type="text" autocomplete="off"><small>Exclusion affects discovery/submission later; employment history remains unchanged.</small></label><label class="checkbox"><input id="relocation" type="checkbox"><span>Relocation outside India is acceptable</span></label><label class="checkbox"><input id="sponsorship" type="checkbox"><span>Require employer visa sponsorship for office/hybrid roles outside India</span></label><button type="submit" class="primary">Save targeting</button></form></div></section>
-      <section id="history" class="view"><div class="empty-state"><h2>No application history yet</h2><p>Phase 4 creates local resume-review artifacts only. Employer application states remain inactive.</p></div></section>
+      <section id="history" class="view"></section>
       <section id="system" class="view"><div class="card"><h2>Local storage</h2><p id="data-root" class="path"></p><div class="facts"><span>SQLite persistence</span><span>Immutable source copies</span><span>App-owned tool cache</span><span>Revisioned app-owned model weights</span><span>Local tailoring audit packages</span><span>No remote scripts</span></div></div></section>
     </main>
   </div>
