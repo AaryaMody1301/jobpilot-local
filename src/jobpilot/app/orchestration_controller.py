@@ -5,14 +5,14 @@ import threading
 import time
 from typing import Any
 
-from jobpilot.app.phase6_controller import Phase6ApplicationController
+from jobpilot.app.application_engine_controller import ApplicationEngineController
 from jobpilot.applications.platforms import AshbyAdapter, GreenhouseAdapter, LeverAdapter
 from jobpilot.domain.states import ApplicationState, SessionState
 from jobpilot.jobs import assess_job, dedupe_jobs, fetch_board
 from jobpilot.orchestration import Phase8ApplicationJournal
 
 
-class Phase8ApplicationController(Phase6ApplicationController):
+class OrchestrationController(ApplicationEngineController):
     """Explicit-session end-to-end orchestration. Real employer writes remain disabled."""
 
     DISCOVERY_INTERVAL_SECONDS = 15 * 60
@@ -20,7 +20,7 @@ class Phase8ApplicationController(Phase6ApplicationController):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.applications = Phase8ApplicationJournal(self.database, self.tailoring)
-        self.recovery["requeued_phase8_controlled_applications"] = self.applications.recover_pre_submit()
+        self.recovery["requeued_orchestrated_controlled_applications"] = self.applications.recover_pre_submit()
         self._orchestration_stop = threading.Event()
         self._orchestration_paused = threading.Event()
         self._orchestration_thread: threading.Thread | None = None
@@ -30,8 +30,8 @@ class Phase8ApplicationController(Phase6ApplicationController):
         self._next_discovery_at = 0.0
         self.database.record_foundation_activity(
             self.session_id,
-            "phase8_ready",
-            "Phase 8 end-to-end orchestration loaded; real employer submissions remain disabled until Phase 9",
+            "orchestration_ready",
+            "End-to-end orchestration loaded; real employer submissions remain disabled until explicit pilot activation",
         )
 
     def start(self) -> dict[str, Any]:
@@ -86,8 +86,7 @@ class Phase8ApplicationController(Phase6ApplicationController):
         with self._lock:
             state = super().snapshot()
             thread = self._orchestration_thread
-            state["phase"] = 8
-            state["tailoring"]["phase8_orchestration_enabled"] = True
+            state["tailoring"]["orchestration_enabled"] = True
             state["tailoring"]["employer_submission_enabled"] = False
             state["applications"]["real_employer_submission_enabled"] = False
             state["orchestration"] = {
@@ -109,7 +108,7 @@ class Phase8ApplicationController(Phase6ApplicationController):
             self.database.record_foundation_activity(
                 self.session_id,
                 "eligibility_review_resolved",
-                f"Resolved Phase 8 eligibility review for {application_id} as {'eligible' if eligible else 'ineligible'}",
+                f"Resolved eligibility review for {application_id} as {'eligible' if eligible else 'ineligible'}",
             )
             return self.snapshot()
 
@@ -118,7 +117,7 @@ class Phase8ApplicationController(Phase6ApplicationController):
             self._require_open()
             self.applications.retry_tailoring(application_id)
             self.database.record_foundation_activity(
-                self.session_id, "tailoring_retry", f"Retried Phase 8 tailoring prerequisite for {application_id}"
+                self.session_id, "tailoring_retry", f"Retried tailoring prerequisite for {application_id}"
             )
             return self.snapshot()
 
@@ -155,7 +154,7 @@ class Phase8ApplicationController(Phase6ApplicationController):
             self.applications.queue_prepared_controlled(application_id, target_url)
             self.database.record_foundation_activity(
                 self.session_id,
-                "phase8_controlled_queue",
+                "controlled_queue",
                 f"Queued fresh prepared package {application_id} for loopback-only submission acceptance",
             )
             return self.snapshot()
@@ -185,7 +184,7 @@ class Phase8ApplicationController(Phase6ApplicationController):
                 self.database.record_foundation_activity(
                     self.session_id,
                     "application_answer_approved",
-                    "Approved an exact-context form answer and refreshed the immutable Phase 8 package after review completed",
+                    "Approved an exact-context form answer and refreshed the immutable application package after review completed",
                 )
                 return self.snapshot()
         finally:
@@ -253,7 +252,7 @@ class Phase8ApplicationController(Phase6ApplicationController):
         self.applications.record_live_inspection(application_id, result)
         self.database.record_foundation_activity(
             self.session_id,
-            "phase8_live_recognition",
+            "live_form_recognition",
             f"Read-only {provider} recognition recorded for {application_id}; no employer write path was invoked",
         )
         return self.snapshot()
@@ -285,7 +284,7 @@ class Phase8ApplicationController(Phase6ApplicationController):
                 self.job_store.mark_checked(str(board["id"]), str(exc)[-500:])
         self.database.record_foundation_activity(
             self.session_id,
-            "phase8_discovery",
+            "orchestration_discovery",
             f"Explicit running session checked {len(boards)} verified public boards; observed {imported} jobs; {failed} board errors",
         )
 
@@ -378,7 +377,7 @@ class Phase8ApplicationController(Phase6ApplicationController):
                 self.applications.finish_tailoring(application_id, run)
                 self.database.record_foundation_activity(
                     self.session_id,
-                    "phase8_tailoring",
+                    "orchestration_tailoring",
                     f"Orchestrated tailoring for {application_id} finished as {run['status']}",
                 )
                 self._orchestration_status_text = f"Tailoring finished as {run['status']}"

@@ -69,7 +69,7 @@ def main() -> int:
                 raise RuntimeError("local model quality/resource gates must remain green before real tailoring")
             if not evaluation.get("generation_tokens_per_second"):
                 raise RuntimeError("local model evaluation did not record generation throughput")
-            controller.select_model_for_phase4_review(model["id"])
+            controller.select_model_for_review(model["id"])
 
             state = controller.import_manual_job_description(CONTROLLED_JD, "https://example.invalid/controlled-tailoring")
             jd = state["tailoring"]["manual_jds"][0]

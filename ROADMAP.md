@@ -34,6 +34,15 @@ The current feature slice implements:
 - [x] b10809 remained selected after candidate evaluation; there was no automatic promotion;
 - [x] any future explicit runtime change remains bound to the existing five-distinct-resume review gate.
 
+## Final repository closeout [~]
+
+- [x] rename production controller composition by capability and remove phase-era controller modules;
+- [x] remove the obsolete public `phase` snapshot field and phase-era discovery/orchestration flags;
+- [x] rename phase-era controller/unit/integration test filenames by capability;
+- [x] prepare version `0.2.0` so the current product can publish as a new immutable release;
+- [ ] require `windows-ci` and `windows-acceptance` on protected `main` (repository-admin setting);
+- [ ] merge this final closeout only after both consolidated Windows checks pass and verify the `v0.2.0` release is published from that merge.
+
 ## Private product evidence
 
 ### Five-resume human review gate [~]

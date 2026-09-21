@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from jobpilot.app.phase4_controller import Phase4ApplicationController
+from jobpilot.app.tailoring_controller import TailoringController
 from jobpilot.domain.states import SessionState
 from jobpilot.jobs import JobStore, assess_job, dedupe_jobs, fetch_board, fetch_job_metadata, normalize_manual_job
 
 
-class Phase5ApplicationController(Phase4ApplicationController):
+class JobController(TailoringController):
     """Public job discovery and local evidence matching; employer submission stays disabled."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -15,15 +15,14 @@ class Phase5ApplicationController(Phase4ApplicationController):
         self.job_store = JobStore(self.database)
         self.database.record_foundation_activity(
             self.session_id,
-            "phase5_ready",
-            "Phase 5 public discovery/matching loaded; employer submission remains disabled",
+            "jobs_ready",
+            "Public discovery/matching loaded; employer submission remains disabled",
         )
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
             state = super().snapshot()
-            state["phase"] = 5
-            state["tailoring"]["phase5_discovery_enabled"] = True
+            state["tailoring"]["job_discovery_enabled"] = True
             state["jobs"] = self._job_snapshot()
             return state
 

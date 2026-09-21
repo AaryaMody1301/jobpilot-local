@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from jobpilot.app.phase8_controller import Phase8ApplicationController
+from jobpilot.app.orchestration_controller import OrchestrationController
 from jobpilot.applications import ApplicationWorker
 from jobpilot.backup import BackupManager
 from jobpilot.pilot import (
@@ -17,12 +17,12 @@ from jobpilot.storage.database import utc_now_text
 from jobpilot.version import __version__
 
 
-class Phase9ApplicationController(Phase8ApplicationController):
-    """Phase 9 distribution plus explicitly activated measured real-application pilot."""
+class ProductController(OrchestrationController):
+    """Current product controller: distribution, orchestration, and explicitly activated measured pilot."""
 
     def __init__(self, paths: Any, migrations_dir: Path, *args: Any, **kwargs: Any) -> None:
-        self._phase9_restore_applied = BackupManager.apply_pending_restore(paths, migrations_dir)
-        self._phase9_snapshot_read = False
+        self._restore_applied = BackupManager.apply_pending_restore(paths, migrations_dir)
+        self._snapshot_read = False
         self._pilot_session_authorized = False
         self._pilot_armed_application_ids: set[str] = set()
         super().__init__(paths, migrations_dir, *args, **kwargs)
@@ -31,19 +31,19 @@ class Phase9ApplicationController(Phase8ApplicationController):
         reset = self._reset_live_pilot_queue(
             "new launch requires explicit per-application real-pilot re-arming"
         )
-        self.recovery["recovered_phase9_live_pre_submit"] = recovered
-        self.recovery["reset_phase9_live_queue_for_rearm"] = reset
+        self.recovery["recovered_live_pre_submit"] = recovered
+        self.recovery["reset_live_queue_for_rearm"] = reset
         self.backups = BackupManager(self.paths, migrations_dir)
         self.database.record_foundation_activity(
             self.session_id,
-            "phase9_pilot_available",
-            "Phase 9 pilot implementation is available but resets to inactive on every launch; real submissions require local activation, a fresh read-only inspection, and per-application arming",
+            "pilot_available",
+            "Measured-pilot implementation is available but resets to inactive on every launch; real submissions require local activation, a fresh read-only inspection, and per-application arming",
         )
 
     def _require_open(self) -> None:
         super()._require_open()
         manager = getattr(self, "backups", None)
-        if manager is not None and manager.request_file.is_file() and not self._phase9_snapshot_read:
+        if manager is not None and manager.request_file.is_file() and not self._snapshot_read:
             raise RuntimeError("a restore is staged; restart JobPilot before making more changes")
 
     def _reset_live_pilot_queue(self, reason: str) -> int:
@@ -114,13 +114,12 @@ class Phase9ApplicationController(Phase8ApplicationController):
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
-            self._phase9_snapshot_read = True
+            self._snapshot_read = True
             try:
                 state = super().snapshot()
             finally:
-                self._phase9_snapshot_read = False
+                self._snapshot_read = False
             active = bool(self._pilot_session_authorized)
-            state["phase"] = 9
             state["applications"]["controlled_fixture_only"] = False
             state["applications"]["real_employer_submission_enabled"] = active
             state["orchestration"]["real_employer_submission_enabled"] = active
@@ -129,7 +128,7 @@ class Phase9ApplicationController(Phase8ApplicationController):
                 "app_version": __version__,
                 "windows_x64_v1": True,
                 "backup": self.backups.status(),
-                "restore_applied_on_launch": self._phase9_restore_applied,
+                "restore_applied_on_launch": self._restore_applied,
                 "pilot_authorized": True,
                 "pilot_policy_revision": PILOT_POLICY_REVISION,
                 "pilot_activation_available": True,

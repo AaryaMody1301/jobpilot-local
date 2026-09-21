@@ -7,8 +7,8 @@ from jobpilot.domain.states import SessionState
 from jobpilot.model.manager import ModelManager
 
 
-class Phase3ApplicationController(ApplicationController):
-    """Phase 2 controller plus local hardware/model lifecycle. No tailoring is enabled."""
+class ModelController(ApplicationController):
+    """Local hardware/model lifecycle. No tailoring is enabled."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -16,14 +16,13 @@ class Phase3ApplicationController(ApplicationController):
         self.models.refresh_hardware()
         self.database.record_foundation_activity(
             self.session_id,
-            "phase3_hardware",
+            "model_hardware",
             "Captured local hardware/resource budget; no model download or inference started",
         )
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
             state = super().snapshot()
-            state["phase"] = 3
             state["model"] = self.models.snapshot()
             return state
 
@@ -33,7 +32,7 @@ class Phase3ApplicationController(ApplicationController):
             if self._state is not SessionState.IDLE:
                 raise RuntimeError("hardware refresh is allowed only while the session is idle")
             self.models.refresh_hardware()
-            self.database.record_foundation_activity(self.session_id, "phase3_hardware", "Refreshed local hardware/resource budget and installed-runtime device evidence")
+            self.database.record_foundation_activity(self.session_id, "model_hardware", "Refreshed local hardware/resource budget and installed-runtime device evidence")
             return self.snapshot()
 
     def install_model_runtime(self, runtime_id: str) -> dict[str, Any]:
@@ -93,10 +92,10 @@ class Phase3ApplicationController(ApplicationController):
             with self._lock:
                 self._end_onboarding_operation()
 
-    def select_model_for_phase4_review(self, model_install_id: str) -> dict[str, Any]:
+    def select_model_for_review(self, model_install_id: str) -> dict[str, Any]:
         with self._lock:
             self._require_idle_onboarding()
-            result = self.models.select_for_phase4_review(model_install_id)
+            result = self.models.select_for_review(model_install_id)
             selected = result["selection"]
             self.database.record_foundation_activity(
                 self.session_id,
@@ -104,7 +103,7 @@ class Phase3ApplicationController(ApplicationController):
                 (
                     f"Selected fastest passing configuration for {model_install_id}: "
                     f"{selected.get('selected_runtime_install_id')}/{selected.get('selected_device_id')}; "
-                    "auto-tailoring remains disabled until five distinct Phase 4 resumes are approved"
+                    "auto-tailoring remains disabled until five distinct tailored resumes are approved"
                 ),
             )
             return result

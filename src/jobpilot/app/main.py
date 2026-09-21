@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 from jobpilot.app.bridge import DesktopBridge
-from jobpilot.app.phase9_controller import Phase9ApplicationController
+from jobpilot.app.product_controller import ProductController
 from jobpilot.runtime.paths import ManagedPaths
 
 
@@ -36,10 +36,10 @@ def create_controller(
     paths: ManagedPaths | None = None,
     *,
     sample_item_seconds: float = 0.4,
-) -> Phase9ApplicationController:
+) -> ProductController:
     _configure_browser_path()
     migrations_dir, _ = _resource_paths()
-    return Phase9ApplicationController(
+    return ProductController(
         paths or ManagedPaths.default(),
         migrations_dir,
         sample_item_seconds=sample_item_seconds,
@@ -173,7 +173,7 @@ def run_window_smoke() -> dict[str, object]:
     errors: list[str] = []
     checks: dict[str, object] = {}
     with tempfile.TemporaryDirectory(prefix="jobpilot-window-") as temp_dir:
-        controller = Phase9ApplicationController(
+        controller = ProductController(
             ManagedPaths(Path(temp_dir) / "JobPilotLocal"),
             migrations_dir,
             sample_item_seconds=0.05,
@@ -250,7 +250,7 @@ def run_desktop() -> None:
     migrations_dir, ui_index = _resource_paths()
     if not migrations_dir.exists() or not ui_index.exists():
         raise RuntimeError("packaged application resources are missing")
-    controller = Phase9ApplicationController(ManagedPaths.default(), migrations_dir)
+    controller = ProductController(ManagedPaths.default(), migrations_dir)
     bridge = DesktopBridge(controller)
     window = webview.create_window(
         "JobPilot Local",

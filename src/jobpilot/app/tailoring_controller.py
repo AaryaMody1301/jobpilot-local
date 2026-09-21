@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 from typing import Any
 
-from jobpilot.app.phase3_controller import Phase3ApplicationController
+from jobpilot.app.model_controller import ModelController
 from jobpilot.domain.states import SessionState
 from jobpilot.model.phase4 import Phase4ModelManager
 from jobpilot.resume.documents import sha256_file
@@ -11,7 +11,7 @@ from jobpilot.resume.tailoring_service import TailoringService
 from jobpilot.resume.tailoring_store import TailoringStore
 
 
-class Phase4ApplicationController(Phase3ApplicationController):
+class TailoringController(ModelController):
     """Manual-JD evidence tailoring. Discovery and employer applications remain disabled."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -21,14 +21,13 @@ class Phase4ApplicationController(Phase3ApplicationController):
         self.tailoring = TailoringService(self.paths, self.resume_store, self.tailoring_store, self.models)
         self.database.record_foundation_activity(
             self.session_id,
-            "phase4_ready",
-            "Phase 4 manual-JD evidence-tailoring boundary loaded; no discovery or employer submission started",
+            "tailoring_ready",
+            "Manual-JD evidence-tailoring boundary loaded; no discovery or employer submission started",
         )
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
             state = super().snapshot()
-            state["phase"] = 4
             state["tailoring"] = self._tailoring_snapshot()
             return state
 
@@ -56,7 +55,7 @@ class Phase4ApplicationController(Phase3ApplicationController):
                 self.database.record_foundation_activity(
                     self.session_id,
                     "tailoring",
-                    f"Tailoring run {run['id']} finished as {run['status']}; no employer submission exists in Phase 4",
+                    f"Tailoring run {run['id']} finished as {run['status']}; tailoring does not perform employer submission",
                 )
             return run
         except Exception as exc:
@@ -94,9 +93,9 @@ class Phase4ApplicationController(Phase3ApplicationController):
             state = self.models.store.model_state()
             model_install_id = str(state.get("selected_model_install_id") or "")
             if not model_install_id:
-                raise RuntimeError("no selected model is awaiting the Phase 4 review gate")
+                raise RuntimeError("no selected model is awaiting the human review gate")
             self.tailoring.require_review_gate_current(model_install_id)
-            result = self.models.finalize_after_phase4_review_gate(
+            result = self.models.finalize_after_review_gate(
                 model_install_id,
                 delete_previous_app_managed_weights=bool(delete_previous_app_managed_weights),
             )
@@ -141,6 +140,6 @@ class Phase4ApplicationController(Phase3ApplicationController):
             "selected_model_install_id": selected,
             "review_gate": gate,
             "auto_tailoring_enabled": self.tailoring.auto_tailoring_is_current(),
-            "phase5_discovery_enabled": False,
+            "job_discovery_enabled": False,
             "employer_submission_enabled": False,
         }

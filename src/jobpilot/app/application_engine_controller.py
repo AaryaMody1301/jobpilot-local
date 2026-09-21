@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from jobpilot.app.phase5_controller import Phase5ApplicationController
+from jobpilot.app.job_controller import JobController
 from jobpilot.applications import ApplicationJournal, ApplicationWorker
 from jobpilot.domain.states import SESSION_MACHINE, SessionState
 
 
-class Phase6ApplicationController(Phase5ApplicationController):
+class ApplicationEngineController(JobController):
     """Controlled localhost form engine. Real employer submission remains disabled."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -18,8 +18,8 @@ class Phase6ApplicationController(Phase5ApplicationController):
         self._application_worker: ApplicationWorker | None = None
         self.database.record_foundation_activity(
             self.session_id,
-            "phase6_ready",
-            "Phase 6 controlled localhost application engine loaded; real employer submissions remain disabled",
+            "application_engine_ready",
+            "Controlled localhost application engine loaded; real employer submissions remain disabled",
         )
 
     def _make_application_worker(self) -> ApplicationWorker:
@@ -106,7 +106,6 @@ class Phase6ApplicationController(Phase5ApplicationController):
                 "current_application_id": None,
                 "last_error": None,
             }
-            state["phase"] = 6
             state["worker_alive"] = bool(worker["alive"])
             state["tailoring"]["phase6_controlled_forms_enabled"] = True
             state["applications"] = {

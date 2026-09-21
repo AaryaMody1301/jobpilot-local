@@ -22,11 +22,10 @@ def _resume(path: Path) -> Path:
     return path
 
 
-def test_phase2_snapshot_starts_without_resume_or_background_onboarding(tmp_path: Path) -> None:
+def test_resume_snapshot_starts_without_resume_or_background_onboarding(tmp_path: Path) -> None:
     controller = _controller(tmp_path)
     try:
         state = controller.snapshot()
-        assert state["phase"] == 2
         assert state["session_state"] == "idle"
         assert state["worker_alive"] is False
         assert state["onboarding_busy"] is None
