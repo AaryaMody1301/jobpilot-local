@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from typing import Literal
 
 
-CATALOGUE_VERSION = "2026-09-11.1"
+CATALOGUE_VERSION = "2026-09-21.1"
 REFERENCE_CPU_PEAK_RSS_BYTES = 5_016_252_416
 
 
@@ -21,6 +21,7 @@ class RuntimeArtifact:
     archive_name: str
     executable_name: str = "llama-server.exe"
     license: str = "MIT"
+    trust: Literal["validated_baseline", "maintenance_candidate"] = "validated_baseline"
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -82,6 +83,30 @@ RUNTIMES: tuple[RuntimeArtifact, ...] = (
         sha256="97e50b3ef0cdd2cb4d5afd446a9006b3496bee6c0d0ba7083d32f36075771870",
         bytes=35_221_385,
         archive_name="llama-b10809-bin-win-vulkan-x64.zip",
+    ),
+    RuntimeArtifact(
+        id="llama-b10964-win-cpu-x64",
+        version="0.4.1",
+        build="b10964",
+        backend="cpu",
+        platform="windows-x64",
+        url="https://github.com/ggml-org/llama.cpp/releases/download/b10964/llama-b10964-bin-win-cpu-x64.zip",
+        sha256="917f39c076402c421224824607397af20f53625a60defc20e8dd22446bf4c5d7",
+        bytes=18_427_629,
+        archive_name="llama-b10964-bin-win-cpu-x64.zip",
+        trust="maintenance_candidate",
+    ),
+    RuntimeArtifact(
+        id="llama-b10964-win-vulkan-x64",
+        version="0.4.1",
+        build="b10964",
+        backend="vulkan",
+        platform="windows-x64",
+        url="https://github.com/ggml-org/llama.cpp/releases/download/b10964/llama-b10964-bin-win-vulkan-x64.zip",
+        sha256="1ee3ad952f4ba71f438bd6d7bebef19e1c7af04adcaa35d08b4ddabb27d4c642",
+        bytes=31_674_542,
+        archive_name="llama-b10964-bin-win-vulkan-x64.zip",
+        trust="maintenance_candidate",
     ),
 )
 
