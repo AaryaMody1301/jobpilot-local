@@ -295,7 +295,7 @@ def test_job_and_application_workspace_filters_and_saves_local_follow_up(chromiu
         job_row.click()
         chromium_page.wait_for_function("window.__calls.some(call => call[0] === 'job_workspace_detail')")
         assert "INR 1800000 - 2400000" in chromium_page.locator("#job-detail").inner_text()
-        assert "Required SQL and Python experience." in chromium_page.locator("#job-detail").inner_text()
+        assert chromium_page.locator("#job-detail .workspace-description pre").inner_text() == "Required SQL and Python experience."
 
         chromium_page.locator('[data-view="history"]').click()
         application_row = chromium_page.locator('[data-application-select="app-1"]')
