@@ -44,7 +44,7 @@ def test_local_model_controls_preserve_explicit_download_and_evaluation_boundary
     assert "window.confirm" in js
     for method in (
         "install_model_runtime", "install_local_model", "evaluate_local_model",
-        "select_model_for_phase4_review",
+        "select_model_for_review",
     ):
         assert method in js
     assert "model-config" in js
