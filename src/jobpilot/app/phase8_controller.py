@@ -122,6 +122,11 @@ class Phase8ApplicationController(Phase6ApplicationController):
             )
             return self.snapshot()
 
+    def application_workspace_detail(self, application_id: str) -> dict[str, Any]:
+        with self._lock:
+            self._require_open()
+            return self.applications.workspace_detail(application_id)
+
     def update_application_workspace(
         self,
         application_id: str,
