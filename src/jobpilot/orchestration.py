@@ -404,7 +404,7 @@ class Phase8ApplicationJournal(ApplicationJournal):
             rows = self.database.connection.execute(
                 """
                 SELECT a.*, j.employer, j.title, j.location, j.workplace_type, j.employment_type,
-                       j.source_url, j.apply_url, j.description, j.published_at,
+                       j.source_url, j.apply_url, j.published_at,
                        j.compensation_text, j.application_deadline,
                        p.manifest_sha256 AS package_manifest_sha256,
                        p.created_at AS package_created_at,
@@ -428,6 +428,34 @@ class Phase8ApplicationJournal(ApplicationJournal):
             item["live_form"] = _decoded(item.pop("live_form_json", "{}"))
             result.append(item)
         return result
+
+    def workspace_detail(self, application_id: str) -> dict[str, Any]:
+        with self.database._lock:
+            row = self.database.connection.execute(
+                """
+                SELECT a.*, j.employer, j.title, j.location, j.workplace_type, j.employment_type,
+                       j.source_url, j.apply_url, j.description, j.published_at,
+                       j.compensation_text, j.application_deadline,
+                       p.manifest_sha256 AS package_manifest_sha256,
+                       p.created_at AS package_created_at,
+                       t.status AS tailoring_status,
+                       t.pdf_relpath AS tailored_pdf_relpath,
+                       t.pdf_sha256 AS tailored_pdf_sha256,
+                       t.reviewed_at AS tailored_reviewed_at
+                  FROM application_attempts a
+                  LEFT JOIN discovered_jobs j ON j.id=a.discovered_job_id
+                  LEFT JOIN application_packages p ON p.id=a.package_id
+                  LEFT JOIN tailored_resumes t ON t.id=a.tailoring_run_id
+                 WHERE a.id=?
+                """,
+                (str(application_id),),
+            ).fetchone()
+        if row is None:
+            raise KeyError(application_id)
+        item = dict(row)
+        item["eligibility"] = _decoded(item.pop("eligibility_json", "{}"))
+        item["live_form"] = _decoded(item.pop("live_form_json", "{}"))
+        return item
 
     def update_workspace(
         self,
