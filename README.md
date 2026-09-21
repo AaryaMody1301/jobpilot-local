@@ -9,7 +9,7 @@ The repository implementation is technically complete through distribution and t
 - five distinct real tailored resumes must be explicitly approved under one current validation context before automatic tailoring is considered locally validated;
 - the measured real-world application pilot must be run from private local candidate data before any throughput claim is made.
 
-Repository cleanup is being completed separately from those private gates. Runtime flattening merged in PR #21 and the final production UI shell merged in PR #23.
+Repository cleanup is complete: runtime flattening merged in PR #21, the final production UI shell in PR #23, and durable CI/repository cleanup in PR #24.
 
 ## Product boundaries
 
@@ -22,6 +22,17 @@ Repository cleanup is being completed separately from those private gates. Runti
 - CAPTCHA/challenge, login/verification, payment, assessment, unsupported required fields, stale packages, and ambiguous submit controls remain fail-closed.
 - `UNCERTAIN` submission outcomes are terminal and are never automatically retried.
 - The visible 50/day objective is a target, not an established capability.
+
+
+## Job and application workspace
+
+The desktop keeps job research and application tracking local:
+
+- search/filter saved jobs and inspect the persisted job-description snapshot and evidence match;
+- show public compensation/deadline metadata when exposed by the supported provider, with explicit per-job Greenhouse metadata refresh;
+- search/filter application history while keeping the exact tailoring run and immutable package tied to each attempt;
+- preview the exact tailored PDF recorded for an application;
+- store local follow-up date, notes, and next action without changing the automation/application state machine.
 
 ## Distribution
 
