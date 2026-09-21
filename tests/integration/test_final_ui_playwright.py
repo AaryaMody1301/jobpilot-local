@@ -218,7 +218,6 @@ def test_job_and_application_workspace_filters_and_saves_local_follow_up(chromiu
             "employment_type": "permanent_full_time",
             "source_url": "https://jobs.lever.co/acme/job-1",
             "apply_url": "https://jobs.lever.co/acme/job-1/apply",
-            "description": "Required SQL and Python experience.",
             "published_at": "2026-09-20T00:00:00Z",
             "last_seen_at": "2026-09-21T00:00:00Z",
             "compensation_text": "INR 1800000 - 2400000",
@@ -244,7 +243,6 @@ def test_job_and_application_workspace_filters_and_saves_local_follow_up(chromiu
         "location": "Surat, India",
         "source_url": "https://jobs.lever.co/acme/job-1",
         "apply_url": "https://jobs.lever.co/acme/job-1/apply",
-        "description": "Required SQL and Python experience.",
         "compensation_text": "INR 1800000 - 2400000",
         "application_deadline": "2026-10-15",
         "created_at": "2026-09-21T00:00:00Z",
@@ -265,12 +263,20 @@ def test_job_and_application_workspace_filters_and_saves_local_follow_up(chromiu
     }]
     state["orchestration"]["counts"] = {"prepared": 1}
 
+    job_detail = {**state["jobs"]["items"][0], "description": "Required SQL and Python experience."}
+    application_detail = {
+        **state["orchestration"]["history"][0],
+        "description": "Required SQL and Python experience.",
+    }
+
     chromium_page.add_init_script(
         """
         window.__calls = [];
         window.pywebview = { api: new Proxy({}, {
           get: (_, name) => async (...args) => {
             window.__calls.push([String(name), ...args]);
+            if (name === 'job_workspace_detail') return window.__jobDetail;
+            if (name === 'application_workspace_detail') return window.__applicationDetail;
             return window.__fixtureState;
           }
         })};
@@ -278,15 +284,24 @@ def test_job_and_application_workspace_filters_and_saves_local_follow_up(chromiu
     )
     with local_ui_server() as url:
         chromium_page.goto(url)
-        chromium_page.evaluate("state => { window.__fixtureState = state; render(state); showView('jobs'); }", state)
+        chromium_page.evaluate(
+            "payload => { window.__fixtureState = payload.state; window.__jobDetail = payload.job; window.__applicationDetail = payload.application; render(payload.state); showView('jobs'); }",
+            {"state": state, "job": job_detail, "application": application_detail},
+        )
 
         chromium_page.locator("#job-search").fill("Acme")
-        assert chromium_page.locator('[data-job-select="job-1"]').count() == 1
+        job_row = chromium_page.locator('[data-job-select="job-1"]')
+        assert job_row.count() == 1
+        job_row.click()
+        chromium_page.wait_for_function("window.__calls.some(call => call[0] === 'job_workspace_detail')")
         assert "INR 1800000 - 2400000" in chromium_page.locator("#job-detail").inner_text()
         assert "Required SQL and Python experience." in chromium_page.locator("#job-detail").inner_text()
 
         chromium_page.locator('[data-view="history"]').click()
-        assert chromium_page.locator('[data-application-select="app-1"]').count() == 1
+        application_row = chromium_page.locator('[data-application-select="app-1"]')
+        assert application_row.count() == 1
+        application_row.click()
+        chromium_page.wait_for_function("window.__calls.some(call => call[0] === 'application_workspace_detail')")
         assert chromium_page.locator('[data-application-preview="tailor-1"]').count() == 1
         chromium_page.locator("#application-follow-up").fill("2026-10-01")
         chromium_page.locator("#application-next-action").fill("Follow up with recruiter")
