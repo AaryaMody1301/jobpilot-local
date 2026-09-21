@@ -341,10 +341,15 @@ class ModelManager:
             model_meta = self._fetch_json("https://huggingface.co/api/models/ggml-org/Qwen3-4B-GGUF")
             upstream_revision = model_meta.get("sha")
             pinned_model = MODELS[0]
+            maintenance_versions = sorted({
+                runtime.version for runtime in RUNTIMES if runtime.trust == "maintenance_candidate"
+            })
             result["llama_cpp"] = {
                 "pinned_version": RUNTIMES[0].version,
+                "maintenance_candidate_versions": maintenance_versions,
                 "latest_release": latest_runtime,
                 "same_as_pin": latest_runtime == f"v{RUNTIMES[0].version}",
+                "latest_is_catalogued_candidate": latest_runtime in {f"v{version}" for version in maintenance_versions},
             }
             result["qwen3_4b"] = {
                 "pinned_revision": pinned_model.source_revision,
