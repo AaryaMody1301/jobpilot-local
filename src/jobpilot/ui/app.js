@@ -16,6 +16,7 @@ function toast(message) { const el = document.getElementById('toast'); el.textCo
 function escapeHtml(value) { const div = document.createElement('div'); div.textContent = String(value ?? ''); return div.innerHTML; }
 function escapeAttr(value) { return escapeHtml(value).replaceAll('"', '&quot;').replaceAll("'", '&#39;'); }
 function shortHash(value) { return value ? `${String(value).slice(0, 12)}…` : '—'; }
+function displayDate(value) { return value ? String(value).slice(0, 10) : '—'; }
 function formatBytes(value) { const n = Number(value || 0); if (!n) return '0 B'; if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(2)} GB`; if (n >= 1024 ** 2) return `${(n / 1024 ** 2).toFixed(0)} MB`; return `${Math.round(n / 1024)} KB`; }
 function setBusy(message) { document.getElementById('fact-bank-status').textContent = message || ''; }
 
