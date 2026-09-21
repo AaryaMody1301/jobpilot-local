@@ -382,6 +382,7 @@ const jobsView = document.getElementById('jobs');
           <label>Title<input id="manual-job-title" maxlength="300" required></label>
           <label>Location<input id="manual-job-location" maxlength="300" placeholder="Surat, India"></label>
           <div class="form-row"><label>Workplace<select id="manual-job-workplace"><option value="">Unknown</option><option value="onsite">On-site</option><option value="hybrid">Hybrid</option><option value="remote">Remote</option></select></label><label>Employment<select id="manual-job-employment"><option value="">Unknown</option><option value="permanent_full_time">Permanent full-time</option><option value="contract">Contract</option><option value="part_time">Part-time</option><option value="internship">Internship</option></select></label></div>
+          <div class="form-row"><label>Compensation<input id="manual-job-compensation" maxlength="300" placeholder="Optional salary/range"></label><label>Deadline<input id="manual-job-deadline" type="date"></label></div>
           <label>Source URL<input id="manual-job-url" type="url" maxlength="2000" required></label>
           <label>Description<textarea id="manual-job-description" rows="10" maxlength="100000" required></textarea></label>
           <button type="submit">Import & match</button>
@@ -389,8 +390,9 @@ const jobsView = document.getElementById('jobs');
       </article>
     </div>
     <article class="card section-card">
-      <div class="card-heading"><div><h2>Matched jobs</h2><p>Hard eligibility is separated from evidence matching. Scores explain ordering; they are not ATS scores or interview probabilities.</p></div><span id="job-counts" class="muted"></span></div>
-      <div id="job-list" class="fact-list"></div>
+      <div class="card-heading"><div><h2>Matched jobs</h2><p>Search and filter the saved job snapshots, then inspect the exact description and evidence match without reopening the posting.</p></div><span id="job-counts" class="muted"></span></div>
+      <div class="workspace-toolbar"><label>Search<input id="job-search" type="search" placeholder="Employer, title, location"></label><label>Eligibility<select id="job-eligibility-filter"><option value="all">All</option><option value="eligible">Eligible</option><option value="review">Review</option><option value="ineligible">Ineligible</option></select></label></div>
+      <div class="workspace-grid"><div id="job-list" class="workspace-list"></div><div id="job-detail" class="workspace-detail"><p>Select a job to inspect its saved snapshot.</p></div></div>
     </article>`;
 
   function renderJobs(state, session, busy) {
@@ -403,14 +405,62 @@ const jobsView = document.getElementById('jobs');
     document.getElementById('job-counts').textContent = `${jobs.counts.eligible} eligible · ${jobs.counts.review} review · ${jobs.counts.ineligible} ineligible · ${jobs.approved_evidence_facts} approved evidence facts`;
     document.getElementById('job-board-list').innerHTML = jobs.boards.map(board => `
       <label class="region-item"><input type="checkbox" data-job-board-id="${escapeAttr(board.id)}" ${Number(board.enabled) === 1 ? 'checked' : ''} ${idle ? '' : 'disabled'}><span><strong>${escapeHtml(board.employer)}</strong> · ${escapeHtml(board.provider)} · <code>${escapeHtml(board.board_token)}</code><br>${board.last_checked_at ? `Checked ${escapeHtml(board.last_checked_at)}` : 'Not checked this install'}${board.last_error ? `<br><span class="error-text">${escapeHtml(board.last_error)}</span>` : ''}</span></label>`).join('');
-    document.getElementById('job-list').innerHTML = jobs.items.length ? jobs.items.map(job => {
-      const reasons = [...job.hard_reasons, ...job.review_reasons];
-      const missingRequired = job.required_requirements.filter(item => !job.matched_required.includes(item));
-      const missingPreferred = job.preferred_requirements.filter(item => !job.matched_preferred.includes(item));
-      const score = job.score_reasons || {};
-      return `<div class="fact-item"><div class="fact-meta"><span class="pill ${escapeAttr(job.eligibility)}">${escapeHtml(job.eligibility)}</span><strong>${Number(job.score)}/100</strong></div><strong>${escapeHtml(job.title)}</strong><div class="fact-source">${escapeHtml(job.employer)} · ${escapeHtml(job.location)} · ${escapeHtml(job.workplace_type || 'workplace unknown')} · ${escapeHtml(job.employment_type || 'employment unknown')}<br>Source: ${escapeHtml(job.source_url)}</div>${reasons.length ? `<div class="fact-source">${reasons.map(escapeHtml).join('<br>')}</div>` : ''}<div class="fact-source">Evidence terms: ${job.supported_terms.length ? job.supported_terms.map(escapeHtml).join(', ') : 'none'}<br>Required evidence: ${job.matched_required.length}/${job.required_requirements.length} · Preferred: ${job.matched_preferred.length}/${job.preferred_requirements.length}<br>Ranking: role ${Number(score.role || 0)} · required evidence ${Number(score.required_evidence || 0)} · preferred evidence ${Number(score.preferred_evidence || 0)} · eligibility clarity ${Number(score.eligibility_clarity || 0)}</div>${missingRequired.length ? `<div class="fact-source"><strong>Missing required evidence</strong><br>${missingRequired.map(escapeHtml).join('<br>')}</div>` : ''}${missingPreferred.length ? `<div class="fact-source"><strong>Missing preferred evidence</strong><br>${missingPreferred.map(escapeHtml).join('<br>')}</div>` : ''}</div>`;
-    }).join('') : '<p>No jobs imported yet. Run discovery or add a manual job.</p>';
+    const query = jobSearchTerm.casefold ? jobSearchTerm.casefold() : jobSearchTerm.toLowerCase();
+    const filteredJobs = jobs.items.filter(job => {
+      if (jobEligibilityFilter !== 'all' && job.eligibility !== jobEligibilityFilter) return false;
+      if (!query) return true;
+      return [job.employer, job.title, job.location, job.compensation_text].some(value => String(value || '').toLowerCase().includes(query));
+    });
+    if (!filteredJobs.some(job => job.id === selectedJobId)) selectedJobId = filteredJobs[0]?.id || null;
+    document.getElementById('job-list').innerHTML = filteredJobs.length ? filteredJobs.map(job => {
+      const selected = job.id === selectedJobId ? ' selected' : '';
+      return \`<button type="button" class="workspace-list-item\${selected}" data-job-select="\${escapeAttr(job.id)}"><span><strong>\${escapeHtml(job.title)}</strong><br><span class="muted">\${escapeHtml(job.employer)} · \${escapeHtml(job.location)}</span></span><span><span class="pill \${escapeAttr(job.eligibility)}">\${escapeHtml(job.eligibility)}</span><br><strong>\${Number(job.score)}/100</strong></span></button>\`;
+    }).join('') : '<p>No jobs match the current filters.</p>';
+
+    const selectedJob = filteredJobs.find(job => job.id === selectedJobId);
+    const detail = document.getElementById('job-detail');
+    if (!selectedJob) {
+      detail.innerHTML = '<p>Select a job to inspect its saved snapshot.</p>';
+      return;
+    }
+    const reasons = [...selectedJob.hard_reasons, ...selectedJob.review_reasons];
+    const missingRequired = selectedJob.required_requirements.filter(item => !selectedJob.matched_required.includes(item));
+    const missingPreferred = selectedJob.preferred_requirements.filter(item => !selectedJob.matched_preferred.includes(item));
+    const score = selectedJob.score_reasons || {};
+    detail.innerHTML = \`<div class="card-heading"><div><h2>\${escapeHtml(selectedJob.title)}</h2><p>\${escapeHtml(selectedJob.employer)} · \${escapeHtml(selectedJob.location)}</p></div><span class="pill \${escapeAttr(selectedJob.eligibility)}">\${escapeHtml(selectedJob.eligibility)}</span></div>
+      <div class="detail-list">
+        <div><span>Provider</span><strong>\${escapeHtml(selectedJob.provider)}</strong></div>
+        <div><span>Workplace</span><strong>\${escapeHtml(selectedJob.workplace_type || 'Unknown')}</strong></div>
+        <div><span>Employment</span><strong>\${escapeHtml(selectedJob.employment_type || 'Unknown')}</strong></div>
+        <div><span>Compensation</span><strong>\${escapeHtml(selectedJob.compensation_text || 'Not provided')}</strong></div>
+        <div><span>Application deadline</span><strong>\${escapeHtml(displayDate(selectedJob.application_deadline))}</strong></div>
+        <div><span>Published</span><strong>\${escapeHtml(displayDate(selectedJob.published_at))}</strong></div>
+        <div><span>Last seen</span><strong>\${escapeHtml(displayDate(selectedJob.last_seen_at))}</strong></div>
+        <div><span>Evidence score</span><strong>\${Number(selectedJob.score)}/100</strong></div>
+      </div>
+      <div class="fact-source"><strong>Source URL</strong><br>\${escapeHtml(selectedJob.source_url)}</div>
+      \${selectedJob.apply_url ? \`<div class="fact-source"><strong>Apply URL</strong><br>\${escapeHtml(selectedJob.apply_url)}</div>\` : ''}
+      \${reasons.length ? \`<div class="fact-source"><strong>Eligibility/review reasons</strong><br>\${reasons.map(escapeHtml).join('<br>')}</div>\` : ''}
+      <div class="fact-source"><strong>Evidence summary</strong><br>Required \${selectedJob.matched_required.length}/\${selectedJob.required_requirements.length} · Preferred \${selectedJob.matched_preferred.length}/\${selectedJob.preferred_requirements.length}<br>Ranking: role \${Number(score.role || 0)} · required evidence \${Number(score.required_evidence || 0)} · preferred evidence \${Number(score.preferred_evidence || 0)} · eligibility clarity \${Number(score.eligibility_clarity || 0)}</div>
+      \${missingRequired.length ? \`<div class="fact-source"><strong>Missing required evidence</strong><br>\${missingRequired.map(escapeHtml).join('<br>')}</div>\` : ''}
+      \${missingPreferred.length ? \`<div class="fact-source"><strong>Missing preferred evidence</strong><br>\${missingPreferred.map(escapeHtml).join('<br>')}</div>\` : ''}
+      <details class="workspace-description"><summary>Saved job description</summary><pre>\${escapeHtml(selectedJob.description || '')}</pre></details>\`;
   }
+
+  document.getElementById('job-search').addEventListener('input', event => {
+    jobSearchTerm = event.target.value.trim();
+    if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
+  });
+  document.getElementById('job-eligibility-filter').addEventListener('change', event => {
+    jobEligibilityFilter = event.target.value;
+    if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
+  });
+  document.getElementById('job-list').addEventListener('click', event => {
+    const button = event.target.closest('[data-job-select]');
+    if (!button) return;
+    selectedJobId = button.dataset.jobSelect;
+    if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
+  });
 
   document.getElementById('job-discover').addEventListener('click', () => invoke('discover_jobs'));
   document.getElementById('job-board-form').addEventListener('submit', event => {
@@ -430,6 +480,8 @@ const jobsView = document.getElementById('jobs');
       workplace_type: document.getElementById('manual-job-workplace').value,
       employment_type: document.getElementById('manual-job-employment').value,
       source_url: document.getElementById('manual-job-url').value,
+      compensation_text: document.getElementById('manual-job-compensation').value,
+      application_deadline: document.getElementById('manual-job-deadline').value,
       description: document.getElementById('manual-job-description').value,
     });
   });
