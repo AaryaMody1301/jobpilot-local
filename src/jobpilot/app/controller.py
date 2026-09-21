@@ -266,7 +266,6 @@ class ApplicationController:
         with self._lock:
             self._require_open()
             return {
-                "phase": 2,
                 "session_id": self.session_id,
                 "session_state": self._state.value,
                 "worker_alive": False,
