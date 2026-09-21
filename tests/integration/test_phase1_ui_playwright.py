@@ -117,7 +117,7 @@ def test_local_ui_navigation_and_bridge_contract(chromium_page) -> None:
         chromium_page.evaluate("window.dispatchEvent(new Event('pywebviewready'))")
         chromium_page.wait_for_function("document.getElementById('session-badge').textContent === 'idle'")
 
-        assert chromium_page.locator("text=Local tailoring review mode.").is_visible()
+        assert chromium_page.locator("text=Local application workspace.").is_visible()
         assert chromium_page.locator("text=Confirmed today").is_visible()
         chromium_page.locator("button[data-view='settings']").click()
         assert chromium_page.locator("#page-title").inner_text() == "Targeting"
