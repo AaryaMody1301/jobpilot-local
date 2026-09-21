@@ -86,7 +86,7 @@ class OrchestrationController(ApplicationEngineController):
         with self._lock:
             state = super().snapshot()
             thread = self._orchestration_thread
-            state["tailoring"]["phase8_orchestration_enabled"] = True
+            state["tailoring"]["orchestration_enabled"] = True
             state["tailoring"]["employer_submission_enabled"] = False
             state["applications"]["real_employer_submission_enabled"] = False
             state["orchestration"] = {
@@ -108,7 +108,7 @@ class OrchestrationController(ApplicationEngineController):
             self.database.record_foundation_activity(
                 self.session_id,
                 "eligibility_review_resolved",
-                f"Resolved Phase 8 eligibility review for {application_id} as {'eligible' if eligible else 'ineligible'}",
+                f"Resolved eligibility review for {application_id} as {'eligible' if eligible else 'ineligible'}",
             )
             return self.snapshot()
 
@@ -117,7 +117,7 @@ class OrchestrationController(ApplicationEngineController):
             self._require_open()
             self.applications.retry_tailoring(application_id)
             self.database.record_foundation_activity(
-                self.session_id, "tailoring_retry", f"Retried Phase 8 tailoring prerequisite for {application_id}"
+                self.session_id, "tailoring_retry", f"Retried tailoring prerequisite for {application_id}"
             )
             return self.snapshot()
 
@@ -154,7 +154,7 @@ class OrchestrationController(ApplicationEngineController):
             self.applications.queue_prepared_controlled(application_id, target_url)
             self.database.record_foundation_activity(
                 self.session_id,
-                "phase8_controlled_queue",
+                "controlled_queue",
                 f"Queued fresh prepared package {application_id} for loopback-only submission acceptance",
             )
             return self.snapshot()
@@ -184,7 +184,7 @@ class OrchestrationController(ApplicationEngineController):
                 self.database.record_foundation_activity(
                     self.session_id,
                     "application_answer_approved",
-                    "Approved an exact-context form answer and refreshed the immutable Phase 8 package after review completed",
+                    "Approved an exact-context form answer and refreshed the immutable application package after review completed",
                 )
                 return self.snapshot()
         finally:
@@ -252,7 +252,7 @@ class OrchestrationController(ApplicationEngineController):
         self.applications.record_live_inspection(application_id, result)
         self.database.record_foundation_activity(
             self.session_id,
-            "phase8_live_recognition",
+            "live_form_recognition",
             f"Read-only {provider} recognition recorded for {application_id}; no employer write path was invoked",
         )
         return self.snapshot()
@@ -284,7 +284,7 @@ class OrchestrationController(ApplicationEngineController):
                 self.job_store.mark_checked(str(board["id"]), str(exc)[-500:])
         self.database.record_foundation_activity(
             self.session_id,
-            "phase8_discovery",
+            "orchestration_discovery",
             f"Explicit running session checked {len(boards)} verified public boards; observed {imported} jobs; {failed} board errors",
         )
 
@@ -377,7 +377,7 @@ class OrchestrationController(ApplicationEngineController):
                 self.applications.finish_tailoring(application_id, run)
                 self.database.record_foundation_activity(
                     self.session_id,
-                    "phase8_tailoring",
+                    "orchestration_tailoring",
                     f"Orchestrated tailoring for {application_id} finished as {run['status']}",
                 )
                 self._orchestration_status_text = f"Tailoring finished as {run['status']}"
