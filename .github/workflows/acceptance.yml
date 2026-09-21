@@ -44,17 +44,17 @@ jobs:
       - name: Install pinned Playwright Chromium
         run: python -m playwright install chromium
       - name: Verify resume toolchain
-        run: python scripts/phase2_tectonic_acceptance.py
+        run: python scripts/accept_resume_toolchain.py
       - name: Verify local model and evidence-backed tailoring
-        run: python scripts/phase4_tailoring_acceptance.py
+        run: python scripts/accept_tailoring.py
       - name: Verify controlled application engine
-        run: python scripts/phase6_application_acceptance.py
+        run: python scripts/accept_application_engine.py
       - name: Verify supported platform adapters
-        run: python scripts/phase7_platform_acceptance.py
+        run: python scripts/accept_platform_adapters.py
       - name: Verify end-to-end orchestration
-        run: python scripts/phase8_orchestration_acceptance.py
+        run: python scripts/accept_orchestration.py
       - name: Verify backup restore and inactive-by-default pilot
-        run: python scripts/phase9_distribution_acceptance.py
+        run: python scripts/accept_distribution.py
       - name: Build onedir with hermetic Chromium
         shell: pwsh
         run: |
