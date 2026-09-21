@@ -1,79 +1,55 @@
-# Phase 4 closeout
+# Human review gate
 
-Status: **implementation merged; human completion gate pending verification**.
+Status: **private five-resume evidence in progress**.
 
-This record reconciles the final audited Phase 4 implementation with the repository state after PR #7 was merged on 2026-09-12.
+This file keeps its historical filename for compatibility. It now describes the current product-level human review gate rather than an implementation phase.
 
-## Final audited implementation evidence
+## Why this gate remains manual
 
-PR #7 final head: `582a00797bf68fe8d5d1d7076905c9e88c86d0e2`.
+Synthetic CI proves the deterministic safety path but does not count as human approval. The gate is satisfied only by five distinct real tailored resumes that the user explicitly reviews and approves under one unchanged current validation context.
 
-All pull-request-context Phase 0-4 workflows passed on that exact head. Phase 4 Windows run `34598042842` recorded:
+The validation context binds the active master resume/hash, approved fact-bank revision, confirmed template map, offline baseline, targeting/profile fingerprint, selected model/runtime/device, and passing model-evaluation evidence. A material context change invalidates prior gate evidence rather than silently reusing it.
 
-- Python/JavaScript syntax validation passed;
-- `pytest -m "not external"`: **123 passed, 1 intentional platform-guard skip, 2 external probes deselected**;
-- real controlled local Qwen3 4B CPU inference and cached-only Tectonic tailoring passed;
-- instruction-like JD text remained untrusted data;
-- hidden Unicode in JD text and model replacement text was blocked/normalized as designed;
-- evidence-derived anti-keyword-stuffing checks passed;
-- one validated wording edit was backed by one field-linked approved fact reference;
-- page count remained unchanged and no overflow was detected;
-- expected PDF content validation passed and the UI reads the persisted validation field;
-- controlled run status remained `needs_review`;
-- controlled human gate remained 0/5; automatic tailoring remained disabled;
-- Phase 5 discovery and employer submission remained disabled;
-- source/package self-tests, WebView2 smokes and PyInstaller onedir build passed.
+PR #26 also evaluated llama.cpp v0.4.1/b10964 successfully as a maintenance candidate. That evaluation did not select it: b10809 remained the selected baseline. If a different passing runtime/configuration is explicitly selected later, the review context changes and the five-resume evidence must be current for that configuration.
 
-The controlled CI result never counts as one of the five human approvals.
+## Privacy-safe gate report
 
-## Merge-state correction
+The authoritative approvals live in the private local SQLite database under `%LOCALAPPDATA%\JobPilotLocal`. Resume/JD/fact values, PDFs, source paths, and audit-package contents must not be committed.
 
-PR #7 was merged as implementation even though its own human-completion gate was open. Therefore:
-
-- **merged** means the Phase 4 implementation is present on `main`;
-- **complete** still requires five distinct real human-approved tailored resumes under one unchanged current review context;
-- Phase 5 must remain disabled until that gate is verified complete.
-
-## Privacy-safe local gate verification
-
-The authoritative five-resume approvals live in the private local SQLite database under `%LOCALAPPDATA%\JobPilotLocal`; private resume/JD/fact values are intentionally not committed.
-
-Run:
+Run on the Windows machine that holds the private JobPilot profile:
 
 ```powershell
-python -m jobpilot.app.main --phase4-gate-report
+python -m jobpilot.app.main --review-gate-report
 ```
 
-The report intentionally exposes only phase/gate/model-status booleans and counts. It does not expose JD text, resume content, fact values, PDFs, source paths, or audit-package contents.
+The historical `--phase4-gate-report` alias remains accepted.
+
+The report exposes only gate/readiness counts, booleans, the selected model install ID, and a failure reason. It intentionally does not expose private resume or job-description content.
 
 Exit codes:
 
-- `0`: the persisted 5/5 gate is complete **and current** for the selected validated master/facts/profile/template/baseline/model/runtime/device/evaluation context;
+- `0`: five distinct approvals are persisted **and current** for the selected validation context;
 - `2`: the gate is missing, incomplete, invalidated, or stale.
 
-A successful report is necessary to close Phase 4. It does not enable employer submission or Phase 5 by itself.
-
-## Exact remaining human procedure
+## Exact review procedure
 
 If the report is not complete:
 
-1. open JobPilot on the Windows machine holding the private local profile;
-2. confirm resume/fact onboarding and selected local model remain valid;
-3. paste a real job description manually;
-4. generate the tailored resume locally;
-5. inspect PDF, wording diff, JD keyword mapping, fact references and deterministic validation;
-6. approve only if the output is accurate, otherwise reject/correct/regenerate;
-7. repeat until five **distinct** real resumes are approved under one unchanged review context;
-8. rerun `--phase4-gate-report` and require exit code `0`;
-9. only then update `ROADMAP.md` / `PROGRESS.md` from Phase 4 `[!]` to `[x]` and begin Phase 5 on a later explicit request.
+1. Open JobPilot on the Windows machine holding the private profile.
+2. Keep the application session idle while reviewing/editing setup state.
+3. Confirm resume onboarding is ready: master integrity, cached/offline baseline, template map, and fact review must be current.
+4. Confirm the intended validated model/runtime/device configuration is selected. Do not change it between approvals unless intentionally restarting the review context.
+5. Use a real job description relevant to the target roles.
+6. Generate the tailored resume locally.
+7. Inspect the rendered PDF, wording diff, JD keyword mapping, cited fact references, and deterministic validation result.
+8. Approve only when every changed claim remains accurate and supported by the current evidence. Reject/correct/regenerate otherwise.
+9. Repeat with distinct real job descriptions/resume outputs until the persisted gate reaches 5/5.
+10. Run `--review-gate-report` again and require exit code `0`.
 
-## CI closeout repair
+Do not paste the private resume, job descriptions, fact bank, or generated PDFs into repository issues, CI logs, pull requests, or source files merely to prove completion.
 
-The Phase 4 workflow now runs on:
+## What completion enables
 
-- pushes to `main`;
-- pushes to `phase-4-*` branches;
-- pull requests targeting `main`;
-- manual `workflow_dispatch`.
+A complete current gate establishes local human evidence for the selected tailoring configuration. It does not by itself activate real-employer submission or the measured pilot.
 
-This ensures future merged Phase 4 baseline changes receive the same acceptance path instead of relying only on the pre-merge PR head.
+After this gate is verified complete, the only remaining product-evidence item is the separately authorized measured real-world application pilot documented in `docs/PHASE9_PILOT_ACCEPTANCE.md`.
