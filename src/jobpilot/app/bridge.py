@@ -141,6 +141,9 @@ class DesktopBridge:
     def discover_jobs(self) -> dict[str, Any]:
         return self._controller.discover_jobs()
 
+    def refresh_job_metadata(self, job_id: str) -> dict[str, Any]:
+        return self._controller.refresh_job_metadata(job_id)
+
     def queue_controlled_application(self, job_identity: str, target_url: str) -> dict[str, Any]:
         return self._controller.queue_controlled_application(job_identity, target_url)
 
