@@ -4,13 +4,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Mapping
 
-from jobpilot.app.phase9_controller import Phase9ApplicationController
+from jobpilot.app.product_controller import ProductController
 
 
 class DesktopBridge:
     """Single narrow JS API for the current desktop product."""
 
-    def __init__(self, controller: Phase9ApplicationController) -> None:
+    def __init__(self, controller: ProductController) -> None:
         self._controller = controller
         self._window: Any | None = None
 
@@ -101,8 +101,8 @@ class DesktopBridge:
         self._controller.evaluate_local_model(model_install_id, runtime_install_id, device_id)
         return self._controller.snapshot()
 
-    def select_model_for_phase4_review(self, model_install_id: str) -> dict[str, Any]:
-        return self._controller.select_model_for_phase4_review(model_install_id)
+    def select_model_for_review(self, model_install_id: str) -> dict[str, Any]:
+        return self._controller.select_model_for_review(model_install_id)
 
     def check_model_updates(self) -> dict[str, Any]:
         self._controller.check_model_updates()
