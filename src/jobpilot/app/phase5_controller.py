@@ -4,7 +4,7 @@ from typing import Any, Mapping
 
 from jobpilot.app.phase4_controller import Phase4ApplicationController
 from jobpilot.domain.states import SessionState
-from jobpilot.jobs import JobStore, assess_job, dedupe_jobs, fetch_board, normalize_manual_job
+from jobpilot.jobs import JobStore, assess_job, dedupe_jobs, fetch_board, fetch_job_metadata, normalize_manual_job
 
 
 class Phase5ApplicationController(Phase4ApplicationController):
@@ -93,6 +93,31 @@ class Phase5ApplicationController(Phase4ApplicationController):
                     self.session_id,
                     "job_discovery",
                     f"Checked {len(boards)} verified public boards; observed {imported} jobs; {failed} board errors",
+                )
+        finally:
+            with self._lock:
+                self._end_onboarding_operation()
+        return self.snapshot()
+
+    def refresh_job_metadata(self, job_id: str) -> dict[str, Any]:
+        with self._lock:
+            cancel = self._begin_onboarding_operation("job metadata refresh")
+            job = self.job_store.job(job_id)
+        try:
+            if cancel.is_set():
+                raise RuntimeError("job metadata refresh cancelled")
+            metadata = fetch_job_metadata(job)
+            with self._lock:
+                self._require_open()
+                self.job_store.update_metadata(
+                    job_id,
+                    compensation_text=metadata.get("compensation_text"),
+                    application_deadline=metadata.get("application_deadline"),
+                )
+                self.database.record_foundation_activity(
+                    self.session_id,
+                    "job_metadata",
+                    f"Refreshed public metadata for {job.get('provider')} job {job.get('source_job_id')}",
                 )
         finally:
             with self._lock:
