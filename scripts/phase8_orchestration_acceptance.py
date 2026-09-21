@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from jobpilot.app.phase8_main import create_controller
+from jobpilot.app.main import create_controller
 from jobpilot.domain.states import ApplicationState
 from jobpilot.runtime.paths import ManagedPaths
 
