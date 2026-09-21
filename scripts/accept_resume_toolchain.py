@@ -9,8 +9,8 @@ from jobpilot.runtime.paths import ManagedPaths
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = ROOT / "migrations"
-FIXTURE = ROOT / "tests" / "fixtures" / "resume-toolchain_resume.tex"
-TEMPLATE_SHAPE = ROOT / "tests" / "fixtures" / "resume-toolchain_template_shape.tex"
+FIXTURE = ROOT / "tests" / "fixtures" / "phase2_resume.tex"
+TEMPLATE_SHAPE = ROOT / "tests" / "fixtures" / "phase2_template_shape.tex"
 
 
 def main() -> int:
