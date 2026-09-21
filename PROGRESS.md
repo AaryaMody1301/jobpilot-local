@@ -47,16 +47,15 @@ The committed Windows x64 / CPython 3.13 dependency graph is hash-addressed in `
 
 The validated local-AI baseline remains llama.cpp v0.4.0 / b10809 with the accepted Qwen3 4B GGUF revision.
 
-Maintenance PR 5 evaluates stable llama.cpp v0.4.1 / b10964 as a side-by-side CPU/Vulkan candidate. The exact GitHub Windows artifacts are pinned by size and SHA-256, the existing controlled quality/resource suite must pass, and the selected baseline must not auto-switch. No model revision is changed.
+PR #26 merged the stable llama.cpp v0.4.1 / b10964 maintenance evaluation. On the Windows acceptance runner, b10964 CPU passed the same structured/factual/tailoring/resource suite with the pinned Qwen3 4B model; candidate evaluation did not auto-switch the selected b10809 baseline. The model revision remains unchanged.
 
 ## Active private gates
 
-Two deliberately non-synthetic gates remain:
+The current work item is the five-resume human review gate. Its authoritative evidence lives only in the private local JobPilot database; synthetic CI cannot satisfy it.
 
-- five distinct real tailored resumes must be explicitly approved in the user's private local JobPilot database under one current validation context;
-- the measured real-world pilot must be run from private local data using individually armed eligible applications.
+Run `python -m jobpilot.app.main --review-gate-report` locally. The report is intentionally privacy-safe and returns exit code 0 only when five distinct real approvals are both persisted and current for the selected resume/facts/profile/template/baseline/model/runtime/device/evaluation context.
 
-The visible 50/day objective remains a target, not a capability claim.
+After that gate closes, the final remaining item is the measured real-world pilot using individually armed eligible applications. The visible 50/day objective remains a target, not a capability claim.
 
 ## Repository administration boundary
 
