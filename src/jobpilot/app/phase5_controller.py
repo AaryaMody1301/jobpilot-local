@@ -102,8 +102,10 @@ class Phase5ApplicationController(Phase4ApplicationController):
     def refresh_job_metadata(self, job_id: str) -> dict[str, Any]:
         with self._lock:
             cancel = self._begin_onboarding_operation("job metadata refresh")
-            job = self.job_store.job(job_id)
         try:
+            with self._lock:
+                self._require_open()
+                job = self.job_store.job(job_id)
             if cancel.is_set():
                 raise RuntimeError("job metadata refresh cancelled")
             metadata = fetch_job_metadata(job)
