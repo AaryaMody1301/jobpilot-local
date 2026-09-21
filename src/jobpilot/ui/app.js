@@ -4,12 +4,21 @@ let refreshTimer = null;
 let inspectedRunId = null;
 let clientOnboardingBusy = null;
 let activeView = 'dashboard';
+let selectedJobId = null;
+let selectedJobDetail = null;
+let selectedApplicationId = null;
+let selectedApplicationDetail = null;
+let jobSearchTerm = '';
+let jobEligibilityFilter = 'all';
+let applicationSearchTerm = '';
+let applicationStateFilter = 'all';
 
 function csv(value) { return value.split(',').map(v => v.trim()).filter(Boolean); }
 function toast(message) { const el = document.getElementById('toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2600); }
 function escapeHtml(value) { const div = document.createElement('div'); div.textContent = String(value ?? ''); return div.innerHTML; }
 function escapeAttr(value) { return escapeHtml(value).replaceAll('"', '&quot;').replaceAll("'", '&#39;'); }
 function shortHash(value) { return value ? `${String(value).slice(0, 12)}…` : '—'; }
+function displayDate(value) { return value ? String(value).slice(0, 10) : '—'; }
 function formatBytes(value) { const n = Number(value || 0); if (!n) return '0 B'; if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(2)} GB`; if (n >= 1024 ** 2) return `${(n / 1024 ** 2).toFixed(0)} MB`; return `${Math.round(n / 1024)} KB`; }
 function setBusy(message) { document.getElementById('fact-bank-status').textContent = message || ''; }
 
@@ -375,6 +384,7 @@ const jobsView = document.getElementById('jobs');
           <label>Title<input id="manual-job-title" maxlength="300" required></label>
           <label>Location<input id="manual-job-location" maxlength="300" placeholder="Surat, India"></label>
           <div class="form-row"><label>Workplace<select id="manual-job-workplace"><option value="">Unknown</option><option value="onsite">On-site</option><option value="hybrid">Hybrid</option><option value="remote">Remote</option></select></label><label>Employment<select id="manual-job-employment"><option value="">Unknown</option><option value="permanent_full_time">Permanent full-time</option><option value="contract">Contract</option><option value="part_time">Part-time</option><option value="internship">Internship</option></select></label></div>
+          <div class="form-row"><label>Compensation<input id="manual-job-compensation" maxlength="300" placeholder="Optional salary/range"></label><label>Deadline<input id="manual-job-deadline" type="date"></label></div>
           <label>Source URL<input id="manual-job-url" type="url" maxlength="2000" required></label>
           <label>Description<textarea id="manual-job-description" rows="10" maxlength="100000" required></textarea></label>
           <button type="submit">Import & match</button>
@@ -382,8 +392,9 @@ const jobsView = document.getElementById('jobs');
       </article>
     </div>
     <article class="card section-card">
-      <div class="card-heading"><div><h2>Matched jobs</h2><p>Hard eligibility is separated from evidence matching. Scores explain ordering; they are not ATS scores or interview probabilities.</p></div><span id="job-counts" class="muted"></span></div>
-      <div id="job-list" class="fact-list"></div>
+      <div class="card-heading"><div><h2>Matched jobs</h2><p>Search and filter the saved job snapshots, then inspect the exact description and evidence match without reopening the posting.</p></div><span id="job-counts" class="muted"></span></div>
+      <div class="workspace-toolbar"><label>Search<input id="job-search" type="search" placeholder="Employer, title, location"></label><label>Eligibility<select id="job-eligibility-filter"><option value="all">All</option><option value="eligible">Eligible</option><option value="review">Review</option><option value="ineligible">Ineligible</option></select></label></div>
+      <div class="workspace-grid"><div id="job-list" class="workspace-list"></div><div id="job-detail" class="workspace-detail"><p>Select a job to inspect its saved snapshot.</p></div></div>
     </article>`;
 
   function renderJobs(state, session, busy) {
@@ -396,14 +407,79 @@ const jobsView = document.getElementById('jobs');
     document.getElementById('job-counts').textContent = `${jobs.counts.eligible} eligible · ${jobs.counts.review} review · ${jobs.counts.ineligible} ineligible · ${jobs.approved_evidence_facts} approved evidence facts`;
     document.getElementById('job-board-list').innerHTML = jobs.boards.map(board => `
       <label class="region-item"><input type="checkbox" data-job-board-id="${escapeAttr(board.id)}" ${Number(board.enabled) === 1 ? 'checked' : ''} ${idle ? '' : 'disabled'}><span><strong>${escapeHtml(board.employer)}</strong> · ${escapeHtml(board.provider)} · <code>${escapeHtml(board.board_token)}</code><br>${board.last_checked_at ? `Checked ${escapeHtml(board.last_checked_at)}` : 'Not checked this install'}${board.last_error ? `<br><span class="error-text">${escapeHtml(board.last_error)}</span>` : ''}</span></label>`).join('');
-    document.getElementById('job-list').innerHTML = jobs.items.length ? jobs.items.map(job => {
-      const reasons = [...job.hard_reasons, ...job.review_reasons];
-      const missingRequired = job.required_requirements.filter(item => !job.matched_required.includes(item));
-      const missingPreferred = job.preferred_requirements.filter(item => !job.matched_preferred.includes(item));
-      const score = job.score_reasons || {};
-      return `<div class="fact-item"><div class="fact-meta"><span class="pill ${escapeAttr(job.eligibility)}">${escapeHtml(job.eligibility)}</span><strong>${Number(job.score)}/100</strong></div><strong>${escapeHtml(job.title)}</strong><div class="fact-source">${escapeHtml(job.employer)} · ${escapeHtml(job.location)} · ${escapeHtml(job.workplace_type || 'workplace unknown')} · ${escapeHtml(job.employment_type || 'employment unknown')}<br>Source: ${escapeHtml(job.source_url)}</div>${reasons.length ? `<div class="fact-source">${reasons.map(escapeHtml).join('<br>')}</div>` : ''}<div class="fact-source">Evidence terms: ${job.supported_terms.length ? job.supported_terms.map(escapeHtml).join(', ') : 'none'}<br>Required evidence: ${job.matched_required.length}/${job.required_requirements.length} · Preferred: ${job.matched_preferred.length}/${job.preferred_requirements.length}<br>Ranking: role ${Number(score.role || 0)} · required evidence ${Number(score.required_evidence || 0)} · preferred evidence ${Number(score.preferred_evidence || 0)} · eligibility clarity ${Number(score.eligibility_clarity || 0)}</div>${missingRequired.length ? `<div class="fact-source"><strong>Missing required evidence</strong><br>${missingRequired.map(escapeHtml).join('<br>')}</div>` : ''}${missingPreferred.length ? `<div class="fact-source"><strong>Missing preferred evidence</strong><br>${missingPreferred.map(escapeHtml).join('<br>')}</div>` : ''}</div>`;
-    }).join('') : '<p>No jobs imported yet. Run discovery or add a manual job.</p>';
+    const query = jobSearchTerm.toLowerCase();
+    const filteredJobs = jobs.items.filter(job => {
+      if (jobEligibilityFilter !== 'all' && job.eligibility !== jobEligibilityFilter) return false;
+      if (!query) return true;
+      return [job.employer, job.title, job.location, job.compensation_text].some(value => String(value || '').toLowerCase().includes(query));
+    });
+    if (!filteredJobs.some(job => job.id === selectedJobId)) {
+      selectedJobId = null;
+      selectedJobDetail = null;
+    }
+    document.getElementById('job-list').innerHTML = filteredJobs.length ? filteredJobs.map(job => {
+      const selected = job.id === selectedJobId ? ' selected' : '';
+      return `<button type="button" class="workspace-list-item${selected}" data-job-select="${escapeAttr(job.id)}"><span><strong>${escapeHtml(job.title)}</strong><br><span class="muted">${escapeHtml(job.employer)} · ${escapeHtml(job.location)}</span></span><span><span class="pill ${escapeAttr(job.eligibility)}">${escapeHtml(job.eligibility)}</span><br><strong>${Number(job.score)}/100</strong></span></button>`;
+    }).join('') : '<p>No jobs match the current filters.</p>';
+
+    const selectedJobSummary = filteredJobs.find(job => job.id === selectedJobId);
+    const selectedJob = selectedJobDetail?.id === selectedJobId && selectedJobSummary
+      ? {...selectedJobDetail, ...selectedJobSummary}
+      : null;
+    const detail = document.getElementById('job-detail');
+    if (!selectedJob) {
+      detail.innerHTML = '<p>Select a job to inspect its saved snapshot.</p>';
+      return;
+    }
+    const reasons = [...selectedJob.hard_reasons, ...selectedJob.review_reasons];
+    const missingRequired = selectedJob.required_requirements.filter(item => !selectedJob.matched_required.includes(item));
+    const missingPreferred = selectedJob.preferred_requirements.filter(item => !selectedJob.matched_preferred.includes(item));
+    const score = selectedJob.score_reasons || {};
+    detail.innerHTML = `<div class="card-heading"><div><h2>${escapeHtml(selectedJob.title)}</h2><p>${escapeHtml(selectedJob.employer)} · ${escapeHtml(selectedJob.location)}</p></div><span class="pill ${escapeAttr(selectedJob.eligibility)}">${escapeHtml(selectedJob.eligibility)}</span></div>
+      <div class="detail-list">
+        <div><span>Provider</span><strong>${escapeHtml(selectedJob.provider)}</strong></div>
+        <div><span>Workplace</span><strong>${escapeHtml(selectedJob.workplace_type || 'Unknown')}</strong></div>
+        <div><span>Employment</span><strong>${escapeHtml(selectedJob.employment_type || 'Unknown')}</strong></div>
+        <div><span>Compensation</span><strong>${escapeHtml(selectedJob.compensation_text || 'Not provided')}</strong></div>
+        <div><span>Application deadline</span><strong>${escapeHtml(displayDate(selectedJob.application_deadline))}</strong></div>
+        <div><span>Published</span><strong>${escapeHtml(displayDate(selectedJob.published_at))}</strong></div>
+        <div><span>Last seen</span><strong>${escapeHtml(displayDate(selectedJob.last_seen_at))}</strong></div>
+        <div><span>Evidence score</span><strong>${Number(selectedJob.score)}/100</strong></div>
+      </div>
+      <div class="fact-source"><strong>Source URL</strong><br>${escapeHtml(selectedJob.source_url)}</div>
+      ${selectedJob.apply_url ? `<div class="fact-source"><strong>Apply URL</strong><br>${escapeHtml(selectedJob.apply_url)}</div>` : ''}
+      ${selectedJob.provider === 'greenhouse' ? `<div class="button-row"><button type="button" data-job-refresh-metadata="${escapeAttr(selectedJob.id)}" ${idle ? '' : 'disabled'}>Refresh Greenhouse pay/deadline</button></div>` : ''}
+      ${reasons.length ? `<div class="fact-source"><strong>Eligibility/review reasons</strong><br>${reasons.map(escapeHtml).join('<br>')}</div>` : ''}
+      <div class="fact-source"><strong>Evidence summary</strong><br>Required ${selectedJob.matched_required.length}/${selectedJob.required_requirements.length} · Preferred ${selectedJob.matched_preferred.length}/${selectedJob.preferred_requirements.length}<br>Ranking: role ${Number(score.role || 0)} · required evidence ${Number(score.required_evidence || 0)} · preferred evidence ${Number(score.preferred_evidence || 0)} · eligibility clarity ${Number(score.eligibility_clarity || 0)}</div>
+      ${missingRequired.length ? `<div class="fact-source"><strong>Missing required evidence</strong><br>${missingRequired.map(escapeHtml).join('<br>')}</div>` : ''}
+      ${missingPreferred.length ? `<div class="fact-source"><strong>Missing preferred evidence</strong><br>${missingPreferred.map(escapeHtml).join('<br>')}</div>` : ''}
+      <details class="workspace-description"><summary>Saved job description</summary><pre>${escapeHtml(selectedJob.description || '')}</pre></details>`;
   }
+
+  document.getElementById('job-search').addEventListener('input', event => {
+    jobSearchTerm = event.target.value.trim();
+    if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
+  });
+  document.getElementById('job-eligibility-filter').addEventListener('change', event => {
+    jobEligibilityFilter = event.target.value;
+    if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
+  });
+  document.getElementById('job-list').addEventListener('click', async event => {
+    const button = event.target.closest('[data-job-select]');
+    if (!button) return;
+    selectedJobId = button.dataset.jobSelect;
+    selectedJobDetail = await invokeRaw('job_workspace_detail', selectedJobId);
+    if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
+  });
+  document.getElementById('job-detail').addEventListener('click', async event => {
+    const jobId = event.target.dataset.jobRefreshMetadata;
+    if (!jobId) return;
+    await invokeOnboarding('refresh_job_metadata', 'job metadata refresh', jobId);
+    selectedJobDetail = await invokeRaw('job_workspace_detail', jobId);
+    if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
+    toast('Public job metadata refreshed');
+  });
+
 
   document.getElementById('job-discover').addEventListener('click', () => invoke('discover_jobs'));
   document.getElementById('job-board-form').addEventListener('submit', event => {
@@ -423,6 +499,8 @@ const jobsView = document.getElementById('jobs');
       workplace_type: document.getElementById('manual-job-workplace').value,
       employment_type: document.getElementById('manual-job-employment').value,
       source_url: document.getElementById('manual-job-url').value,
+      compensation_text: document.getElementById('manual-job-compensation').value,
+      application_deadline: document.getElementById('manual-job-deadline').value,
       description: document.getElementById('manual-job-description').value,
     });
   });
@@ -450,8 +528,9 @@ const jobsView = document.getElementById('jobs');
       <div id="orchestration-attention" class="fact-list"></div>
     </article>
     <article class="card section-card">
-      <div class="card-heading"><div><h2>Application history</h2><p>Discovery, eligibility, tailoring, package, submission and terminal outcomes are persisted in the local application journal.</p></div><span id="orchestration-counts" class="muted"></span></div>
-      <div id="orchestration-history" class="fact-list"></div>
+      <div class="card-heading"><div><h2>Application workspace</h2><p>Keep the saved job, exact tailored resume/package, follow-up plan and application journal together.</p></div><span id="orchestration-counts" class="muted"></span></div>
+      <div class="workspace-toolbar"><label>Search<input id="application-search" type="search" placeholder="Employer, role, notes, next action"></label><label>Status<select id="application-state-filter"><option value="all">All statuses</option></select></label></div>
+      <div class="workspace-grid"><div id="orchestration-history" class="workspace-list"></div><div id="application-detail" class="workspace-detail"><p>Select an application to inspect its local record.</p></div></div>
     </article>`;
   history.prepend(orchestrationSection);
 
@@ -493,12 +572,104 @@ const jobsView = document.getElementById('jobs');
       return `<div class="fact-item"><div class="fact-meta"><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span><strong>${escapeHtml(identity(item))}</strong></div><div class="fact-source">${escapeHtml(item.attention_kind.replaceAll('_', ' '))}${reasons.length ? `<br>${escapeHtml(reasons.join(' · '))}` : ''}${item.last_reason ? `<br>${escapeHtml(item.last_reason)}` : ''}</div>${attentionAction(item)}</div>`;
     }).join('') : '<p>No orchestration item currently needs attention.</p>';
 
-    document.getElementById('orchestration-history').innerHTML = orchestration.history.length ? orchestration.history.map(item => {
-      const packageHash = item.package_manifest_sha256 ? `<br>Package ${escapeHtml(item.package_manifest_sha256.slice(0, 16))}…` : '';
-      return `<div class="fact-item"><div class="fact-meta"><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span><strong>${escapeHtml(identity(item))}</strong></div><div class="fact-source">${escapeHtml(item.provider || 'legacy')}${item.location ? ` · ${escapeHtml(item.location)}` : ''}<br>${escapeHtml(item.last_reason || '')}${packageHash}</div></div>`;
-    }).join('') : '<p>No application history yet.</p>';
+    const states = [...new Set(orchestration.history.map(item => item.state))].sort();
+    const stateFilter = document.getElementById('application-state-filter');
+    stateFilter.innerHTML = '<option value="all">All statuses</option>' + states.map(value => `<option value="${escapeAttr(value)}">${escapeHtml(value)}</option>`).join('');
+    if (!states.includes(applicationStateFilter)) applicationStateFilter = 'all';
+    stateFilter.value = applicationStateFilter;
+
+    const query = applicationSearchTerm.toLowerCase();
+    const filteredApplications = orchestration.history.filter(item => {
+      if (applicationStateFilter !== 'all' && item.state !== applicationStateFilter) return false;
+      if (!query) return true;
+      return [item.employer, item.title, item.location, item.provider, item.notes, item.next_action]
+        .some(value => String(value || '').toLowerCase().includes(query));
+    });
+    if (!filteredApplications.some(item => item.id === selectedApplicationId)) {
+      selectedApplicationId = null;
+      selectedApplicationDetail = null;
+    }
+    document.getElementById('orchestration-history').innerHTML = filteredApplications.length ? filteredApplications.map(item => {
+      const selected = item.id === selectedApplicationId ? ' selected' : '';
+      const followUp = item.follow_up_at ? `<br><span class="muted">Follow up ${escapeHtml(displayDate(item.follow_up_at))}</span>` : '';
+      return `<button type="button" class="workspace-list-item${selected}" data-application-select="${escapeAttr(item.id)}"><span><strong>${escapeHtml(identity(item))}</strong><br><span class="muted">${escapeHtml(item.provider || 'local')} · ${escapeHtml(item.location || 'location unknown')}</span>${followUp}</span><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span></button>`;
+    }).join('') : '<p>No applications match the current filters.</p>';
+
+    const selectedApplicationSummary = filteredApplications.find(item => item.id === selectedApplicationId);
+    const selectedApplication = selectedApplicationDetail?.id === selectedApplicationId && selectedApplicationSummary
+      ? {...selectedApplicationDetail, ...selectedApplicationSummary}
+      : null;
+    const detail = document.getElementById('application-detail');
+    if (!selectedApplication) {
+      detail.innerHTML = '<p>Select an application to inspect its local record.</p>';
+    } else {
+      const editable = state.session_state === 'idle' && !state.onboarding_busy && !clientOnboardingBusy;
+      const packageHash = selectedApplication.package_manifest_sha256 || '';
+      const resumeHash = selectedApplication.tailored_pdf_sha256 || '';
+      detail.innerHTML = `<div class="card-heading"><div><h2>${escapeHtml(selectedApplication.title || 'Application')}</h2><p>${escapeHtml(selectedApplication.employer || 'Unknown employer')} · ${escapeHtml(selectedApplication.location || 'Unknown location')}</p></div><span class="pill ${escapeAttr(selectedApplication.state)}">${escapeHtml(selectedApplication.state)}</span></div>
+        <div class="detail-list">
+          <div><span>Provider</span><strong>${escapeHtml(selectedApplication.provider || 'Local')}</strong></div>
+          <div><span>Compensation</span><strong>${escapeHtml(selectedApplication.compensation_text || 'Not provided')}</strong></div>
+          <div><span>Deadline</span><strong>${escapeHtml(displayDate(selectedApplication.application_deadline))}</strong></div>
+          <div><span>Created</span><strong>${escapeHtml(displayDate(selectedApplication.created_at))}</strong></div>
+          <div><span>Submit started</span><strong>${escapeHtml(displayDate(selectedApplication.submit_started_at))}</strong></div>
+          <div><span>Confirmed</span><strong>${escapeHtml(displayDate(selectedApplication.confirmed_at))}</strong></div>
+        </div>
+        <div class="fact-source"><strong>Last journal reason</strong><br>${escapeHtml(selectedApplication.last_reason || 'No recorded reason')}</div>
+        ${selectedApplication.source_url ? `<div class="fact-source"><strong>Saved source URL</strong><br>${escapeHtml(selectedApplication.source_url)}</div>` : ''}
+        ${selectedApplication.apply_url ? `<div class="fact-source"><strong>Saved apply URL</strong><br>${escapeHtml(selectedApplication.apply_url)}</div>` : ''}
+        <div class="workspace-artifact-grid">
+          <div><span>Tailoring run</span><strong>${escapeHtml(selectedApplication.tailoring_run_id || 'None')}</strong><small>${escapeHtml(selectedApplication.tailoring_status || '')}${resumeHash ? ` · PDF ${escapeHtml(shortHash(resumeHash))}` : ''}</small>${selectedApplication.tailored_pdf_relpath ? `<button type="button" data-application-preview="${escapeAttr(selectedApplication.tailoring_run_id)}">Preview exact tailored resume</button>` : ''}</div>
+          <div><span>Application package</span><strong>${escapeHtml(selectedApplication.package_id || 'None')}</strong><small>${packageHash ? `Manifest ${escapeHtml(shortHash(packageHash))}` : 'No immutable package yet'}</small></div>
+        </div>
+        <form id="application-workspace-form" class="section-card">
+          <div class="form-row"><label>Follow-up date<input id="application-follow-up" type="date" value="${escapeAttr((selectedApplication.follow_up_at || '').slice(0, 10))}" ${editable ? '' : 'disabled'}></label><label>Next action<input id="application-next-action" maxlength="500" value="${escapeAttr(selectedApplication.next_action || '')}" placeholder="e.g. Follow up with recruiter" ${editable ? '' : 'disabled'}></label></div>
+          <label>Notes<textarea id="application-notes" rows="5" maxlength="4000" placeholder="Interview notes, contacts, reminders…" ${editable ? '' : 'disabled'}>${escapeHtml(selectedApplication.notes || '')}</textarea></label>
+          <button type="submit" class="primary" ${editable ? '' : 'disabled'}>Save workspace</button>
+          ${editable ? '' : '<small>Pause or stop the active session before editing workspace metadata.</small>'}
+        </form>
+        ${selectedApplication.description ? `<details class="workspace-description"><summary>Saved job description</summary><pre>${escapeHtml(selectedApplication.description)}</pre></details>` : ''}
+        <iframe id="application-resume-preview" class="pdf-preview" title="Tailored resume used for this application" hidden></iframe>`;
+    }
     pilotQueueButtons(state);
   }
+
+  document.getElementById('application-search').addEventListener('input', event => {
+    applicationSearchTerm = event.target.value.trim();
+    if (latestState) renderOrchestration(latestState);
+  });
+  document.getElementById('application-state-filter').addEventListener('change', event => {
+    applicationStateFilter = event.target.value;
+    if (latestState) renderOrchestration(latestState);
+  });
+  document.getElementById('orchestration-history').addEventListener('click', async event => {
+    const button = event.target.closest('[data-application-select]');
+    if (!button) return;
+    selectedApplicationId = button.dataset.applicationSelect;
+    selectedApplicationDetail = await invokeRaw('application_workspace_detail', selectedApplicationId);
+    if (latestState) renderOrchestration(latestState);
+  });
+  document.getElementById('application-detail').addEventListener('submit', async event => {
+    if (event.target.id !== 'application-workspace-form' || !selectedApplicationId) return;
+    event.preventDefault();
+    await invoke(
+      'update_application_workspace',
+      selectedApplicationId,
+      document.getElementById('application-follow-up').value || null,
+      document.getElementById('application-notes').value,
+      document.getElementById('application-next-action').value,
+    );
+    selectedApplicationDetail = await invokeRaw('application_workspace_detail', selectedApplicationId);
+    if (latestState) renderOrchestration(latestState);
+    toast('Application workspace saved locally');
+  });
+  document.getElementById('application-detail').addEventListener('click', async event => {
+    const runId = event.target.dataset.applicationPreview;
+    if (!runId) return;
+    const iframe = document.getElementById('application-resume-preview');
+    iframe.src = await invokeRaw('tailored_pdf_data_uri', runId);
+    iframe.hidden = false;
+  });
 
   document.getElementById('orchestration-attention').addEventListener('input', event => {
     const input = event.target.closest('[data-orchestration-eligibility-note]');

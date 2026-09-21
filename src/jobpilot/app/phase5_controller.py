@@ -4,7 +4,7 @@ from typing import Any, Mapping
 
 from jobpilot.app.phase4_controller import Phase4ApplicationController
 from jobpilot.domain.states import SessionState
-from jobpilot.jobs import JobStore, assess_job, dedupe_jobs, fetch_board, normalize_manual_job
+from jobpilot.jobs import JobStore, assess_job, dedupe_jobs, fetch_board, fetch_job_metadata, normalize_manual_job
 
 
 class Phase5ApplicationController(Phase4ApplicationController):
@@ -99,6 +99,39 @@ class Phase5ApplicationController(Phase4ApplicationController):
                 self._end_onboarding_operation()
         return self.snapshot()
 
+    def job_workspace_detail(self, job_id: str) -> dict[str, Any]:
+        with self._lock:
+            self._require_open()
+            job = self.job_store.job(job_id)
+            return assess_job(job, self._targeting, self._approved_evidence())
+
+    def refresh_job_metadata(self, job_id: str) -> dict[str, Any]:
+        with self._lock:
+            cancel = self._begin_onboarding_operation("job metadata refresh")
+        try:
+            with self._lock:
+                self._require_open()
+                job = self.job_store.job(job_id)
+            if cancel.is_set():
+                raise RuntimeError("job metadata refresh cancelled")
+            metadata = fetch_job_metadata(job)
+            with self._lock:
+                self._require_open()
+                self.job_store.update_metadata(
+                    job_id,
+                    compensation_text=metadata.get("compensation_text"),
+                    application_deadline=metadata.get("application_deadline"),
+                )
+                self.database.record_foundation_activity(
+                    self.session_id,
+                    "job_metadata",
+                    f"Refreshed public metadata for {job.get('provider')} job {job.get('source_job_id')}",
+                )
+        finally:
+            with self._lock:
+                self._end_onboarding_operation()
+        return self.snapshot()
+
     def _approved_evidence(self) -> list[dict[str, Any]]:
         master = self.resume_store.get_active_master()
         return self.tailoring._approved_current_facts(master) if master else []
@@ -108,6 +141,7 @@ class Phase5ApplicationController(Phase4ApplicationController):
         jobs = [assess_job(job, self._targeting, facts) for job in dedupe_jobs(self.job_store.jobs())]
         order = {"eligible": 0, "review": 1, "ineligible": 2}
         jobs.sort(key=lambda job: (order[job["eligibility"]], -int(job["score"]), str(job["employer"]), str(job["title"])))
+        jobs = [{key: value for key, value in job.items() if key != "description"} for job in jobs]
         counts = {"eligible": 0, "review": 0, "ineligible": 0}
         for job in jobs:
             counts[job["eligibility"]] += 1

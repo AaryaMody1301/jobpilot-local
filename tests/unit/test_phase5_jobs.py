@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from jobpilot.jobs import JobStore, assess_job, dedupe_jobs, normalize_manual_job, parse_board_payload
+import jobpilot.jobs as jobs_module
+from jobpilot.jobs import JobStore, assess_job, dedupe_jobs, fetch_job_metadata, normalize_manual_job, parse_board_payload
 from jobpilot.settings import TargetingSettings
 from jobpilot.storage.database import Database
 
@@ -28,6 +29,7 @@ def test_supported_board_payloads_normalize_to_one_job_shape() -> None:
             "hostedUrl": "https://jobs.lever.co/acme/abc",
             "applyUrl": "https://jobs.lever.co/acme/abc/apply",
             "workplaceType": "on-site",
+            "salaryRange": {"currency": "INR", "min": 1800000, "max": 2400000, "interval": "per-year-salary"},
         }],
         "ashby": {
             "jobs": [{
@@ -39,6 +41,7 @@ def test_supported_board_payloads_normalize_to_one_job_shape() -> None:
                 "employmentType": "FullTime",
                 "jobUrl": "https://jobs.ashbyhq.com/acme/job-1",
                 "applyUrl": "https://jobs.ashbyhq.com/acme/job-1/application",
+                "compensation": {"scrapeableCompensationSalarySummary": "INR 18L - 24L"},
                 "isListed": True,
             }]
         },
@@ -50,6 +53,10 @@ def test_supported_board_payloads_normalize_to_one_job_shape() -> None:
         assert jobs[0]["title"] == "Data Engineer"
         assert jobs[0]["source_url"].startswith("https://")
         assert jobs[0]["description"] == "Required SQL and Python experience."
+        if provider == "lever":
+            assert jobs[0]["compensation_text"] == "INR 1800000 - 2400000 (per-year-salary)"
+        if provider == "ashby":
+            assert jobs[0]["compensation_text"] == "INR 18L - 24L"
 
 
 def test_matching_is_conservative_explainable_and_deduplicated() -> None:
@@ -62,8 +69,12 @@ def test_matching_is_conservative_explainable_and_deduplicated() -> None:
         "workplace_type": "onsite",
         "employment_type": "permanent_full_time",
         "source_url": "https://example.invalid/jobs/1",
+        "compensation_text": "INR 18L - 24L",
+        "application_deadline": "2026-10-15",
         "description": "Permanent full-time role. Required SQL and Python experience.",
     })
+    assert job["compensation_text"] == "INR 18L - 24L"
+    assert job["application_deadline"] == "2026-10-15"
     assessed = assess_job(job, targeting, facts)
     assert assessed["eligibility"] == "eligible"
     assert assessed["matched_required"] == ["Required SQL and Python experience."]
@@ -145,3 +156,28 @@ def test_board_refresh_hides_jobs_removed_from_the_current_feed(tmp_path: Path) 
         assert [job["source_job_id"] for job in store.jobs()] == ["keep"]
         inactive = db.connection.execute("SELECT active FROM discovered_jobs WHERE source_job_id='gone'").fetchone()
         assert inactive is not None and inactive["active"] == 0
+
+
+def test_greenhouse_detail_refresh_extracts_deadline_and_pay_without_board_crawl(monkeypatch) -> None:
+    monkeypatch.setattr(
+        jobs_module,
+        "_json_get",
+        lambda url: {
+            "application_deadline": "2026-10-31T23:59:59Z",
+            "pay_input_ranges": [{
+                "min_cents": 5000000,
+                "max_cents": 7500000,
+                "currency_type": "USD",
+                "title": "Salary Range",
+            }],
+        },
+    )
+    metadata = fetch_job_metadata({
+        "provider": "greenhouse",
+        "board_token": "acme",
+        "source_job_id": "12345",
+        "compensation_text": None,
+        "application_deadline": None,
+    })
+    assert metadata["application_deadline"] == "2026-10-31T23:59:59Z"
+    assert metadata["compensation_text"] == "Salary Range: USD 50000 - 75000"

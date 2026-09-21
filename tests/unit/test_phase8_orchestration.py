@@ -72,6 +72,23 @@ def test_phase8_eligibility_review_and_package_staleness_are_transactional(tmp_p
         assert resolved["state"] == "eligible"
         assert resolved["eligibility_resolution"] == "approved"
 
+        operational_updated_at = resolved["updated_at"]
+        workspace = journal.update_workspace(
+            str(review["id"]),
+            follow_up_at="2026-10-01",
+            notes="Recruiter asked for a follow-up after the screening call.",
+            next_action="Send follow-up",
+        )
+        assert workspace["updated_at"] == operational_updated_at
+        assert workspace["workspace_updated_at"] is not None
+        assert workspace["follow_up_at"] == "2026-10-01"
+        assert workspace["notes"].startswith("Recruiter asked")
+        assert workspace["next_action"] == "Send follow-up"
+        history_item = next(item for item in journal.history() if item["id"] == review["id"])
+        assert history_item["follow_up_at"] == "2026-10-01"
+        with pytest.raises(ValueError, match="ISO-8601"):
+            journal.update_workspace(str(review["id"]), follow_up_at="not-a-date", notes="", next_action="")
+
         package_job = _job(jobs, "package")
         application = journal.register_discovered_job(package_job, {
             **package_job,

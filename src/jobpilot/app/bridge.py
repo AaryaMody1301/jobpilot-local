@@ -141,6 +141,12 @@ class DesktopBridge:
     def discover_jobs(self) -> dict[str, Any]:
         return self._controller.discover_jobs()
 
+    def job_workspace_detail(self, job_id: str) -> dict[str, Any]:
+        return self._controller.job_workspace_detail(job_id)
+
+    def refresh_job_metadata(self, job_id: str) -> dict[str, Any]:
+        return self._controller.refresh_job_metadata(job_id)
+
     def queue_controlled_application(self, job_identity: str, target_url: str) -> dict[str, Any]:
         return self._controller.queue_controlled_application(job_identity, target_url)
 
@@ -152,6 +158,23 @@ class DesktopBridge:
 
     def retry_application_tailoring(self, application_id: str) -> dict[str, Any]:
         return self._controller.retry_application_tailoring(application_id)
+
+    def application_workspace_detail(self, application_id: str) -> dict[str, Any]:
+        return self._controller.application_workspace_detail(application_id)
+
+    def update_application_workspace(
+        self,
+        application_id: str,
+        follow_up_at: str | None,
+        notes: str,
+        next_action: str,
+    ) -> dict[str, Any]:
+        return self._controller.update_application_workspace(
+            application_id,
+            follow_up_at,
+            notes,
+            next_action,
+        )
 
     def queue_prepared_controlled_application(self, application_id: str, target_url: str) -> dict[str, Any]:
         return self._controller.queue_prepared_controlled_application(application_id, target_url)

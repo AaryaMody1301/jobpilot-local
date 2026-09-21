@@ -403,11 +403,19 @@ class Phase8ApplicationJournal(ApplicationJournal):
         with self.database._lock:
             rows = self.database.connection.execute(
                 """
-                SELECT a.*, j.employer, j.title, j.location, j.source_url,
-                       p.manifest_sha256 AS package_manifest_sha256
+                SELECT a.*, j.employer, j.title, j.location, j.workplace_type, j.employment_type,
+                       j.source_url, j.apply_url, j.published_at,
+                       j.compensation_text, j.application_deadline,
+                       p.manifest_sha256 AS package_manifest_sha256,
+                       p.created_at AS package_created_at,
+                       t.status AS tailoring_status,
+                       t.pdf_relpath AS tailored_pdf_relpath,
+                       t.pdf_sha256 AS tailored_pdf_sha256,
+                       t.reviewed_at AS tailored_reviewed_at
                   FROM application_attempts a
                   LEFT JOIN discovered_jobs j ON j.id=a.discovered_job_id
                   LEFT JOIN application_packages p ON p.id=a.package_id
+                  LEFT JOIN tailored_resumes t ON t.id=a.tailoring_run_id
                  ORDER BY COALESCE(a.created_at, a.updated_at) DESC, a.id DESC
                  LIMIT ?
                 """,
@@ -420,6 +428,70 @@ class Phase8ApplicationJournal(ApplicationJournal):
             item["live_form"] = _decoded(item.pop("live_form_json", "{}"))
             result.append(item)
         return result
+
+    def workspace_detail(self, application_id: str) -> dict[str, Any]:
+        with self.database._lock:
+            row = self.database.connection.execute(
+                """
+                SELECT a.*, j.employer, j.title, j.location, j.workplace_type, j.employment_type,
+                       j.source_url, j.apply_url, j.description, j.published_at,
+                       j.compensation_text, j.application_deadline,
+                       p.manifest_sha256 AS package_manifest_sha256,
+                       p.created_at AS package_created_at,
+                       t.status AS tailoring_status,
+                       t.pdf_relpath AS tailored_pdf_relpath,
+                       t.pdf_sha256 AS tailored_pdf_sha256,
+                       t.reviewed_at AS tailored_reviewed_at
+                  FROM application_attempts a
+                  LEFT JOIN discovered_jobs j ON j.id=a.discovered_job_id
+                  LEFT JOIN application_packages p ON p.id=a.package_id
+                  LEFT JOIN tailored_resumes t ON t.id=a.tailoring_run_id
+                 WHERE a.id=?
+                """,
+                (str(application_id),),
+            ).fetchone()
+        if row is None:
+            raise KeyError(application_id)
+        item = dict(row)
+        item["eligibility"] = _decoded(item.pop("eligibility_json", "{}"))
+        item["live_form"] = _decoded(item.pop("live_form_json", "{}"))
+        return item
+
+    def update_workspace(
+        self,
+        application_id: str,
+        *,
+        follow_up_at: str | None,
+        notes: str,
+        next_action: str,
+    ) -> dict[str, Any]:
+        follow_up = str(follow_up_at or "").strip()
+        if follow_up:
+            try:
+                datetime.fromisoformat(follow_up.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise ValueError("follow-up date must be ISO-8601") from exc
+        notes_text = str(notes or "").strip()
+        next_action_text = " ".join(str(next_action or "").split()).strip()
+        if len(follow_up) > 40:
+            raise ValueError("follow-up date is too long")
+        if len(notes_text) > 4000:
+            raise ValueError("application notes exceed 4000 characters")
+        if len(next_action_text) > 500:
+            raise ValueError("next action exceeds 500 characters")
+        now = utc_now_text()
+        with self.database.transaction() as connection:
+            updated = connection.execute(
+                """
+                UPDATE application_attempts
+                   SET follow_up_at=?, notes=?, next_action=?, workspace_updated_at=?
+                 WHERE id=?
+                """,
+                (follow_up or None, notes_text, next_action_text, now, str(application_id)),
+            ).rowcount
+            if updated != 1:
+                raise KeyError(application_id)
+        return self.attempt(str(application_id))
 
     def daily_progress(self) -> dict[str, Any]:
         local_zone = datetime.now().astimezone().tzinfo

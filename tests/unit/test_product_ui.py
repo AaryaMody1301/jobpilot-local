@@ -83,3 +83,24 @@ def test_eligibility_resolution_requires_note_before_bridge_call() -> None:
     assert "const note = input ? input.value.trim() : '';" in js
     assert "if (!note)" in js
     assert "resolve_application_eligibility', id, eligibility === 'approved', note" in js
+
+
+def test_job_and_application_workspaces_keep_saved_job_resume_and_follow_up_together() -> None:
+    js = (UI / "app.js").read_text(encoding="utf-8")
+    css = (UI / "styles.css").read_text(encoding="utf-8")
+    for control_id in (
+        "job-search", "job-eligibility-filter", "job-detail",
+        "application-search", "application-state-filter", "application-detail",
+        "application-follow-up", "application-next-action", "application-notes",
+        "manual-job-compensation", "manual-job-deadline",
+    ):
+        assert f'id="{control_id}"' in js
+    assert "job_workspace_detail" in js
+    assert "application_workspace_detail" in js
+    assert "refresh_job_metadata" in js
+    assert "update_application_workspace" in js
+    assert "data-application-preview" in js
+    assert "tailored_pdf_data_uri" in js
+    assert "Saved job description" in js
+    assert ".workspace-grid" in css
+    assert ".workspace-list-item.selected" in css

@@ -1,6 +1,6 @@
 # Data model contract
 
-This document defines the entities later migrations must preserve. Phase 0 implements only the minimal runtime/application journal needed for recovery tests.
+This document defines the durable entities and metadata that migrations must preserve.
 
 ## Candidate and evidence
 
@@ -28,7 +28,7 @@ This document defines the entities later migrations must preserve. Phase 0 imple
 
 - `boards`: platform, verified identifier, source, enabled/version.
 - `job_snapshots`: original source URL/payload hash/retrieval time.
-- `jobs`: normalized employer/title/location/requisition/apply identity.
+- `jobs`: normalized employer/title/location/requisition/apply identity plus optional provider-supplied compensation and application deadline metadata.
 - `eligibility_results`: hard conditions and unknown/review reasons.
 - `requirements`: required/preferred evidence units.
 - `match_evidence`: approved fact/skill references and explanations.
@@ -37,9 +37,10 @@ This document defines the entities later migrations must preserve. Phase 0 imple
 ## Applications
 
 - `application_packages`: immutable manifest tying JD, tailored resume, profile/facts/model/answers to one attempt.
-- `application_attempts`: state, idempotency identity, irreversible-submit timestamp, confirmation/outcome.
+- `application_attempts`: state, idempotency identity, irreversible-submit timestamp, confirmation/outcome, plus user workspace metadata (`follow_up_at`, notes, next action) that never changes the state machine.
 - `application_events`: append-only transition/reason evidence.
 - `blocked_questions`: mandatory unfamiliar questions and resolution.
+- Application workspace views may join the saved job snapshot, exact tailoring run and immutable package for presentation; those historical links are not rewritten by follow-up/notes edits.
 
 ## Runtime
 

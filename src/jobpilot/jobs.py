@@ -100,6 +100,52 @@ def _json_get(url: str, *, timeout: float = 20.0) -> object:
         raise RuntimeError("job board returned invalid JSON") from exc
 
 
+def _greenhouse_pay_summary(value: object) -> str:
+    if not isinstance(value, list):
+        return ""
+    parts: list[str] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            continue
+        currency = _clean(item.get("currency_type"))
+        minimum = item.get("min_cents")
+        maximum = item.get("max_cents")
+        title = _clean(item.get("title"))
+        if minimum is None or maximum is None or not currency:
+            continue
+        try:
+            low = int(minimum) / 100
+            high = int(maximum) / 100
+        except (TypeError, ValueError):
+            continue
+        amount = f"{currency} {low:g} - {high:g}"
+        parts.append(f"{title}: {amount}" if title else amount)
+    return "; ".join(parts)[:500]
+
+
+def fetch_job_metadata(job: Mapping[str, Any]) -> dict[str, str | None]:
+    provider = _clean(job.get("provider"))
+    current = {
+        "compensation_text": _clean(job.get("compensation_text")) or None,
+        "application_deadline": _clean(job.get("application_deadline")) or None,
+    }
+    if provider != "greenhouse":
+        return current
+    token = _board_token(job.get("board_token"))
+    source_job_id = _clean(job.get("source_job_id"))
+    if not source_job_id.isdigit():
+        raise ValueError("Greenhouse job identifier must be numeric")
+    payload = _json_get(
+        f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs/{source_job_id}?pay_transparency=true"
+    )
+    if not isinstance(payload, Mapping):
+        raise RuntimeError("Greenhouse job detail returned invalid JSON")
+    return {
+        "compensation_text": _greenhouse_pay_summary(payload.get("pay_input_ranges")) or current["compensation_text"],
+        "application_deadline": _clean(payload.get("application_deadline")) or current["application_deadline"],
+    }
+
+
 def _employment(value: object, description: str = "") -> str:
     text = _key(value) or _key(description[:3000])
     if any(term in text for term in ("full time", "fulltime", "permanent")):
@@ -133,7 +179,8 @@ def _workplace(value: object, location: str, description: str = "") -> str:
 
 def _job(provider: str, board_token: str, employer: str, source_id: object, *, title: object, location: object,
          description: object, workplace: object = "", employment: object = "", source_url: object,
-         apply_url: object = "", published_at: object = "") -> dict[str, Any]:
+         apply_url: object = "", published_at: object = "", compensation: object = "",
+         application_deadline: object = "") -> dict[str, Any]:
     title_text = _clean(title)
     employer_text = _clean(employer)
     location_text = _clean(location) or "Unknown"
@@ -144,6 +191,12 @@ def _job(provider: str, board_token: str, employer: str, source_id: object, *, t
         raise ValueError("job employer/title/location exceeds the supported size")
     source_url_text = _url(source_url)
     source_id_text = _clean(source_id) or sha256(source_url_text.encode()).hexdigest()[:24]
+    compensation_text = _clean(compensation)
+    deadline_text = _clean(application_deadline)
+    if len(compensation_text) > 500:
+        raise ValueError("job compensation exceeds 500 characters")
+    if len(deadline_text) > 80:
+        raise ValueError("job application deadline exceeds 80 characters")
     return {
         "provider": provider,
         "board_token": board_token,
@@ -157,6 +210,8 @@ def _job(provider: str, board_token: str, employer: str, source_id: object, *, t
         "apply_url": _url(apply_url) if _clean(apply_url) else None,
         "description": description_text[:100_000],
         "published_at": _clean(published_at) or None,
+        "compensation_text": compensation_text or None,
+        "application_deadline": deadline_text or None,
     }
 
 
@@ -181,11 +236,19 @@ def parse_board_payload(provider: str, employer: str, token: str, payload: objec
             if not isinstance(item, Mapping) or not item.get("id") or not item.get("text"):
                 continue
             categories = item.get("categories") or {}
+            salary = item.get("salaryRange") or {}
+            salary_text = _clean(item.get("salaryDescriptionPlain"))
+            if isinstance(salary, Mapping) and salary.get("currency") and salary.get("min") is not None and salary.get("max") is not None:
+                salary_text = (
+                    f"{_clean(salary.get('currency'))} {salary.get('min')} - {salary.get('max')}"
+                    + (f" ({_clean(salary.get('interval'))})" if _clean(salary.get("interval")) else "")
+                )
             jobs.append(_job(
                 provider, token, employer, item["id"], title=item["text"], location=categories.get("location", ""),
                 description=item.get("descriptionPlain") or item.get("description", ""),
                 workplace=item.get("workplaceType", ""), employment=categories.get("commitment", ""),
                 source_url=item.get("hostedUrl", ""), apply_url=item.get("applyUrl", ""),
+                compensation=salary_text,
             ))
     elif provider == "ashby":
         if not isinstance(payload, Mapping) or not isinstance(payload.get("jobs"), list):
@@ -193,11 +256,19 @@ def parse_board_payload(provider: str, employer: str, token: str, payload: objec
         for item in payload["jobs"]:
             if not isinstance(item, Mapping) or item.get("isListed") is False or not item.get("title"):
                 continue
+            compensation = item.get("compensation") or {}
+            compensation_text = ""
+            if isinstance(compensation, Mapping):
+                compensation_text = _clean(
+                    compensation.get("scrapeableCompensationSalarySummary")
+                    or compensation.get("compensationTierSummary")
+                )
             jobs.append(_job(
                 provider, token, employer, item.get("id") or item.get("jobUrl", ""), title=item["title"],
                 location=item.get("location", ""), description=item.get("descriptionPlain") or item.get("descriptionHtml", ""),
                 workplace=item.get("workplaceType", ""), employment=item.get("employmentType", ""),
                 source_url=item.get("jobUrl", ""), apply_url=item.get("applyUrl", ""), published_at=item.get("publishedAt", ""),
+                compensation=compensation_text,
             ))
     else:
         raise ValueError(f"unsupported job provider: {provider}")
@@ -216,7 +287,8 @@ def normalize_manual_job(raw: Mapping[str, Any]) -> dict[str, Any]:
         "manual", "", raw.get("employer", ""), sha256(source_url.encode()).hexdigest()[:24],
         title=raw.get("title", ""), location=raw.get("location", ""), description=raw.get("description", ""),
         workplace=raw.get("workplace_type", ""), employment=raw.get("employment_type", ""), source_url=source_url,
-        apply_url=raw.get("apply_url", ""),
+        apply_url=raw.get("apply_url", ""), compensation=raw.get("compensation_text", ""),
+        application_deadline=raw.get("application_deadline", ""),
     )
 
 
@@ -401,6 +473,40 @@ class JobStore:
             )
         return next(row for row in self.boards() if row["id"] == board_id)
 
+    def job(self, job_id: str) -> dict[str, Any]:
+        with self.database._lock:
+            row = self.database.connection.execute(
+                "SELECT * FROM discovered_jobs WHERE id=?",
+                (str(job_id),),
+            ).fetchone()
+        if row is None:
+            raise KeyError(job_id)
+        return dict(row)
+
+    def update_metadata(
+        self,
+        job_id: str,
+        *,
+        compensation_text: str | None,
+        application_deadline: str | None,
+    ) -> dict[str, Any]:
+        compensation = _clean(compensation_text)
+        deadline = _clean(application_deadline)
+        if len(compensation) > 500 or len(deadline) > 80:
+            raise ValueError("job metadata exceeds supported size")
+        with self.database.transaction() as connection:
+            updated = connection.execute(
+                """
+                UPDATE discovered_jobs
+                   SET compensation_text=?, application_deadline=?
+                 WHERE id=?
+                """,
+                (compensation or None, deadline or None, str(job_id)),
+            ).rowcount
+            if updated != 1:
+                raise KeyError(job_id)
+        return self.job(job_id)
+
     def set_board_enabled(self, board_id: str, enabled: bool) -> None:
         with self.database.transaction() as connection:
             if connection.execute("UPDATE job_boards SET enabled=? WHERE id=?", (int(enabled), board_id)).rowcount != 1:
@@ -422,20 +528,22 @@ class JobStore:
             INSERT INTO discovered_jobs(
                 id, provider, board_id, board_token, source_job_id, employer, title, location,
                 workplace_type, employment_type, source_url, apply_url, description, published_at,
-                active, first_seen_at, last_seen_at, content_sha256
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+                compensation_text, application_deadline, active, first_seen_at, last_seen_at, content_sha256
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 employer=excluded.employer, title=excluded.title, location=excluded.location,
                 workplace_type=excluded.workplace_type, employment_type=excluded.employment_type,
                 source_url=excluded.source_url, apply_url=excluded.apply_url, description=excluded.description,
-                published_at=excluded.published_at, active=1, last_seen_at=excluded.last_seen_at,
+                published_at=excluded.published_at, compensation_text=excluded.compensation_text,
+                application_deadline=excluded.application_deadline, active=1, last_seen_at=excluded.last_seen_at,
                 content_sha256=excluded.content_sha256
             """,
             (
                 job_id, job["provider"], board_id, job.get("board_token", ""), job["source_job_id"],
                 job["employer"], job["title"], job["location"], job.get("workplace_type"),
                 job.get("employment_type"), job["source_url"], job.get("apply_url"), job["description"],
-                job.get("published_at"), now, now, content_sha,
+                job.get("published_at"), job.get("compensation_text"), job.get("application_deadline"),
+                now, now, content_sha,
             ),
         )
 

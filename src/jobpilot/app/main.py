@@ -198,6 +198,10 @@ def run_window_smoke() -> dict[str, object]:
                             "typeof window.pywebview.api.get_state === 'function' && "
                             "typeof window.pywebview.api.choose_local_backup === 'function' && "
                             "typeof window.pywebview.api.inspect_prepared_application === 'function' && "
+                            "typeof window.pywebview.api.job_workspace_detail === 'function' && "
+                            "typeof window.pywebview.api.application_workspace_detail === 'function' && "
+                            "typeof window.pywebview.api.refresh_job_metadata === 'function' && "
+                            "typeof window.pywebview.api.update_application_workspace === 'function' && "
                             "typeof window.pywebview.api.activate_real_application_pilot === 'function'"
                         )
                     )

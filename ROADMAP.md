@@ -8,21 +8,23 @@ The Windows desktop foundation, immutable resume/fact system, local AI/resource 
 
 Historical build sequencing is condensed in `docs/IMPLEMENTATION_HISTORY.md`.
 
-## Repository cleanup [~]
+## Repository cleanup [x]
 
 - [x] PR #21: production entrypoint/bridge cleanup and removal of sample-development runtime state.
 - [x] PR #23: one final production UI shell, removal of phase-injected UI and development fixture controls, active-view rendering, accessibility cleanup, and final-shell regression coverage.
-- [~] PR 3: durable CI/release workflows, deletion of obsolete phase entrypoints/bridges/UI/probes, capability-named acceptance scripts, and documentation cleanup.
+- [x] PR #24: durable CI/release workflows, deletion of obsolete phase entrypoints/bridges/UI/probes, capability-named acceptance scripts, and documentation cleanup.
 
-## Job/application workspace [ ]
+## Job/application workspace [~]
 
-After repository cleanup:
+The current feature slice implements:
 
-- expose job/application detail in one workspace;
-- show saved JD snapshot, employer/title/location/compensation/deadline when available;
-- keep the exact tailored resume/application package associated with the application;
-- add search/filter/grouping around current job/application state;
-- expose follow-up date, notes, and next action without weakening automation gates.
+- [x] searchable/filterable saved-job workspace with the persisted JD snapshot and evidence explanation;
+- [x] employer/title/location/workplace/employment plus compensation/deadline when the public provider exposes them;
+- [x] explicit on-demand Greenhouse pay/deadline refresh instead of N+1 detail requests during board discovery;
+- [x] searchable/filterable application workspace tied to the exact tailoring run and immutable package;
+- [x] exact tailored-resume preview from the application's recorded run;
+- [x] local follow-up date, notes, and next action metadata without adding another application state machine;
+- [ ] merge the workspace after Windows CI and Windows Acceptance pass.
 
 ## Local-AI maintenance evaluation [ ]
 
