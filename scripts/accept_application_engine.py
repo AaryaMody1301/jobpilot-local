@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from jobpilot.app.phase6_controller import Phase6ApplicationController
+from jobpilot.app.application_engine_controller import ApplicationEngineController
 from jobpilot.runtime.paths import ManagedPaths
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -96,7 +96,7 @@ def main() -> int:
     try:
         with TemporaryDirectory(prefix="jobpilot-application-engine-acceptance-") as temp_dir:
             paths = ManagedPaths(Path(temp_dir) / "JobPilotLocal")
-            controller = Phase6ApplicationController(paths, MIGRATIONS, sample_item_seconds=0.01)
+            controller = ApplicationEngineController(paths, MIGRATIONS, sample_item_seconds=0.01)
             try:
                 controller.queue_controlled_application("fixture-success", base + "/success")
                 controller.start()
