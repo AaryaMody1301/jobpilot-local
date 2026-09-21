@@ -48,7 +48,7 @@ jobs:
       - name: Run release regression suite
         run: pytest -m "not external"
       - name: Verify backup restore and inactive-by-default pilot
-        run: python scripts/phase9_distribution_acceptance.py
+        run: python scripts/accept_distribution.py
       - name: Build onedir with hermetic Chromium
         shell: pwsh
         run: |
