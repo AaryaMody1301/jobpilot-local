@@ -509,8 +509,9 @@ const jobsView = document.getElementById('jobs');
       <div id="orchestration-attention" class="fact-list"></div>
     </article>
     <article class="card section-card">
-      <div class="card-heading"><div><h2>Application history</h2><p>Discovery, eligibility, tailoring, package, submission and terminal outcomes are persisted in the local application journal.</p></div><span id="orchestration-counts" class="muted"></span></div>
-      <div id="orchestration-history" class="fact-list"></div>
+      <div class="card-heading"><div><h2>Application workspace</h2><p>Keep the saved job, exact tailored resume/package, follow-up plan and application journal together.</p></div><span id="orchestration-counts" class="muted"></span></div>
+      <div class="workspace-toolbar"><label>Search<input id="application-search" type="search" placeholder="Employer, role, notes, next action"></label><label>Status<select id="application-state-filter"><option value="all">All statuses</option></select></label></div>
+      <div class="workspace-grid"><div id="orchestration-history" class="workspace-list"></div><div id="application-detail" class="workspace-detail"><p>Select an application to inspect its local record.</p></div></div>
     </article>`;
   history.prepend(orchestrationSection);
 
