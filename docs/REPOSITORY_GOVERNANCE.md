@@ -14,7 +14,7 @@ Protect `main` with:
 - no branch deletion;
 - no bypass unless an explicit emergency repository-admin decision is recorded.
 
-The connected repository automation does not expose repository-administration writes, so these settings must be applied by a repository administrator.
+The live repository audit on 2026-09-21 reported `main` as unprotected. The connected repository automation does not expose repository-administration writes, so these settings must be applied by a repository administrator. GitHub's required-status-check mode should be strict so the PR head is up to date with `main` before merge.
 
 ## CI dependency policy
 
