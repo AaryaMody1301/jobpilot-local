@@ -39,7 +39,7 @@ def test_migration_is_idempotent_and_enables_safety_pragmas(tmp_path: Path) -> N
         job_columns = {row["name"] for row in db.connection.execute("PRAGMA table_info(discovered_jobs)")}
         application_columns = {row["name"] for row in db.connection.execute("PRAGMA table_info(application_attempts)")}
         assert {"compensation_text", "application_deadline"}.issubset(job_columns)
-        assert {"follow_up_at", "notes", "next_action"}.issubset(application_columns)
+        assert {"follow_up_at", "notes", "next_action", "workspace_updated_at"}.issubset(application_columns)
 
 
 def test_unclean_recovery_requeues_only_pre_submit_work(tmp_path: Path) -> None:
