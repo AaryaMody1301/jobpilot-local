@@ -153,6 +153,20 @@ class DesktopBridge:
     def retry_application_tailoring(self, application_id: str) -> dict[str, Any]:
         return self._controller.retry_application_tailoring(application_id)
 
+    def update_application_workspace(
+        self,
+        application_id: str,
+        follow_up_at: str | None,
+        notes: str,
+        next_action: str,
+    ) -> dict[str, Any]:
+        return self._controller.update_application_workspace(
+            application_id,
+            follow_up_at,
+            notes,
+            next_action,
+        )
+
     def queue_prepared_controlled_application(self, application_id: str, target_url: str) -> dict[str, Any]:
         return self._controller.queue_prepared_controlled_application(application_id, target_url)
 
