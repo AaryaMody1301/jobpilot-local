@@ -83,3 +83,19 @@ Current official `actions/checkout` and `actions/setup-python` documentation use
 ## Safety consequence
 
 No web source, model card, benchmark, CI runner, or GPU name is allowed to decide the user's runtime configuration by assumption. The local app captures the actual machine state, requires explicit artifact download approval, verifies exact content, discovers accelerator devices from the installed runtime, measures each candidate configuration locally, and selects only among configurations that pass deterministic factual/structured/resource checks. If none fit, the outcome is “no safe tested local model”; there is no cloud fallback.
+
+
+## Local-AI maintenance evaluation - 2026-09-21
+
+Upstream llama.cpp currently marks semantic release `v0.4.1` as latest. The version-bump build is `b10964`; later `b109xx` builds are rolling pre-releases and are not used as the maintenance target.
+
+Exact b10964 Windows x64 artifacts from the official GitHub release metadata:
+
+- CPU: `llama-b10964-bin-win-cpu-x64.zip`, 18,427,629 bytes, SHA-256 `917f39c076402c421224824607397af20f53625a60defc20e8dd22446bf4c5d7`;
+- Vulkan: `llama-b10964-bin-win-vulkan-x64.zip`, 31,674,542 bytes, SHA-256 `1ee3ad952f4ba71f438bd6d7bebef19e1c7af04adcaa35d08b4ddabb27d4c642`.
+
+The exact b10964 server source still parses `response_format.type = "json_schema"` from `response_format.json_schema.schema`, and its documented/implemented runtime options still include `--list-devices`, `--device`, `--offline`, `--no-mmproj`, and `--no-ui`. The existing JobPilot runtime and independent local schema/factual validators therefore remain applicable to this candidate.
+
+The existing Qwen3 4B GGUF stays pinned for this runtime-only comparison. Qwen's official Qwen3 4B GGUF remains a text-generation model with Q4_K_M available. The newer Qwen3.5-4B line is published as an image-text model, so it is not a drop-in replacement for JobPilot's text-only/no-mmproj trust boundary and is out of scope for this maintenance slice.
+
+b10964 is catalogued as a maintenance candidate, not a baseline replacement. CI evaluates it with the same structured/factual/tailoring/resource suite after the baseline acceptance. Passing CI does not auto-select it; local explicit selection plus the existing five-distinct-resume gate are still required before automatic tailoring could move to that runtime.
