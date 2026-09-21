@@ -7,7 +7,7 @@ UI = ROOT / "src" / "jobpilot" / "ui"
 def test_phase3_ui_exposes_resource_model_device_and_explicit_download_controls() -> None:
     html = (UI / "index.html").read_text(encoding="utf-8")
     js = (UI / "app.js").read_text(encoding="utf-8")
-    assert "PHASE 4" in html
+    assert "LOCAL-FIRST JOB APPLICATION WORKSPACE" in html
     for control_id in (
         "refresh-hardware", "check-model-updates", "runtime-catalogue", "model-catalogue",
         "model-review-gate", "model-evaluations",
