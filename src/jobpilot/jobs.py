@@ -145,6 +145,12 @@ def _job(provider: str, board_token: str, employer: str, source_id: object, *, t
         raise ValueError("job employer/title/location exceeds the supported size")
     source_url_text = _url(source_url)
     source_id_text = _clean(source_id) or sha256(source_url_text.encode()).hexdigest()[:24]
+    compensation_text = _clean(compensation)
+    deadline_text = _clean(application_deadline)
+    if len(compensation_text) > 500:
+        raise ValueError("job compensation exceeds 500 characters")
+    if len(deadline_text) > 80:
+        raise ValueError("job application deadline exceeds 80 characters")
     return {
         "provider": provider,
         "board_token": board_token,
@@ -158,8 +164,8 @@ def _job(provider: str, board_token: str, employer: str, source_id: object, *, t
         "apply_url": _url(apply_url) if _clean(apply_url) else None,
         "description": description_text[:100_000],
         "published_at": _clean(published_at) or None,
-        "compensation_text": _clean(compensation) or None,
-        "application_deadline": _clean(application_deadline) or None,
+        "compensation_text": compensation_text or None,
+        "application_deadline": deadline_text or None,
     }
 
 
