@@ -4,6 +4,12 @@ let refreshTimer = null;
 let inspectedRunId = null;
 let clientOnboardingBusy = null;
 let activeView = 'dashboard';
+let selectedJobId = null;
+let selectedApplicationId = null;
+let jobSearchTerm = '';
+let jobEligibilityFilter = 'all';
+let applicationSearchTerm = '';
+let applicationStateFilter = 'all';
 
 function csv(value) { return value.split(',').map(v => v.trim()).filter(Boolean); }
 function toast(message) { const el = document.getElementById('toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2600); }
