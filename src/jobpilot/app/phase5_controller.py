@@ -99,6 +99,12 @@ class Phase5ApplicationController(Phase4ApplicationController):
                 self._end_onboarding_operation()
         return self.snapshot()
 
+    def job_workspace_detail(self, job_id: str) -> dict[str, Any]:
+        with self._lock:
+            self._require_open()
+            job = self.job_store.job(job_id)
+            return assess_job(job, self._targeting, self._approved_evidence())
+
     def refresh_job_metadata(self, job_id: str) -> dict[str, Any]:
         with self._lock:
             cancel = self._begin_onboarding_operation("job metadata refresh")
@@ -135,6 +141,7 @@ class Phase5ApplicationController(Phase4ApplicationController):
         jobs = [assess_job(job, self._targeting, facts) for job in dedupe_jobs(self.job_store.jobs())]
         order = {"eligible": 0, "review": 1, "ineligible": 2}
         jobs.sort(key=lambda job: (order[job["eligibility"]], -int(job["score"]), str(job["employer"]), str(job["title"])))
+        jobs = [{key: value for key, value in job.items() if key != "description"} for job in jobs]
         counts = {"eligible": 0, "review": 0, "ineligible": 0}
         for job in jobs:
             counts[job["eligibility"]] += 1
