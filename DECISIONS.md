@@ -215,3 +215,12 @@ Status: accepted for Phase 4 implementation, 2026-09-11.
 Phase 4 accepts JD text only through explicit manual input. An optional source URL may be recorded for provenance, but Phase 4 never fetches or navigates it. The recorded value must be an absolute HTTP(S) URL, is length-capped, and cannot contain embedded credentials. The bundled UI still has `connect-src 'none'` and no JavaScript fetch/XHR path.
 
 URL retrieval/discovery belongs to later approved discovery/browser phases and must obey their own allowlists, adapters and safety rules.
+
+
+## D-032 - maintenance runtimes are evaluable but never auto-promoted
+
+Status: accepted for maintenance evaluation, 2026-09-21.
+
+A newer stable llama.cpp runtime may enter the catalogue as a `maintenance_candidate` only after its exact official Windows artifact size, SHA-256, license, required runtime options, and structured-output wire contract are verified. The existing validated baseline remains the default recommendation.
+
+A maintenance candidate can be explicitly downloaded and evaluated against the same pinned model and the same structured/factual/tailoring/resource suite. Evaluation does not change the selected runtime. If a user later explicitly selects a passing candidate, that configuration change invalidates/restarts the existing five-distinct-resume review evidence before automatic tailoring can use it. Rolling pre-release builds are not promoted merely for being newer.

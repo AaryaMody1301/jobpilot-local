@@ -14,7 +14,7 @@ Historical build sequencing is condensed in `docs/IMPLEMENTATION_HISTORY.md`.
 - [x] PR #23: one final production UI shell, removal of phase-injected UI and development fixture controls, active-view rendering, accessibility cleanup, and final-shell regression coverage.
 - [x] PR #24: durable CI/release workflows, deletion of obsolete phase entrypoints/bridges/UI/probes, capability-named acceptance scripts, and documentation cleanup.
 
-## Job/application workspace [~]
+## Job/application workspace [x]
 
 The current feature slice implements:
 
@@ -24,11 +24,15 @@ The current feature slice implements:
 - [x] searchable/filterable application workspace tied to the exact tailoring run and immutable package;
 - [x] exact tailored-resume preview from the application's recorded run;
 - [x] local follow-up date, notes, and next action metadata without adding another application state machine;
-- [ ] merge the workspace after Windows CI and Windows Acceptance pass.
+- [x] merged as PR #25 after Windows CI and Windows Acceptance passed.
 
-## Local-AI maintenance evaluation [ ]
+## Local-AI maintenance evaluation [~]
 
-Evaluate newer llama.cpp releases independently. Do not replace the validated v0.4.0/b10809 runtime unless exact artifacts, license/checksum metadata, quality/resource evaluation, and replacement review-gate requirements pass.
+- [x] research the current stable llama.cpp release and exact Windows x64 artifacts;
+- [x] catalogue v0.4.1/b10964 CPU/Vulkan as maintenance candidates with exact size/SHA-256;
+- [~] run the existing Windows quality/resource evaluation against b10964 using the current pinned Qwen3 4B model;
+- [ ] keep b10809 as the validated baseline unless the candidate passes and a user explicitly selects it;
+- [ ] any selected replacement must complete the existing five-distinct-resume review gate before automatic tailoring can use it.
 
 ## Private product evidence [!]
 

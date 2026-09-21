@@ -12,6 +12,7 @@ from jobpilot.runtime.paths import ManagedPaths
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = ROOT / "migrations"
 RUNTIME_ID = "llama-b10809-win-cpu-x64"
+MAINTENANCE_RUNTIME_ID = "llama-b10964-win-cpu-x64"
 MODEL_ID = "qwen3-4b-q4_k_m"
 
 CONTROLLED_RESUME = r"""\documentclass[a4paper,11pt]{article}
@@ -94,12 +95,29 @@ def main() -> int:
             if controller.snapshot()["tailoring"]["auto_tailoring_enabled"]:
                 raise RuntimeError("automatic tailoring must remain disabled before five real approvals")
 
+            candidate_runtime = controller.install_model_runtime(MAINTENANCE_RUNTIME_ID)
+            if candidate_runtime["status"] != "installed" or candidate_runtime["integrity"] != "verified":
+                raise RuntimeError("verified llama.cpp maintenance candidate installation failed")
+            candidate_evaluation = controller.evaluate_local_model(model["id"], MAINTENANCE_RUNTIME_ID, "none")
+            if not candidate_evaluation["overall_pass"]:
+                raise RuntimeError("llama.cpp maintenance candidate failed the existing quality/resource gates")
+            if not candidate_evaluation.get("generation_tokens_per_second"):
+                raise RuntimeError("maintenance candidate evaluation did not record generation throughput")
+            selected_runtime = controller.snapshot()["model"]["selection"].get("selected_runtime_install_id")
+            if selected_runtime != RUNTIME_ID:
+                raise RuntimeError("maintenance evaluation must not auto-switch the selected validated runtime")
+
             print(json.dumps({
                 "runtime": RUNTIME_ID,
                 "model": MODEL_ID,
                 "model_install_id": model["id"],
                 "device_id": evaluation["device_id"],
                 "generation_tokens_per_second": evaluation["generation_tokens_per_second"],
+                "maintenance_runtime": MAINTENANCE_RUNTIME_ID,
+                "maintenance_generation_tokens_per_second": candidate_evaluation["generation_tokens_per_second"],
+                "maintenance_peak_rss_bytes": candidate_evaluation["peak_rss_bytes"],
+                "maintenance_overall_pass": candidate_evaluation["overall_pass"],
+                "selected_runtime_after_maintenance_evaluation": selected_runtime,
                 "controlled_jd_instruction_like": True,
                 "tailoring_status": run["status"],
                 "validated_edits": len(run["diff"]),

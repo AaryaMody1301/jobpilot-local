@@ -97,7 +97,7 @@ Official GitHub Actions are pinned to full commit SHAs. Python CI installs the c
 
 ## Local AI baseline
 
-The validated baseline remains llama.cpp v0.4.0 / build b10809 with the checksum-pinned Qwen3 4B GGUF catalogue entry. New upstream runtime/model versions are not silently substituted; replacement requires exact artifact metadata, local evaluation, and the existing review gate.
+The validated default remains llama.cpp v0.4.0 / build b10809 with the checksum-pinned Qwen3 4B GGUF catalogue entry. The current stable v0.4.1 / build b10964 Windows CPU/Vulkan binaries are catalogued only as maintenance candidates. Installing/evaluating a candidate never switches the selected runtime automatically; replacement still requires explicit local selection and the existing five-distinct-resume review gate. The newer Qwen3.5-4B line is multimodal and is not treated as a drop-in replacement for JobPilot's text-only/no-mmproj boundary.
 
 ## Project records
 

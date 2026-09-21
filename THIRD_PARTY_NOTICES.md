@@ -17,7 +17,7 @@ This file records dependencies and reference projects reviewed for `jobpilot-loc
 | pip-audit | 2.10.1 | Apache-2.0; development/CI vulnerability audit only |
 | PyInstaller | 6.22.3 | GPL-2.0-or-later with the PyInstaller bootloader exception |
 | Tectonic | 0.17.0 app-managed Windows x64 binary | MIT for Tectonic; support files derived from TeX Live carry their own upstream licenses and notices that must remain attributable in distribution |
-| llama.cpp | v0.4.0 / binary build b10809 | MIT; exact CPU/Vulkan Windows x64 archives are pinned below |
+| llama.cpp | validated v0.4.0/b10809 baseline; v0.4.1/b10964 maintenance candidate | MIT; exact CPU/Vulkan Windows x64 archives are pinned below |
 | Qwen3 4B GGUF | `ggml-org/Qwen3-4B-GGUF`, revision `2f3b082b1356a6123f7ed71e65aea340da25d53c`, Q4_K_M | Apache-2.0; model weights are downloaded only after explicit user approval and are never committed to this repository |
 | Microsoft Edge WebView2 Runtime | Evergreen system runtime | Microsoft-distributed prerequisite used by pywebview's Edge Chromium backend; not copied into the JobPilot program tree |
 
@@ -37,11 +37,13 @@ JobPilot does not bundle or commit model weights. Its Phase 3 catalogue records 
 
 - llama.cpp CPU x64 archive: `llama-b10809-bin-win-cpu-x64.zip`, 18,407,457 bytes, SHA-256 `9df3158ed228a641a4b127942d7f459f24c9e13f04682659d05c00c80099b6b5`;
 - llama.cpp Vulkan x64 archive: `llama-b10809-bin-win-vulkan-x64.zip`, 35,221,385 bytes, SHA-256 `97e50b3ef0cdd2cb4d5afd446a9006b3496bee6c0d0ba7083d32f36075771870`;
+- llama.cpp v0.4.1 candidate CPU x64 archive: `llama-b10964-bin-win-cpu-x64.zip`, 18,427,629 bytes, SHA-256 `917f39c076402c421224824607397af20f53625a60defc20e8dd22446bf4c5d7`;
+- llama.cpp v0.4.1 candidate Vulkan x64 archive: `llama-b10964-bin-win-vulkan-x64.zip`, 31,674,542 bytes, SHA-256 `1ee3ad952f4ba71f438bd6d7bebef19e1c7af04adcaa35d08b4ddabb27d4c642`;
 - Qwen3 4B Q4_K_M weight: `Qwen3-4B-Q4_K_M.gguf`, 2,497,280,640 bytes, SHA-256 `ab27b9bfa375a178d6cba48f3ad892b94b7739659dcc7aae8058ce0ffed6b328`.
 
 The Qwen3 GGUF is used as a text-only local model. JobPilot does not download or load a multimodal projection for it. Passing the controlled Phase 3 evaluation does not grant permission to fabricate resume facts and does not enable automatic tailoring; the separate Phase 4 five-resume human review gate still applies.
 
-Upstream may publish newer llama.cpp releases after this validated catalogue baseline. They are not silently substituted: every future runtime/model revision must receive a new catalogue record/install identity with source revision, license, exact checksum/size and evaluation evidence before use. A metadata update check may report newer upstream versions, but it never downloads or automatically trusts them. As of the 2026-09-18 final cleanup, upstream v0.4.1 is newer than JobPilot's validated v0.4.0/b10809 baseline and remains metadata-only pending those gates.
+Upstream releases are never silently substituted. v0.4.1/b10964 is available only as a maintenance candidate with a separate catalogue identity. Candidate installation still requires explicit approval; candidate evaluation does not auto-select it; the validated v0.4.0/b10809 baseline remains the default until explicit selection plus the normal review gate.
 
 ## Reference repositories reviewed
 
