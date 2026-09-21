@@ -130,7 +130,7 @@ class Phase8ApplicationController(Phase6ApplicationController):
         next_action: str,
     ) -> dict[str, Any]:
         with self._lock:
-            self._require_open()
+            self._require_idle_onboarding()
             self.applications.update_workspace(
                 application_id,
                 follow_up_at=follow_up_at,
