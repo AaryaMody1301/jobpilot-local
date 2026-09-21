@@ -159,6 +159,9 @@ class DesktopBridge:
     def retry_application_tailoring(self, application_id: str) -> dict[str, Any]:
         return self._controller.retry_application_tailoring(application_id)
 
+    def application_workspace_detail(self, application_id: str) -> dict[str, Any]:
+        return self._controller.application_workspace_detail(application_id)
+
     def update_application_workspace(
         self,
         application_id: str,
