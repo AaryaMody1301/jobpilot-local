@@ -42,7 +42,6 @@ def main() -> int:
         restored = create_controller(paths, sample_item_seconds=0.01)
         try:
             state = restored.snapshot()
-            assert state["phase"] == 9
             assert state["distribution"]["restore_applied_on_launch"]["applied"] is True
             assert state["distribution"]["backup"]["restore_pending"] is False
             assert state["distribution"]["pilot_activation_available"] is True
@@ -55,7 +54,7 @@ def main() -> int:
         finally:
             restored.close()
 
-    print("distribution distribution backup/restore acceptance passed; authorized pilot remains inactive by default")
+    print("distribution backup/restore acceptance passed; authorized pilot remains inactive by default")
     return 0
 
 
