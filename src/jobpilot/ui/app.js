@@ -440,6 +440,7 @@ const jobsView = document.getElementById('jobs');
       </div>
       <div class="fact-source"><strong>Source URL</strong><br>${escapeHtml(selectedJob.source_url)}</div>
       ${selectedJob.apply_url ? `<div class="fact-source"><strong>Apply URL</strong><br>${escapeHtml(selectedJob.apply_url)}</div>` : ''}
+      ${selectedJob.provider === 'greenhouse' ? `<div class="button-row"><button type="button" data-job-refresh-metadata="${escapeAttr(selectedJob.id)}" ${idle ? '' : 'disabled'}>Refresh Greenhouse pay/deadline</button></div>` : ''}
       ${reasons.length ? `<div class="fact-source"><strong>Eligibility/review reasons</strong><br>${reasons.map(escapeHtml).join('<br>')}</div>` : ''}
       <div class="fact-source"><strong>Evidence summary</strong><br>Required ${selectedJob.matched_required.length}/${selectedJob.required_requirements.length} · Preferred ${selectedJob.matched_preferred.length}/${selectedJob.preferred_requirements.length}<br>Ranking: role ${Number(score.role || 0)} · required evidence ${Number(score.required_evidence || 0)} · preferred evidence ${Number(score.preferred_evidence || 0)} · eligibility clarity ${Number(score.eligibility_clarity || 0)}</div>
       ${missingRequired.length ? `<div class="fact-source"><strong>Missing required evidence</strong><br>${missingRequired.map(escapeHtml).join('<br>')}</div>` : ''}
@@ -461,6 +462,13 @@ const jobsView = document.getElementById('jobs');
     selectedJobId = button.dataset.jobSelect;
     if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
   });
+  document.getElementById('job-detail').addEventListener('click', async event => {
+    const jobId = event.target.dataset.jobRefreshMetadata;
+    if (!jobId) return;
+    await invokeOnboarding('refresh_job_metadata', 'job metadata refresh', jobId);
+    toast('Public job metadata refreshed');
+  });
+
 
   document.getElementById('job-discover').addEventListener('click', () => invoke('discover_jobs'));
   document.getElementById('job-board-form').addEventListener('submit', event => {
