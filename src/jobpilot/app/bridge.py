@@ -141,6 +141,9 @@ class DesktopBridge:
     def discover_jobs(self) -> dict[str, Any]:
         return self._controller.discover_jobs()
 
+    def job_workspace_detail(self, job_id: str) -> dict[str, Any]:
+        return self._controller.job_workspace_detail(job_id)
+
     def refresh_job_metadata(self, job_id: str) -> dict[str, Any]:
         return self._controller.refresh_job_metadata(job_id)
 
