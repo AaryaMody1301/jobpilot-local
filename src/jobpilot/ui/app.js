@@ -553,12 +553,95 @@ const jobsView = document.getElementById('jobs');
       return `<div class="fact-item"><div class="fact-meta"><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span><strong>${escapeHtml(identity(item))}</strong></div><div class="fact-source">${escapeHtml(item.attention_kind.replaceAll('_', ' '))}${reasons.length ? `<br>${escapeHtml(reasons.join(' · '))}` : ''}${item.last_reason ? `<br>${escapeHtml(item.last_reason)}` : ''}</div>${attentionAction(item)}</div>`;
     }).join('') : '<p>No orchestration item currently needs attention.</p>';
 
-    document.getElementById('orchestration-history').innerHTML = orchestration.history.length ? orchestration.history.map(item => {
-      const packageHash = item.package_manifest_sha256 ? `<br>Package ${escapeHtml(item.package_manifest_sha256.slice(0, 16))}…` : '';
-      return `<div class="fact-item"><div class="fact-meta"><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span><strong>${escapeHtml(identity(item))}</strong></div><div class="fact-source">${escapeHtml(item.provider || 'legacy')}${item.location ? ` · ${escapeHtml(item.location)}` : ''}<br>${escapeHtml(item.last_reason || '')}${packageHash}</div></div>`;
-    }).join('') : '<p>No application history yet.</p>';
+    const states = [...new Set(orchestration.history.map(item => item.state))].sort();
+    const stateFilter = document.getElementById('application-state-filter');
+    stateFilter.innerHTML = '<option value="all">All statuses</option>' + states.map(value => `<option value="${escapeAttr(value)}">${escapeHtml(value)}</option>`).join('');
+    if (!states.includes(applicationStateFilter)) applicationStateFilter = 'all';
+    stateFilter.value = applicationStateFilter;
+
+    const query = applicationSearchTerm.toLowerCase();
+    const filteredApplications = orchestration.history.filter(item => {
+      if (applicationStateFilter !== 'all' && item.state !== applicationStateFilter) return false;
+      if (!query) return true;
+      return [item.employer, item.title, item.location, item.provider, item.notes, item.next_action]
+        .some(value => String(value || '').toLowerCase().includes(query));
+    });
+    if (!filteredApplications.some(item => item.id === selectedApplicationId)) selectedApplicationId = filteredApplications[0]?.id || null;
+    document.getElementById('orchestration-history').innerHTML = filteredApplications.length ? filteredApplications.map(item => {
+      const selected = item.id === selectedApplicationId ? ' selected' : '';
+      const followUp = item.follow_up_at ? `<br><span class="muted">Follow up ${escapeHtml(displayDate(item.follow_up_at))}</span>` : '';
+      return `<button type="button" class="workspace-list-item${selected}" data-application-select="${escapeAttr(item.id)}"><span><strong>${escapeHtml(identity(item))}</strong><br><span class="muted">${escapeHtml(item.provider || 'local')} · ${escapeHtml(item.location || 'location unknown')}</span>${followUp}</span><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span></button>`;
+    }).join('') : '<p>No applications match the current filters.</p>';
+
+    const selectedApplication = filteredApplications.find(item => item.id === selectedApplicationId);
+    const detail = document.getElementById('application-detail');
+    if (!selectedApplication) {
+      detail.innerHTML = '<p>Select an application to inspect its local record.</p>';
+    } else {
+      const editable = state.session_state === 'idle' && !state.onboarding_busy;
+      const packageHash = selectedApplication.package_manifest_sha256 || '';
+      const resumeHash = selectedApplication.tailored_pdf_sha256 || '';
+      detail.innerHTML = `<div class="card-heading"><div><h2>${escapeHtml(selectedApplication.title || 'Application')}</h2><p>${escapeHtml(selectedApplication.employer || 'Unknown employer')} · ${escapeHtml(selectedApplication.location || 'Unknown location')}</p></div><span class="pill ${escapeAttr(selectedApplication.state)}">${escapeHtml(selectedApplication.state)}</span></div>
+        <div class="detail-list">
+          <div><span>Provider</span><strong>${escapeHtml(selectedApplication.provider || 'Local')}</strong></div>
+          <div><span>Compensation</span><strong>${escapeHtml(selectedApplication.compensation_text || 'Not provided')}</strong></div>
+          <div><span>Deadline</span><strong>${escapeHtml(displayDate(selectedApplication.application_deadline))}</strong></div>
+          <div><span>Created</span><strong>${escapeHtml(displayDate(selectedApplication.created_at))}</strong></div>
+          <div><span>Submit started</span><strong>${escapeHtml(displayDate(selectedApplication.submit_started_at))}</strong></div>
+          <div><span>Confirmed</span><strong>${escapeHtml(displayDate(selectedApplication.confirmed_at))}</strong></div>
+        </div>
+        <div class="fact-source"><strong>Last journal reason</strong><br>${escapeHtml(selectedApplication.last_reason || 'No recorded reason')}</div>
+        ${selectedApplication.source_url ? `<div class="fact-source"><strong>Saved source URL</strong><br>${escapeHtml(selectedApplication.source_url)}</div>` : ''}
+        ${selectedApplication.apply_url ? `<div class="fact-source"><strong>Saved apply URL</strong><br>${escapeHtml(selectedApplication.apply_url)}</div>` : ''}
+        <div class="workspace-artifact-grid">
+          <div><span>Tailoring run</span><strong>${escapeHtml(selectedApplication.tailoring_run_id || 'None')}</strong><small>${escapeHtml(selectedApplication.tailoring_status || '')}${resumeHash ? ` · PDF ${escapeHtml(shortHash(resumeHash))}` : ''}</small>${selectedApplication.tailored_pdf_relpath ? `<button type="button" data-application-preview="${escapeAttr(selectedApplication.tailoring_run_id)}">Preview exact tailored resume</button>` : ''}</div>
+          <div><span>Application package</span><strong>${escapeHtml(selectedApplication.package_id || 'None')}</strong><small>${packageHash ? `Manifest ${escapeHtml(shortHash(packageHash))}` : 'No immutable package yet'}</small></div>
+        </div>
+        <form id="application-workspace-form" class="section-card">
+          <div class="form-row"><label>Follow-up date<input id="application-follow-up" type="date" value="${escapeAttr((selectedApplication.follow_up_at || '').slice(0, 10))}" ${editable ? '' : 'disabled'}></label><label>Next action<input id="application-next-action" maxlength="500" value="${escapeAttr(selectedApplication.next_action || '')}" placeholder="e.g. Follow up with recruiter" ${editable ? '' : 'disabled'}></label></div>
+          <label>Notes<textarea id="application-notes" rows="5" maxlength="4000" placeholder="Interview notes, contacts, reminders…" ${editable ? '' : 'disabled'}>${escapeHtml(selectedApplication.notes || '')}</textarea></label>
+          <button type="submit" class="primary" ${editable ? '' : 'disabled'}>Save workspace</button>
+          ${editable ? '' : '<small>Pause or stop the active session before editing workspace metadata.</small>'}
+        </form>
+        ${selectedApplication.description ? `<details class="workspace-description"><summary>Saved job description</summary><pre>${escapeHtml(selectedApplication.description)}</pre></details>` : ''}
+        <iframe id="application-resume-preview" class="pdf-preview" title="Tailored resume used for this application" hidden></iframe>`;
+    }
     pilotQueueButtons(state);
   }
+
+  document.getElementById('application-search').addEventListener('input', event => {
+    applicationSearchTerm = event.target.value.trim();
+    if (latestState) renderOrchestration(latestState);
+  });
+  document.getElementById('application-state-filter').addEventListener('change', event => {
+    applicationStateFilter = event.target.value;
+    if (latestState) renderOrchestration(latestState);
+  });
+  document.getElementById('orchestration-history').addEventListener('click', event => {
+    const button = event.target.closest('[data-application-select]');
+    if (!button) return;
+    selectedApplicationId = button.dataset.applicationSelect;
+    if (latestState) renderOrchestration(latestState);
+  });
+  document.getElementById('application-detail').addEventListener('submit', async event => {
+    if (event.target.id !== 'application-workspace-form' || !selectedApplicationId) return;
+    event.preventDefault();
+    await invoke(
+      'update_application_workspace',
+      selectedApplicationId,
+      document.getElementById('application-follow-up').value || null,
+      document.getElementById('application-notes').value,
+      document.getElementById('application-next-action').value,
+    );
+    toast('Application workspace saved locally');
+  });
+  document.getElementById('application-detail').addEventListener('click', async event => {
+    const runId = event.target.dataset.applicationPreview;
+    if (!runId) return;
+    const iframe = document.getElementById('application-resume-preview');
+    iframe.src = await invokeRaw('tailored_pdf_data_uri', runId);
+    iframe.hidden = false;
+  });
 
   document.getElementById('orchestration-attention').addEventListener('input', event => {
     const input = event.target.closest('[data-orchestration-eligibility-note]');
