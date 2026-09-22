@@ -9,7 +9,7 @@ The repository implementation is technically complete through distribution and t
 - five distinct real tailored resumes must be explicitly approved under one current validation context before automatic tailoring is considered locally validated;
 - the measured real-world application pilot must be run from private local candidate data before any throughput claim is made.
 
-Repository cleanup is complete through the final capability-oriented controller composition. The 0.2.0 release line includes the runtime/UI/CI cleanup, job/application workspace, local-AI maintenance evaluation, and current private-gate tooling.
+Repository engineering cleanup is complete through capability-oriented runtime composition. Version 0.2.1 is the final cleanup release line; private product-evidence gates remain deliberately local.
 
 ## Product boundaries
 
@@ -46,7 +46,7 @@ Verified Windows releases contain:
 - portable backup/restore with integrity validation;
 - per-file release manifest hashes and a ZIP SHA-256 sidecar.
 
-Install a release by extracting `JobPilotLocal-<version>-win-x64.zip` and running `setup.cmd`. Version 0.2.0 is the first release line intended to contain the full post-cleanup product state.
+Install a release by extracting `JobPilotLocal-<version>-win-x64.zip` and running `setup.cmd`. Version 0.2.1 contains the final repository-engineering cleanup.
 
 The project executable is not publisher Authenticode-signed because no publisher certificate/private key is stored in the repository or CI. The installer independently verifies Microsoft's signature on any downloaded WebView2 bootstrapper.
 
@@ -91,7 +91,7 @@ The repository has three durable GitHub Actions workflows:
 
 - **Windows CI** — locked dependency verification/audit, source syntax, deterministic tests, and source browser/WebView smoke;
 - **Windows Acceptance** — resume toolchain, local-model/tailoring, controlled application engine, supported ATS adapters, orchestration, backup/restore, packaged desktop, and clean install/upgrade acceptance;
-- **Windows Release** — `main`-only verified Windows packaging, install/upgrade verification, artifact upload, and immutable version release publishing.
+- **Windows Release** — `main`-only verified Windows packaging, install/upgrade verification, artifact upload, and one-time version-tag release publishing.
 
 Official GitHub Actions are pinned to full commit SHAs. Python CI installs the committed Windows x64 / CPython 3.13 `pylock.toml` without dependency re-resolution.
 
