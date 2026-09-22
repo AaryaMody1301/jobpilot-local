@@ -53,7 +53,7 @@ def download_verified(
     partial.unlink(missing_ok=True)
     digest = hashlib.sha256()
     written = 0
-    request = urllib.request.Request(url, headers={"User-Agent": "jobpilot-local/phase3"})
+    request = urllib.request.Request(url, headers={"User-Agent": "jobpilot-local"})
     try:
         with urllib.request.urlopen(request, timeout=45) as response, partial.open("wb") as output:
             content_length = response.headers.get("Content-Length")
