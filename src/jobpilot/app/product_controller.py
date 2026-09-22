@@ -10,7 +10,7 @@ from jobpilot.pilot import (
     PILOT_CONFIRMATION_PHRASE,
     PILOT_MAX_ARMED_PER_LAUNCH,
     PILOT_POLICY_REVISION,
-    Phase9PilotApplicationJournal,
+    PilotApplicationJournal,
     PilotApplicationWorker,
 )
 from jobpilot.storage.database import utc_now_text
@@ -26,7 +26,7 @@ class ProductController(OrchestrationController):
         self._pilot_session_authorized = False
         self._pilot_armed_application_ids: set[str] = set()
         super().__init__(paths, migrations_dir, *args, **kwargs)
-        self.applications = Phase9PilotApplicationJournal(self.database, self.tailoring)
+        self.applications = PilotApplicationJournal(self.database, self.tailoring)
         recovered = self.applications.recover_live_pre_submit()
         reset = self._reset_live_pilot_queue(
             "new launch requires explicit per-application real-pilot re-arming"
@@ -76,7 +76,7 @@ class ProductController(OrchestrationController):
             self._pilot_session_authorized = True
             self.database.record_foundation_activity(
                 self.session_id,
-                "phase9_pilot_activated",
+                "pilot_activated",
                 "Explicit per-launch real-application pilot activation recorded; each application still requires a fresh read-only inspection and separate arming",
             )
             return self.snapshot()
@@ -91,7 +91,7 @@ class ProductController(OrchestrationController):
             self._pilot_armed_application_ids.clear()
             self.database.record_foundation_activity(
                 self.session_id,
-                "phase9_pilot_deactivated",
+                "pilot_deactivated",
                 f"Real-application pilot deactivated for this launch; {reset} queued live application(s) returned to prepared and live inspections were cleared",
             )
             return self.snapshot()
@@ -107,7 +107,7 @@ class ProductController(OrchestrationController):
             self._pilot_armed_application_ids.add(application_id)
             self.database.record_foundation_activity(
                 self.session_id,
-                "phase9_pilot_application_armed",
+                "pilot_application_armed",
                 f"Explicitly armed one fresh {attempt.get('provider') or 'supported'} application for measured real submission: {application_id}",
             )
             return self.snapshot()
@@ -123,7 +123,7 @@ class ProductController(OrchestrationController):
             state["applications"]["controlled_fixture_only"] = False
             state["applications"]["real_employer_submission_enabled"] = active
             state["orchestration"]["real_employer_submission_enabled"] = active
-            state["orchestration"]["phase9_activation_required"] = not active
+            state["orchestration"]["pilot_activation_required"] = not active
             state["distribution"] = {
                 "app_version": __version__,
                 "windows_x64_v1": True,
@@ -148,7 +148,7 @@ class ProductController(OrchestrationController):
             result = self.backups.create(self.database, destination)
             self.database.record_foundation_activity(
                 self.session_id,
-                "phase9_backup_created",
+                "backup_created",
                 "Created a verified portable local backup; machine-specific caches and browser/model state were excluded",
             )
             state = self.snapshot()
@@ -166,7 +166,7 @@ class ProductController(OrchestrationController):
             self._pilot_armed_application_ids.clear()
             self.database.record_foundation_activity(
                 self.session_id,
-                "phase9_restore_staged",
+                "restore_staged",
                 f"Verified and staged a portable backup restore; restart is required, pilot activation reset, and {reset} queued live application(s) returned to prepared",
             )
             state = self.snapshot()
