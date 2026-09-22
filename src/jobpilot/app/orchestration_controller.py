@@ -9,7 +9,7 @@ from jobpilot.app.application_engine_controller import ApplicationEngineControll
 from jobpilot.applications.platforms import AshbyAdapter, GreenhouseAdapter, LeverAdapter
 from jobpilot.domain.states import ApplicationState, SessionState
 from jobpilot.jobs import assess_job, dedupe_jobs, fetch_board
-from jobpilot.orchestration import Phase8ApplicationJournal
+from jobpilot.orchestration import OrchestrationJournal
 
 
 class OrchestrationController(ApplicationEngineController):
@@ -19,7 +19,7 @@ class OrchestrationController(ApplicationEngineController):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.applications = Phase8ApplicationJournal(self.database, self.tailoring)
+        self.applications = OrchestrationJournal(self.database, self.tailoring)
         self.recovery["requeued_orchestrated_controlled_applications"] = self.applications.recover_pre_submit()
         self._orchestration_stop = threading.Event()
         self._orchestration_paused = threading.Event()
