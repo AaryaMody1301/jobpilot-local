@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from jobpilot.jobs import JobStore, normalize_manual_job
-from jobpilot.orchestration import Phase8ApplicationJournal
+from jobpilot.orchestration import OrchestrationJournal
 from jobpilot.storage.database import Database, utc_now_text
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -39,7 +39,7 @@ class _FakeTailoring:
 
 def _job(store: JobStore, suffix: str) -> dict[str, object]:
     store.upsert(normalize_manual_job({
-        "employer": "Phase 8 Fixture Co",
+        "employer": "Orchestration Fixture Co",
         "title": "Data Analyst",
         "location": "Surat, India",
         "workplace_type": "onsite",
@@ -51,12 +51,12 @@ def _job(store: JobStore, suffix: str) -> dict[str, object]:
     return next(item for item in store.jobs() if str(item["source_url"]).endswith(f"/{suffix}"))
 
 
-def test_phase8_eligibility_review_and_package_staleness_are_transactional(tmp_path: Path) -> None:
+def test_orchestration_eligibility_review_and_package_staleness_are_transactional(tmp_path: Path) -> None:
     with Database(tmp_path / "jobpilot.sqlite3", MIGRATIONS) as db:
         db.apply_migrations()
         jobs = JobStore(db)
         tailoring = _FakeTailoring()
-        journal = Phase8ApplicationJournal(db, tailoring)  # type: ignore[arg-type]
+        journal = OrchestrationJournal(db, tailoring)  # type: ignore[arg-type]
 
         review_job = _job(jobs, "review")
         review = journal.register_discovered_job(review_job, {
