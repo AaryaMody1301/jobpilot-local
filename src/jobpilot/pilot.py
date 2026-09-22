@@ -17,7 +17,7 @@ from jobpilot.applications.engine import (
 )
 from jobpilot.applications.platforms import AshbyAdapter, GreenhouseAdapter, LeverAdapter
 from jobpilot.domain.states import ApplicationState
-from jobpilot.orchestration import Phase8ApplicationJournal
+from jobpilot.orchestration import OrchestrationJournal
 from jobpilot.resume.documents import sha256_file
 from jobpilot.runtime.paths import ManagedPaths
 from jobpilot.storage.database import utc_now_text
@@ -92,8 +92,8 @@ def _resume_field(field: Any) -> bool:
     return bool(re.search(r"\b(?:resume|curriculum vitae|cv)\b", text))
 
 
-class Phase9PilotApplicationJournal(Phase8ApplicationJournal):
-    """Phase 8 journal plus an explicitly armed, one-worker real-pilot queue."""
+class PilotApplicationJournal(OrchestrationJournal):
+    """Orchestration journal plus an explicitly armed, one-worker real-pilot queue."""
 
     def recover_live_pre_submit(self) -> int:
         now = utc_now_text()
@@ -278,7 +278,7 @@ class LiveHostedFormEngine:
     def __init__(
         self,
         paths: ManagedPaths,
-        journal: Phase9PilotApplicationJournal,
+        journal: PilotApplicationJournal,
         live_enabled: Callable[[], bool],
     ) -> None:
         self.paths = paths
@@ -467,7 +467,7 @@ class PilotApplicationWorker(ApplicationWorker):
     def __init__(
         self,
         paths: ManagedPaths,
-        journal: Phase9PilotApplicationJournal,
+        journal: PilotApplicationJournal,
         session_id: str,
         live_enabled: Callable[[], bool],
         live_allowed_ids: Callable[[], set[str]],
