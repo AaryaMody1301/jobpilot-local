@@ -24,7 +24,7 @@ from jobpilot.storage.database import utc_now_text
 
 PILOT_CONFIRMATION_PHRASE = "ENABLE MEASURED REAL APPLICATION PILOT"
 PILOT_MAX_ARMED_PER_LAUNCH = 5
-PILOT_POLICY_REVISION = "phase9-pilot-v2"
+PILOT_POLICY_REVISION = "measured-pilot-v2"
 
 _ADAPTERS = {
     "greenhouse": GreenhouseAdapter,
