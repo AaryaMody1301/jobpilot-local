@@ -14,7 +14,7 @@ Protect `main` with:
 - no branch deletion;
 - no bypass unless an explicit emergency repository-admin decision is recorded.
 
-The live repository audit on 2026-09-21 reported `main` as unprotected. The connected repository automation does not expose repository-administration writes, so these settings must be applied by a repository administrator. GitHub's required-status-check mode should be strict so the PR head is up to date with `main` before merge.
+The live repository audit on 2026-09-22 still reports `main` as unprotected. The connected repository automation does not expose repository-administration writes, so these settings must be applied by a repository administrator. GitHub's required-status-check mode must be strict so the PR head is up to date with `main` before merge.
 
 ## CI dependency policy
 
@@ -34,7 +34,7 @@ Regenerate `pylock.toml` only as an explicit dependency-maintenance change with 
 
 ## Release policy
 
-Version releases are immutable. A changed build requires a new project version instead of replacing an existing release asset.
+The release workflow never replaces an existing version tag or asset; a changed build requires a new project version. GitHub-native release immutability should also be enabled in repository settings for future releases. GitHub applies that setting only to releases created after it is enabled.
 
 ## Publisher signing
 
