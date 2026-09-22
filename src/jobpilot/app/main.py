@@ -86,7 +86,6 @@ def run_review_gate_report(paths: ManagedPaths | None = None) -> dict[str, objec
             "persisted_gate_complete": bool(raw_gate.get("complete")),
             "current_review_context_complete": gate_current,
             "ready_to_close_review_gate": gate_current,
-            "ready_to_close_phase4": gate_current,
             "automatic_tailoring_enabled": bool(tailoring.get("auto_tailoring_enabled")),
             "employer_submission_enabled": bool(tailoring.get("employer_submission_enabled")),
             "gate_reason": gate_reason,
