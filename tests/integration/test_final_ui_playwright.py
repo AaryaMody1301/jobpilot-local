@@ -89,7 +89,7 @@ def _state(*, pilot_active: bool = False) -> dict:
             "pilot_confirmation_phrase": "ENABLE MEASURED REAL APPLICATION PILOT",
             "pilot_armed_this_launch": 0,
             "pilot_arm_limit": 5,
-            "pilot_policy_revision": "phase9-v1",
+            "pilot_policy_revision": "measured-pilot-v2",
             "backup": {"format_version": 1, "local_backups": 0, "restore_pending": False},
         },
     }
