@@ -62,7 +62,7 @@ def require_controlled_fixture_url(value: object) -> str:
     if parsed.username or parsed.password:
         raise ControlledFixtureViolation("controlled fixture URL cannot contain credentials")
     if not _is_loopback_host(parsed.hostname):
-        raise ControlledFixtureViolation("Phase 6 permits localhost/loopback fixtures only; real employer targets are disabled")
+        raise ControlledFixtureViolation("controlled application acceptance permits localhost/loopback fixtures only; real employer targets are disabled")
     return text
 
 
@@ -357,8 +357,8 @@ class ApplicationJournal:
                     retry_count=retry_count,
                 )
             else:
-                # ponytail: fixed tiny local-fixture backoff is sufficient in Phase 6;
-                # Phase 7 upgrades this to provider-aware rate-limit/backoff handling.
+                # ponytail: fixed tiny local-fixture backoff is sufficient for controlled fixtures;
+                # provider-aware live retries remain handled by the guarded live-application path.
                 delay = 0.25 * (2 ** (retry_count - 1))
                 self._transition_tx(
                     connection,

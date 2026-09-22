@@ -129,9 +129,9 @@ MODELS: tuple[ModelArtifact, ...] = (
         tier="preferred",
         reference_cpu_peak_rss_bytes=REFERENCE_CPU_PEAK_RSS_BYTES,
         notes=(
-            "Text-only Phase 3 production candidate. The 12/16 GiB figures are conservative setup-policy "
+            "Text-only local production candidate. The 12/16 GiB figures are conservative setup-policy "
             "thresholds, not claims about universal model requirements. Device-local evaluation and the "
-            "later Phase 4 five-resume review gate remain authoritative."
+            "five-resume review gate remain authoritative."
         ),
     ),
 )

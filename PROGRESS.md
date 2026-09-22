@@ -9,7 +9,7 @@ Recent cleanup:
 - PR #21 merged at `1ee3dfbc0a32a9afb720ec0564c9be7083055d1e`: production runtime entrypoint/bridge cleanup and removal of development sample lifecycle state.
 - PR #23 merged at `02836dded7fc7211738405d6acd93cd039cc2d25`: final production UI consolidation, current product copy, active-view rendering, accessibility fixes, and final-shell Playwright coverage.
 - PR #24 merged at `3c9122ab24be2a6a2adc8f23db7d698f5071ecbc`: durable CI/acceptance/release workflows and deletion of phase-era repository scaffolding.
-- Final closeout renames the remaining production controller hierarchy by capability, removes the obsolete public phase snapshot contract, and prepares `0.2.0` so the post-cleanup product can receive a fresh immutable release.
+- The final engineering closeout removes remaining phase-era runtime/API naming, deletes obsolete sample-work helpers, keeps only compatibility/evidence-history identifiers that must remain stable, and prepares `0.2.1` for a fresh verified release.
 
 ## Current CI design
 
@@ -60,6 +60,6 @@ After that gate closes, the final remaining item is the measured real-world pilo
 
 ## Repository administration boundary
 
-The live GitHub `main` branch was still unprotected at the start of the final closeout. The connected repository integration can inspect that state but does not expose branch-protection administration writes.
+Repository engineering is complete in source. GitHub repository administration is a separate boundary: the live `main` branch remains unprotected and GitHub-native release immutability is not enabled. The connected integration can inspect these settings but does not expose the administration writes needed to change them.
 
-A repository administrator must require pull requests plus strict `windows-ci` and `windows-acceptance` checks, conversation resolution, and disabled force-push/deletion before repository closeout is considered administratively complete. Publisher signing remains a separate credential boundary. See `docs/REPOSITORY_GOVERNANCE.md`.
+A repository administrator must protect `main` with pull-request-only changes, strict `windows-ci` and `windows-acceptance`, conversation resolution, and disabled force-push/deletion, and enable release immutability for future releases. Publisher signing remains a separate credential boundary. See `docs/REPOSITORY_GOVERNANCE.md`.

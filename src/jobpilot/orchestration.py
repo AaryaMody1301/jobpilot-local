@@ -30,8 +30,8 @@ def _decoded(value: object) -> dict[str, Any]:
     return result if isinstance(result, dict) else {}
 
 
-class Phase8ApplicationJournal(ApplicationJournal):
-    """Phase 8 orchestration metadata layered on the existing application state journal."""
+class OrchestrationJournal(ApplicationJournal):
+    """Orchestration metadata layered on the application state journal."""
 
     def __init__(self, database: Database, tailoring: "TailoringService") -> None:
         super().__init__(database)
@@ -75,7 +75,7 @@ class Phase8ApplicationJournal(ApplicationJournal):
                     retry_count, next_retry_at, last_reason, created_at, updated_at,
                     discovered_job_id, provider, live_apply_url, eligibility_json
                 ) VALUES (?, ?, 'discovered', NULL, 0, NULL, 0, NULL,
-                          'discovered job entered Phase 8 orchestration', ?, ?, ?, ?, ?, ?)
+                          'discovered job entered orchestration', ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     application_id,
@@ -89,7 +89,7 @@ class Phase8ApplicationJournal(ApplicationJournal):
                 ),
             )
             connection.execute(
-                "INSERT INTO application_events(application_id, from_state, to_state, reason, created_at) VALUES (?, NULL, 'discovered', 'discovered job entered Phase 8 orchestration', ?)",
+                "INSERT INTO application_events(application_id, from_state, to_state, reason, created_at) VALUES (?, NULL, 'discovered', 'discovered job entered orchestration', ?)",
                 (application_id, now),
             )
             self._transition_tx(connection, application_id, ApplicationState.ELIGIBILITY_CHECK, "evaluating configured hard eligibility and evidence-backed matching")
@@ -275,7 +275,7 @@ class Phase8ApplicationJournal(ApplicationJournal):
                    SET package_id=?, orchestration_context_sha256=?, last_reason=?, updated_at=?
                  WHERE id=?
                 """,
-                (package_id, manifest_sha, "immutable Phase 8 application package prepared", now, application_id),
+                (package_id, manifest_sha, "immutable application package prepared", now, application_id),
             )
             if state in {ApplicationState.TAILORING, ApplicationState.REVIEW_REQUIRED}:
                 self._transition_tx(connection, application_id, ApplicationState.PREPARED, "fresh immutable application package prepared")
@@ -362,7 +362,7 @@ class Phase8ApplicationJournal(ApplicationJournal):
                 "UPDATE application_attempts SET target_url=?, controlled_fixture=1, updated_at=? WHERE id=?",
                 (url, utc_now_text(), application_id),
             )
-            self._transition_tx(connection, application_id, ApplicationState.QUEUED, "prepared package queued for loopback-only Phase 8 submission acceptance")
+            self._transition_tx(connection, application_id, ApplicationState.QUEUED, "prepared package queued for loopback-only submission acceptance")
         return self.attempt(application_id)
 
     def record_live_inspection(self, application_id: str, result: Mapping[str, Any]) -> dict[str, Any]:
@@ -556,5 +556,5 @@ class Phase8ApplicationJournal(ApplicationJournal):
             "packages": package_count,
             "daily": self.daily_progress(),
             "real_employer_submission_enabled": False,
-            "phase9_activation_required": True,
+            "pilot_activation_required": True,
         }

@@ -5,7 +5,7 @@ from typing import Any
 
 from jobpilot.app.model_controller import ModelController
 from jobpilot.domain.states import SessionState
-from jobpilot.model.phase4 import Phase4ModelManager
+from jobpilot.model.inference import SelectedModelManager
 from jobpilot.resume.documents import sha256_file
 from jobpilot.resume.tailoring_service import TailoringService
 from jobpilot.resume.tailoring_store import TailoringStore
@@ -16,7 +16,7 @@ class TailoringController(ModelController):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.models = Phase4ModelManager(self.paths, self.database)
+        self.models = SelectedModelManager(self.paths, self.database)
         self.tailoring_store = TailoringStore(self.database, self.paths.root)
         self.tailoring = TailoringService(self.paths, self.resume_store, self.tailoring_store, self.models)
         self.database.record_foundation_activity(

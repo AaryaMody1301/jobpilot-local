@@ -55,8 +55,8 @@ def _runtime_cancellation_reason(cancel_event: threading.Event, watcher: Resourc
     return None
 
 
-class Phase4ModelManager(ModelManager):
-    """Phase 3 model manager plus one fail-closed selected-model inference path."""
+class SelectedModelManager(ModelManager):
+    """Local model manager plus one fail-closed selected-model inference path."""
 
     def infer_selected_structured(
         self,
@@ -82,7 +82,7 @@ class Phase4ModelManager(ModelManager):
                 raise RuntimeError("selected llama.cpp runtime is not installed")
             evaluation = self.store.best_passing_evaluation(model_install_id)
             if evaluation is None:
-                raise RuntimeError("selected local model has no passing Phase 3 evaluation")
+                raise RuntimeError("selected local model has no passing evaluation")
             if str(evaluation["runtime_install_id"]) != runtime_install_id or str(evaluation["device_id"]) != device_id:
                 raise RuntimeError("selected inference configuration no longer matches its passing evaluation")
 

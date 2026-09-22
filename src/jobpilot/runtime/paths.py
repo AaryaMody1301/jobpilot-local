@@ -111,7 +111,7 @@ class ManagedPaths:
     def logs(self) -> Path:
         return self.root / "logs"
 
-    def create_phase0_roots(self) -> None:
+    def create_runtime_roots(self) -> None:
         for path in (self.models, self.browsers, self.tectonic_cache, self.runtime):
             path.mkdir(parents=True, exist_ok=True)
 

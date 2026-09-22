@@ -82,14 +82,14 @@ def _state(*, pilot_active: bool = False) -> dict:
             },
         },
         "distribution": {
-            "app_version": "0.2.0",
+            "app_version": "0.2.1",
             "pilot_authorized": True,
             "pilot_session_active": pilot_active,
             "real_employer_submission_enabled": pilot_active,
             "pilot_confirmation_phrase": "ENABLE MEASURED REAL APPLICATION PILOT",
             "pilot_armed_this_launch": 0,
             "pilot_arm_limit": 5,
-            "pilot_policy_revision": "phase9-v1",
+            "pilot_policy_revision": "measured-pilot-v2",
             "backup": {"format_version": 1, "local_backups": 0, "restore_pending": False},
         },
     }

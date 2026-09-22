@@ -34,14 +34,22 @@ The current feature slice implements:
 - [x] b10809 remained selected after candidate evaluation; there was no automatic promotion;
 - [x] any future explicit runtime change remains bound to the existing five-distinct-resume review gate.
 
-## Final repository closeout [~]
+## Repository engineering closeout [x]
 
-- [x] rename production controller composition by capability and remove phase-era controller modules;
-- [x] remove the obsolete public `phase` snapshot field and phase-era discovery/orchestration flags;
-- [x] rename phase-era controller/unit/integration test filenames by capability;
-- [x] prepare version `0.2.0` so the current product can publish as a new immutable release;
-- [ ] require `windows-ci` and `windows-acceptance` on protected `main` (repository-admin setting);
-- [ ] merge this final closeout only after both consolidated Windows checks pass and verify the `v0.2.0` release is published from that merge.
+- [x] capability-oriented controller, inference, orchestration, pilot, runtime-helper, state-flag, and activity naming;
+- [x] obsolete development sample-work database helpers removed while immutable migration history remains untouched;
+- [x] obsolete public phase snapshot/review-report fields removed; the documented `--phase4-gate-report` CLI alias remains only for backward compatibility;
+- [x] durable `Windows CI`, `Windows Acceptance`, and `Windows Release` workflows retained;
+- [x] JobPilot Local `0.2.1` prepared so this final cleanup can publish from its own merge commit rather than reuse the existing `v0.2.0` tag.
+
+## Repository administration [!]
+
+These are GitHub repository settings, not source-code work:
+
+- [ ] protect `main` with pull-request-only changes, strict/up-to-date `windows-ci` and `windows-acceptance`, conversation resolution, and no force-push/deletion;
+- [ ] enable GitHub release immutability for future releases.
+
+The connected GitHub integration can verify these settings but does not expose the administration writes needed to enable them.
 
 ## Private product evidence
 

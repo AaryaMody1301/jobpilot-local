@@ -124,7 +124,7 @@ class ModelManager:
             required_budget = max(int(model_catalogue.bytes * 1.20), evidence_floor)
             if int(budget["model_ram_budget_bytes"]) < required_budget:
                 raise RuntimeError(
-                    "current reserved RAM budget is below the evidence-backed Phase 3 evaluation floor; "
+                    "current reserved RAM budget is below the evidence-backed model evaluation floor; "
                     "close other applications or use a smaller future catalogue candidate rather than risking memory exhaustion"
                 )
             if cancel_event.is_set():
@@ -201,7 +201,7 @@ class ModelManager:
                 self.store.set_model_status(
                     model_install_id,
                     "validated" if overall_pass else "failed",
-                    None if overall_pass else "controlled Phase 3 evaluation failed",
+                    None if overall_pass else "controlled model evaluation failed",
                 )
                 return payload
             except Exception as exc:
@@ -263,14 +263,14 @@ class ModelManager:
         *,
         delete_previous_app_managed_weights: bool,
     ) -> dict[str, Any]:
-        """Future Phase 4 boundary. Not exposed to the Phase 3 JS bridge."""
+        """Model activation boundary after the five-resume review gate."""
         model_install_id = self._resolve_model_install_id(model_install_id)
         model = self.store.model_install(model_install_id)
         if model is None or model["status"] != "validated":
             raise RuntimeError("replacement model is not validated")
         state = self.store.model_state()
         if state.get("selected_model_install_id") != model_install_id:
-            raise RuntimeError("replacement model is not the selected Phase 4 review candidate")
+            raise RuntimeError("replacement model is not the selected review candidate")
         gate = self.store.review_gate(model_install_id)
         if not gate["complete"]:
             raise RuntimeError("five-distinct-resume review gate has not passed")
@@ -309,7 +309,7 @@ class ModelManager:
         return self.snapshot()
 
     def rollback_after_activation_failure(self, failed_model_install_id: str) -> dict[str, Any]:
-        """Future recovery boundary; not exposed to Phase 3 UI."""
+        """Rollback boundary for a failed validated-model activation."""
         if failed_model_install_id in self._active_models:
             self.cancel_current()
         state = self.store.model_state()
@@ -402,7 +402,7 @@ class ModelManager:
             ),
             "requires_download_approval": True,
             "must_pass_device_evaluation": True,
-            "phase4_five_resume_gate_required": True,
+            "five_resume_review_gate_required": True,
         }
 
     def _model_catalogue_status(self, item: dict[str, Any]) -> dict[str, Any]:
@@ -482,7 +482,7 @@ class ModelManager:
 
     @staticmethod
     def _fetch_json(url: str) -> dict[str, Any]:
-        request = urllib.request.Request(url, headers={"User-Agent": "jobpilot-local/phase3"})
+        request = urllib.request.Request(url, headers={"User-Agent": "jobpilot-local"})
         with urllib.request.urlopen(request, timeout=12) as response:
             value = json.loads(response.read().decode("utf-8"))
         if not isinstance(value, dict):

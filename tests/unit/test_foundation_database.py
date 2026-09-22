@@ -35,18 +35,6 @@ def test_phase1_settings_and_session_persist(tmp_path: Path) -> None:
         assert row["ended_at"] is not None
 
 
-def test_sample_work_is_seeded_once_and_resettable(tmp_path: Path) -> None:
-    with Database(tmp_path / "jobpilot.sqlite3", MIGRATIONS) as db:
-        db.apply_migrations()
-        db.seed_sample_work(); db.seed_sample_work()
-        assert len(db.list_sample_work()) == 4
-        db.create_runtime_session("session-1")
-        assert db.claim_next_sample_work("session-1") is not None
-        assert sum(item["state"] == "running" for item in db.list_sample_work()) == 1
-        db.requeue_owned_sample_work("session-1")
-        assert all(item["state"] == "pending" for item in db.list_sample_work())
-
-
 def test_phase1_migration_upgrades_existing_phase0_database(tmp_path: Path) -> None:
     phase0_migrations = tmp_path / "phase0-migrations"
     phase0_migrations.mkdir()
