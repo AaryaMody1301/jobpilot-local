@@ -7,7 +7,7 @@ from jobpilot.runtime.paths import ManagedPaths, UnsafeManagedPath
 
 def test_model_root_itself_cannot_be_deleted(tmp_path: Path) -> None:
     paths = ManagedPaths(tmp_path / "app")
-    paths.create_phase0_roots()
+    paths.create_runtime_roots()
     with pytest.raises(UnsafeManagedPath):
         paths.delete_model_path(paths.models)
     assert paths.models.exists()
@@ -15,7 +15,7 @@ def test_model_root_itself_cannot_be_deleted(tmp_path: Path) -> None:
 
 def test_parent_traversal_cannot_escape_model_root(tmp_path: Path) -> None:
     paths = ManagedPaths(tmp_path / "app")
-    paths.create_phase0_roots()
+    paths.create_runtime_roots()
     outside = paths.models / ".." / "do-not-delete.txt"
     outside.resolve().write_text("keep", encoding="utf-8")
     with pytest.raises(UnsafeManagedPath):
@@ -25,7 +25,7 @@ def test_parent_traversal_cannot_escape_model_root(tmp_path: Path) -> None:
 
 def test_managed_model_descendant_can_be_deleted(tmp_path: Path) -> None:
     paths = ManagedPaths(tmp_path / "app")
-    paths.create_phase0_roots()
+    paths.create_runtime_roots()
     model = paths.models / "catalogue-entry" / "model.gguf"
     model.parent.mkdir()
     model.write_bytes(b"fixture")
@@ -35,7 +35,7 @@ def test_managed_model_descendant_can_be_deleted(tmp_path: Path) -> None:
 
 def test_symlink_resolving_outside_is_rejected(tmp_path: Path) -> None:
     paths = ManagedPaths(tmp_path / "app")
-    paths.create_phase0_roots()
+    paths.create_runtime_roots()
     outside = tmp_path / "outside"
     outside.mkdir()
     target = outside / "model.gguf"
