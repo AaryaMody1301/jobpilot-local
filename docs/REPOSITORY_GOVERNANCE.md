@@ -34,7 +34,7 @@ Regenerate `pylock.toml` only as an explicit dependency-maintenance change with 
 
 ## Release policy
 
-The release workflow never replaces an existing version tag or asset; a changed build requires a new project version. GitHub-native release immutability should also be enabled in repository settings for future releases. GitHub applies that setting only to releases created after it is enabled.
+The release workflow never replaces an existing version tag or asset; a changed build requires a new project version. GitHub-native release immutability is enabled for future releases, and `v0.2.1` is published as an immutable release.
 
 ## Publisher signing
 

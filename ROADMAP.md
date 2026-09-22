@@ -42,14 +42,14 @@ The current feature slice implements:
 - [x] durable `Windows CI`, `Windows Acceptance`, and `Windows Release` workflows retained;
 - [x] JobPilot Local `0.2.1` prepared so this final cleanup can publish from its own merge commit rather than reuse the existing `v0.2.0` tag.
 
-## Repository administration [!]
+## Repository administration [~]
 
 These are GitHub repository settings, not source-code work:
 
 - [ ] protect `main` with pull-request-only changes, strict/up-to-date `windows-ci` and `windows-acceptance`, conversation resolution, and no force-push/deletion;
-- [ ] enable GitHub release immutability for future releases.
+- [x] GitHub release immutability enabled; `v0.2.1` is published with GitHub-native `immutable: true`.
 
-The connected GitHub integration can verify these settings but does not expose the administration writes needed to enable them.
+The connected GitHub integration can verify these settings. Release immutability is now enabled; the integration still does not expose the repository-administration write needed to protect `main`.
 
 ## Private product evidence
 
