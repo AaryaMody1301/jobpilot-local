@@ -107,7 +107,7 @@ class ApplicationEngineController(JobController):
                 "last_error": None,
             }
             state["worker_alive"] = bool(worker["alive"])
-            state["tailoring"]["phase6_controlled_forms_enabled"] = True
+            state["tailoring"]["controlled_forms_enabled"] = True
             state["applications"] = {
                 **self.applications.summary(),
                 "worker": worker,
