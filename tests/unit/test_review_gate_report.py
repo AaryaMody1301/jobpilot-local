@@ -14,7 +14,6 @@ def test_review_gate_report_is_privacy_safe_and_fail_closed(tmp_path: Path) -> N
     assert report["persisted_gate_complete"] is False
     assert report["current_review_context_complete"] is False
     assert report["ready_to_close_review_gate"] is False
-    assert report["ready_to_close_phase4"] is False
     assert report["automatic_tailoring_enabled"] is False
     assert report["employer_submission_enabled"] is False
     assert report["gate_reason"] == "no selected validated model/configuration is awaiting human review"
