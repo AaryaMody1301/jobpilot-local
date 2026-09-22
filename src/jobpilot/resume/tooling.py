@@ -102,7 +102,7 @@ class TectonicInstallService:
             candidate.unlink(missing_ok=True)
 
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        request = urllib.request.Request(TECTONIC_DOWNLOAD_URL, headers={"User-Agent": "jobpilot-local/phase2"})
+        request = urllib.request.Request(TECTONIC_DOWNLOAD_URL, headers={"User-Agent": "jobpilot-local"})
         digest = hashlib.sha256()
         downloaded = 0
         try:
