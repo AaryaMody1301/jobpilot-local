@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Any, Mapping
 
-from jobpilot.model.phase4 import Phase4ModelManager
+from jobpilot.model.inference import SelectedModelManager
 from jobpilot.resume.baseline import inspect_pdf
 from jobpilot.resume.documents import sha256_file
 from jobpilot.resume.jd import normalize_job_description, normalize_phrase
@@ -62,7 +62,7 @@ class TailoringService:
         paths: ManagedPaths,
         resume_store: ResumeStore,
         tailoring_store: TailoringStore,
-        models: Phase4ModelManager,
+        models: SelectedModelManager,
     ) -> None:
         self.paths = paths
         self.resume_store = resume_store
