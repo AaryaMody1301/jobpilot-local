@@ -112,6 +112,11 @@ def run_review_gate_report(paths: ManagedPaths | None = None) -> dict[str, objec
                 try:
                     if not integrity_ok:
                         raise RuntimeError("master resume source failed integrity verification")
+                    tailoring._approved_current_facts(master)
+                    models.model_installer.require_verified_path(str(selected))
+                    models.runtime_installer.require_verified_executable(
+                        str(state.get("selected_runtime_install_id") or "")
+                    )
                     tailoring.require_review_gate_current(str(selected))
                     gate_current = True
                     gate_reason = None

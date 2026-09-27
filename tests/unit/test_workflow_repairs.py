@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -15,6 +16,7 @@ from jobpilot.jobs import assess_job, normalize_manual_job
 from jobpilot.pilot import LiveHostedFormEngine
 from jobpilot.runtime.paths import ManagedPaths
 from jobpilot.settings import TargetingSettings
+from jobpilot.storage.database import Database
 
 
 def _job(index: int, title: str = "Data Analyst") -> dict[str, object]:
@@ -49,6 +51,9 @@ def test_second_process_cannot_recover_an_active_profile(tmp_path: Path) -> None
         with pytest.raises(RuntimeError, match="already open"):
             create_controller(paths)
         assert run_review_gate_report(paths)["remaining"] == 5
+        with Database.open_read_only(paths.database_file) as read_only:
+            with pytest.raises(sqlite3.OperationalError, match="readonly"):
+                read_only.connection.execute("UPDATE runtime_sessions SET state='crashed' WHERE id=?", (controller.session_id,))
         assert controller.database.connection.execute(
             "SELECT state FROM runtime_sessions WHERE id=?", (controller.session_id,)
         ).fetchone()[0] == "running"
