@@ -1,7 +1,9 @@
 from pathlib import Path
 
+import pytest
+
 import jobpilot.jobs as jobs_module
-from jobpilot.jobs import JobStore, assess_job, dedupe_jobs, fetch_job_metadata, normalize_manual_job, parse_board_payload
+from jobpilot.jobs import JobStore, assess_job, dedupe_jobs, fetch_board, fetch_job_metadata, normalize_manual_job, parse_board_payload
 from jobpilot.settings import TargetingSettings
 from jobpilot.storage.database import Database
 
@@ -57,6 +59,22 @@ def test_supported_board_payloads_normalize_to_one_job_shape() -> None:
             assert jobs[0]["compensation_text"] == "INR 1800000 - 2400000 (per-year-salary)"
         if provider == "ashby":
             assert jobs[0]["compensation_text"] == "INR 18L - 24L"
+
+
+def test_malformed_board_posting_is_reported_without_discarding_valid_siblings(monkeypatch) -> None:
+    good = {
+        "id": "good", "text": "Data Engineer", "categories": {"location": "Surat, India"},
+        "descriptionPlain": "Required SQL experience.", "hostedUrl": "https://jobs.lever.co/acme/good",
+    }
+    invalid = {**good, "id": "bad", "categories": "unexpected payload"}
+    issues: list[str] = []
+    parsed = parse_board_payload("lever", "Acme", "acme", [invalid, good], skipped=issues)
+    assert [job["source_job_id"] for job in parsed] == ["good"]
+    assert issues == ["Lever posting 1: invalid categories object"]
+
+    monkeypatch.setattr(jobs_module, "_json_get", lambda url: [invalid])
+    with pytest.raises(RuntimeError, match="keeping prior job snapshots"):
+        fetch_board("lever", "Acme", "acme")
 
 
 def test_matching_is_conservative_explainable_and_deduplicated() -> None:
