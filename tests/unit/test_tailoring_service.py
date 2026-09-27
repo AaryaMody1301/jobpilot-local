@@ -416,6 +416,47 @@ def test_tailoring_run_is_auditable_and_duplicate_jd_approval_counts_once(tmp_pa
         db.close()
 
 
+def test_unchanged_master_has_reviewable_package_without_completing_edited_resume_gate(tmp_path: Path) -> None:
+    paths, db, resume_store, model_store, service, _ = _phase4_fixture(tmp_path)
+    try:
+        jd = service.import_manual_jd("Data Engineer. Strong SQL required.")
+        infer = service.models.infer_selected_structured
+        service.models.infer_selected_structured = lambda *args, **kwargs: {
+            **infer(*args, **kwargs), "value": {"keyword_mappings": [], "edits": []},
+        }
+        run = service.generate(str(jd["id"]), threading.Event())
+        master = resume_store.get_active_master()
+        assert master is not None
+        assert run["status"] == "needs_review"
+        assert run["validation"]["unchanged_master"] is True
+        assert run["diff"] == []
+        assert run["source_sha256"] == master["sha256"]
+        assert (paths.root / run["source_relpath"]).read_bytes() == resume_store.document_path(master).read_bytes()
+        service._verify_run_artifacts(run)
+        result = service.approve(str(run["id"]))
+        assert result["unchanged_master"] is True
+        assert result["run"]["status"] == "approved"
+        assert model_store.review_gate("model")["approved_distinct_resumes"] == 0
+    finally:
+        db.close()
+
+
+def test_unchanged_master_approval_refuses_tampered_package(tmp_path: Path) -> None:
+    paths, db, _, _, service, _ = _phase4_fixture(tmp_path)
+    try:
+        jd = service.import_manual_jd("Data Engineer. Strong SQL required.")
+        infer = service.models.infer_selected_structured
+        service.models.infer_selected_structured = lambda *args, **kwargs: {
+            **infer(*args, **kwargs), "value": {"keyword_mappings": [], "edits": []},
+        }
+        run = service.generate(str(jd["id"]), threading.Event())
+        (paths.root / run["source_relpath"]).write_text("tampered", encoding="utf-8")
+        with pytest.raises(RuntimeError, match="integrity"):
+            service.approve(str(run["id"]))
+    finally:
+        db.close()
+
+
 def test_fact_bank_profile_template_and_baseline_changes_make_pending_run_stale(tmp_path: Path) -> None:
     for change in ("fact", "profile", "template", "baseline"):
         _, db, resume_store, model_store, service, fact = _phase4_fixture(tmp_path / change)
