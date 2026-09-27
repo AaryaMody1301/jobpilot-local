@@ -434,6 +434,7 @@ class OrchestrationJournal(ApplicationJournal):
                        t.status AS tailoring_status,
                        t.pdf_relpath AS tailored_pdf_relpath,
                        t.pdf_sha256 AS tailored_pdf_sha256,
+                       CASE WHEN json_valid(t.validation_json) THEN json_extract(t.validation_json, '$.unchanged_master') ELSE 0 END AS uses_original_resume,
                        t.reviewed_at AS tailored_reviewed_at
                   FROM application_attempts a
                   LEFT JOIN discovered_jobs j ON j.id=a.discovered_job_id
@@ -464,6 +465,7 @@ class OrchestrationJournal(ApplicationJournal):
                        t.status AS tailoring_status,
                        t.pdf_relpath AS tailored_pdf_relpath,
                        t.pdf_sha256 AS tailored_pdf_sha256,
+                       CASE WHEN json_valid(t.validation_json) THEN json_extract(t.validation_json, '$.unchanged_master') ELSE 0 END AS uses_original_resume,
                        t.reviewed_at AS tailored_reviewed_at
                   FROM application_attempts a
                   LEFT JOIN discovered_jobs j ON j.id=a.discovered_job_id
