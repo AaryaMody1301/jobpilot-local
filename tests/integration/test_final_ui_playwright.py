@@ -246,10 +246,17 @@ def test_background_poll_keeps_active_review_draft(chromium_page) -> None:
         "id": "app-1", "state": "needs_review", "job_identity": "Example",
         "attention_kind": "eligibility_review", "eligibility": {"review_reasons": ["location unknown"]},
     }]
+    chromium_page.add_init_script("""
+        window.__calls = [];
+        window.pywebview = {api: {resolve_application_eligibility: async (...args) => {
+            window.__calls.push(args); return window.__fixtureState;
+        }}};
+    """)
     with local_ui_server() as url:
         chromium_page.goto(url)
-        chromium_page.evaluate("state => { render(state); showView('history'); }", state)
+        chromium_page.evaluate("state => { window.__fixtureState = state; render(state); showView('history'); }", state)
         note = chromium_page.locator('[data-orchestration-eligibility-note="app-1"]')
+        assert chromium_page.locator('[data-orchestration-eligibility="approved"]').is_disabled()
         note.fill("Checked the employer location")
         chromium_page.evaluate("state => render({...state, session_state: 'running'}, {preserveEditing: true})", state)
         assert note.input_value() == "Checked the employer location"
@@ -259,6 +266,9 @@ def test_background_poll_keeps_active_review_draft(chromium_page) -> None:
         chromium_page.evaluate("state => render(state, {preserveEditing: true})", state)
         assert note.input_value() == "Checked the employer location"
         assert chromium_page.locator('[data-orchestration-eligibility="approved"]').is_enabled()
+        chromium_page.locator('[data-orchestration-eligibility="approved"]').click()
+        chromium_page.wait_for_function("window.__calls.length === 1")
+        assert chromium_page.evaluate("window.__calls[0]") == ["app-1", True, "Checked the employer location"]
 
 
 def test_job_and_application_workspace_filters_and_saves_local_follow_up(chromium_page) -> None:
