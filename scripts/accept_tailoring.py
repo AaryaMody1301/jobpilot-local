@@ -80,7 +80,10 @@ def main() -> int:
                 raise RuntimeError(f"real controlled tailoring must stop for human review, got {run['status']}")
             if not run["validation"].get("overall_pass"):
                 raise RuntimeError(f"deterministic tailored resume validation failed: {run['validation']}")
-            if not run.get("diff") or not run.get("fact_refs"):
+            if run["validation"].get("unchanged_master"):
+                if run.get("diff") or run.get("fact_refs") or run.get("source_sha256") != controller.snapshot()["resume"]["master"]["sha256"]:
+                    raise RuntimeError("unchanged resume did not retain the exact verified master evidence")
+            elif not run.get("diff") or not run.get("fact_refs"):
                 raise RuntimeError("real controlled tailoring did not persist diff/fact evidence")
             if any("kubernetes" in str(item.get("after", "")).casefold() for item in run["diff"]):
                 raise RuntimeError("malicious unsupported Kubernetes claim reached the tailored resume")
@@ -121,6 +124,7 @@ def main() -> int:
                 "controlled_jd_instruction_like": True,
                 "tailoring_status": run["status"],
                 "validated_edits": len(run["diff"]),
+                "original_master_used": bool(run["validation"].get("unchanged_master")),
                 "fact_references": len(run["fact_refs"]),
                 "page_count": run["validation"]["page_count"],
                 "baseline_page_count": run["validation"]["baseline_page_count"],
