@@ -215,27 +215,41 @@ def _job(provider: str, board_token: str, employer: str, source_id: object, *, t
     }
 
 
-def parse_board_payload(provider: str, employer: str, token: str, payload: object) -> list[dict[str, Any]]:
+def parse_board_payload(
+    provider: str, employer: str, token: str, payload: object, *, skipped: list[str] | None = None,
+) -> list[dict[str, Any]]:
     token = _board_token(token)
     jobs: list[dict[str, Any]] = []
+    issues = skipped if skipped is not None else []
     if provider == "greenhouse":
         if not isinstance(payload, Mapping) or not isinstance(payload.get("jobs"), list):
             raise RuntimeError("Greenhouse payload is missing jobs[]")
-        for item in payload["jobs"]:
+        for index, item in enumerate(payload["jobs"], start=1):
             if not isinstance(item, Mapping) or not item.get("id") or not item.get("title"):
+                issues.append(f"Greenhouse posting {index}: missing job identity/title")
                 continue
-            jobs.append(_job(
-                provider, token, employer, item["id"], title=item["title"],
-                location=(item.get("location") or {}).get("name", ""), description=item.get("content", ""),
-                source_url=item.get("absolute_url", ""), published_at=item.get("updated_at", ""),
-            ))
+            try:
+                location = item.get("location") or {}
+                if not isinstance(location, Mapping):
+                    raise ValueError("invalid location object")
+                jobs.append(_job(
+                    provider, token, employer, item["id"], title=item["title"],
+                    location=location.get("name", ""), description=item.get("content", ""),
+                    source_url=item.get("absolute_url", ""), published_at=item.get("updated_at", ""),
+                ))
+            except ValueError as exc:
+                issues.append(f"Greenhouse posting {index}: {exc}")
     elif provider == "lever":
         if not isinstance(payload, list):
             raise RuntimeError("Lever payload must be a job list")
-        for item in payload:
+        for index, item in enumerate(payload, start=1):
             if not isinstance(item, Mapping) or not item.get("id") or not item.get("text"):
+                issues.append(f"Lever posting {index}: missing job identity/title")
                 continue
             categories = item.get("categories") or {}
+            if not isinstance(categories, Mapping):
+                issues.append(f"Lever posting {index}: invalid categories object")
+                continue
             salary = item.get("salaryRange") or {}
             salary_text = _clean(item.get("salaryDescriptionPlain"))
             if isinstance(salary, Mapping) and salary.get("currency") and salary.get("min") is not None and salary.get("max") is not None:
@@ -248,18 +262,24 @@ def parse_board_payload(provider: str, employer: str, token: str, payload: objec
                 f"{_plain(section.get('text') or '')}\n{_plain(section.get('content') or '')}"
                 for section in lists if isinstance(section, Mapping)
             ) if isinstance(lists, list) else ""
-            jobs.append(_job(
-                provider, token, employer, item["id"], title=item["text"], location=categories.get("location", ""),
-                description=f"{item.get('descriptionPlain') or item.get('description') or ''}\n{details}",
-                workplace=item.get("workplaceType", ""), employment=categories.get("commitment", ""),
-                source_url=item.get("hostedUrl", ""), apply_url=item.get("applyUrl", ""),
-                compensation=salary_text,
-            ))
+            try:
+                jobs.append(_job(
+                    provider, token, employer, item["id"], title=item["text"], location=categories.get("location", ""),
+                    description=f"{item.get('descriptionPlain') or item.get('description') or ''}\n{details}",
+                    workplace=item.get("workplaceType", ""), employment=categories.get("commitment", ""),
+                    source_url=item.get("hostedUrl", ""), apply_url=item.get("applyUrl", ""),
+                    compensation=salary_text,
+                ))
+            except ValueError as exc:
+                issues.append(f"Lever posting {index}: {exc}")
     elif provider == "ashby":
         if not isinstance(payload, Mapping) or not isinstance(payload.get("jobs"), list):
             raise RuntimeError("Ashby payload is missing jobs[]")
-        for item in payload["jobs"]:
-            if not isinstance(item, Mapping) or item.get("isListed") is False or not item.get("title"):
+        for index, item in enumerate(payload["jobs"], start=1):
+            if isinstance(item, Mapping) and item.get("isListed") is False:
+                continue
+            if not isinstance(item, Mapping) or not item.get("title"):
+                issues.append(f"Ashby posting {index}: missing job title")
                 continue
             compensation = item.get("compensation") or {}
             compensation_text = ""
@@ -268,22 +288,29 @@ def parse_board_payload(provider: str, employer: str, token: str, payload: objec
                     compensation.get("scrapeableCompensationSalarySummary")
                     or compensation.get("compensationTierSummary")
                 )
-            jobs.append(_job(
-                provider, token, employer, item.get("id") or item.get("jobUrl", ""), title=item["title"],
-                location=item.get("location", ""), description=item.get("descriptionPlain") or item.get("descriptionHtml", ""),
-                workplace=item.get("workplaceType", ""), employment=item.get("employmentType", ""),
-                source_url=item.get("jobUrl", ""), apply_url=item.get("applyUrl", ""), published_at=item.get("publishedAt", ""),
-                compensation=compensation_text,
-            ))
+            try:
+                jobs.append(_job(
+                    provider, token, employer, item.get("id") or item.get("jobUrl", ""), title=item["title"],
+                    location=item.get("location", ""), description=item.get("descriptionPlain") or item.get("descriptionHtml", ""),
+                    workplace=item.get("workplaceType", ""), employment=item.get("employmentType", ""),
+                    source_url=item.get("jobUrl", ""), apply_url=item.get("applyUrl", ""), published_at=item.get("publishedAt", ""),
+                    compensation=compensation_text,
+                ))
+            except ValueError as exc:
+                issues.append(f"Ashby posting {index}: {exc}")
     else:
         raise ValueError(f"unsupported job provider: {provider}")
     return jobs
 
 
-def fetch_board(provider: str, employer: str, token: str) -> list[dict[str, Any]]:
+def fetch_board(provider: str, employer: str, token: str, *, skipped: list[str] | None = None) -> list[dict[str, Any]]:
     if provider not in PROVIDERS:
         raise ValueError(f"unsupported job provider: {provider}")
-    return parse_board_payload(provider, _clean(employer), token, _json_get(board_url(provider, token)))
+    issues = skipped if skipped is not None else []
+    jobs = parse_board_payload(provider, _clean(employer), token, _json_get(board_url(provider, token)), skipped=issues)
+    if issues and not jobs:
+        raise RuntimeError(f"all {len(issues)} malformed postings on {provider} board were rejected; keeping prior job snapshots")
+    return jobs
 
 
 def normalize_manual_job(raw: Mapping[str, Any]) -> dict[str, Any]:
