@@ -42,18 +42,19 @@ class JobController(TailoringController):
         try:
             if cancel.is_set():
                 raise RuntimeError("job-board verification cancelled")
-            jobs = fetch_board(provider, employer, token)
+            skipped: list[str] = []
+            jobs = fetch_board(provider, employer, token, skipped=skipped)
             with self._lock:
                 self._require_open()
                 board = self.job_store.add_board(
                     provider, employer, token, verification_source="live public ATS endpoint", user_added=True
                 )
                 self.job_store.replace_board_jobs(str(board["id"]), jobs)
-                self.job_store.mark_checked(str(board["id"]))
+                self.job_store.mark_checked(str(board["id"]), f"Skipped {len(skipped)} malformed posting(s): {skipped[0]}"[:500] if skipped else None)
                 self.database.record_foundation_activity(
                     self.session_id,
                     "job_board_added",
-                    f"Verified and added {provider} board {token}; imported {len(jobs)} current jobs",
+                    f"Verified and added {provider} board {token}; imported {len(jobs)} current jobs; skipped {len(skipped)} malformed postings",
                 )
         finally:
             with self._lock:
@@ -74,15 +75,18 @@ class JobController(TailoringController):
             boards = [board for board in self.job_store.boards() if bool(board["enabled"])]
         imported = 0
         failed = 0
+        skipped_total = 0
         try:
             for board in boards:
                 if cancel.is_set():
                     raise RuntimeError("job discovery cancelled")
                 try:
-                    jobs = fetch_board(str(board["provider"]), str(board["employer"]), str(board["board_token"]))
+                    skipped: list[str] = []
+                    jobs = fetch_board(str(board["provider"]), str(board["employer"]), str(board["board_token"]), skipped=skipped)
                     self.job_store.replace_board_jobs(str(board["id"]), jobs)
-                    self.job_store.mark_checked(str(board["id"]))
+                    self.job_store.mark_checked(str(board["id"]), f"Skipped {len(skipped)} malformed posting(s): {skipped[0]}"[:500] if skipped else None)
                     imported += len(jobs)
+                    skipped_total += len(skipped)
                 except Exception as exc:
                     failed += 1
                     self.job_store.mark_checked(str(board["id"]), str(exc)[-500:])
@@ -91,7 +95,7 @@ class JobController(TailoringController):
                 self.database.record_foundation_activity(
                     self.session_id,
                     "job_discovery",
-                    f"Checked {len(boards)} verified public boards; observed {imported} jobs; {failed} board errors",
+                    f"Checked {len(boards)} verified public boards; observed {imported} jobs; skipped {skipped_total} malformed postings; {failed} board errors",
                 )
         finally:
             with self._lock:
