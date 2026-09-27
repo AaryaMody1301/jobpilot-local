@@ -224,3 +224,9 @@ Status: accepted for maintenance evaluation, 2026-09-21.
 A newer stable llama.cpp runtime may enter the catalogue as a `maintenance_candidate` only after its exact official Windows artifact size, SHA-256, license, required runtime options, and structured-output wire contract are verified. The existing validated baseline remains the default recommendation.
 
 A maintenance candidate can be explicitly downloaded and evaluated against the same pinned model and the same structured/factual/tailoring/resource suite. Evaluation does not change the selected runtime. If a user later explicitly selects a passing candidate, that configuration change invalidates/restarts the existing five-distinct-resume review evidence before automatic tailoring can use it. Rolling pre-release builds are not promoted merely for being newer.
+
+## D-033 - unchanged master resumes require application-specific review
+
+Status: accepted for post-audit repair, 2026-09-27.
+
+When the local model returns no validated wording edits, copy the checksum-verified original LaTeX bytes into the application-specific audit package, compile offline and verify against the existing baseline, retain the JD and full model/evidence manifest, and require explicit human approval before application preparation. An unchanged original never counts toward the five distinct edited-resume model review gate, nor does the current automatic-tailoring activation bypass its application-specific approval.
