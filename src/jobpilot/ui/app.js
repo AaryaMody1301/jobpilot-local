@@ -59,7 +59,7 @@ async function invokeOnboarding(name, label, ...args) {
 }
 
 function render(state, {preserveEditing = false} = {}) {
-  if (!state || typeof state.session_state !== 'string' || !state.resume || !('model' in state)) {
+  if (!state || typeof state.session_state !== 'string' || !state.resume) {
     throw new Error('Desktop action returned an incomplete application state');
   }
   latestState = state;

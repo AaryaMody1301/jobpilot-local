@@ -48,8 +48,7 @@ def test_second_process_cannot_recover_an_active_profile(tmp_path: Path) -> None
         controller.start()
         with pytest.raises(RuntimeError, match="already open"):
             create_controller(paths)
-        with pytest.raises(RuntimeError, match="already open"):
-            run_review_gate_report(paths)
+        assert run_review_gate_report(paths)["remaining"] == 5
         assert controller.database.connection.execute(
             "SELECT state FROM runtime_sessions WHERE id=?", (controller.session_id,)
         ).fetchone()[0] == "running"

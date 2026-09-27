@@ -22,6 +22,26 @@ def utc_now_text() -> str:
 class Database:
     """Single local SQLite connection serialized for pywebview/background threads."""
 
+    @classmethod
+    def open_read_only(cls, path: Path) -> "Database":
+        """Open an existing profile without creating files, migrations, or runtime sessions."""
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        result = cls.__new__(cls)
+        result.path = path
+        result.migrations_dir = Path()
+        result._lock = threading.RLock()
+        result.connection = sqlite3.connect(
+            path.resolve(strict=True).as_uri() + "?mode=ro",
+            uri=True,
+            isolation_level=None,
+            check_same_thread=False,
+        )
+        result.connection.row_factory = sqlite3.Row
+        result.connection.execute("PRAGMA query_only = ON")
+        result.connection.execute("PRAGMA busy_timeout = 5000")
+        return result
+
     def __init__(self, path: Path, migrations_dir: Path) -> None:
         self.path = path
         self.migrations_dir = migrations_dir
