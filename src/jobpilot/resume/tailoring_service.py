@@ -4,6 +4,7 @@ from collections import Counter
 import hashlib
 import json
 import re
+import shutil
 import subprocess
 import threading
 import time
@@ -137,25 +138,29 @@ class TailoringService:
                 editable_regions=editable_by_id,
                 approved_facts=approved_by_id,
             )
-            if not validated_edits:
-                message = "local model proposed no evidence-backed wording change; original resume is preferred"
-                self.store.fail_run(run_id, message, blocked=True)
-                return self.store.get_run(run_id) or run
-
             master_path = self.resume_store.document_path(master)
             if not master_path.is_file() or sha256_file(master_path) != str(master["sha256"]):
                 raise RuntimeError("master resume integrity changed before rendering")
             master_text = master_path.read_text(encoding="utf-8-sig")
-            tailored_text, diffs = render_tailored_source(
-                master_text,
-                source_sha256=str(master["sha256"]),
-                regions=regions,
-                validated_edits=validated_edits,
-            )
+            unchanged_master = not validated_edits
+            if unchanged_master:
+                tailored_text, diffs = master_text, []
+            else:
+                tailored_text, diffs = render_tailored_source(
+                    master_text,
+                    source_sha256=str(master["sha256"]),
+                    regions=regions,
+                    validated_edits=validated_edits,
+                )
             package = self.paths.application_artifacts / "tailoring" / run_id
             package.mkdir(parents=True, exist_ok=False)
             source_path = package / "resume.tex"
-            source_path.write_text(tailored_text, encoding="utf-8", newline="")
+            if unchanged_master:
+                shutil.copyfile(master_path, source_path)
+                if sha256_file(source_path) != str(master["sha256"]):
+                    raise RuntimeError("unchanged master copy failed integrity verification")
+            else:
+                source_path.write_text(tailored_text, encoding="utf-8", newline="")
             (package / "jd.txt").write_text(str(jd["jd_text"]), encoding="utf-8")
             (package / "jd.json").write_text(
                 json.dumps(
@@ -191,6 +196,8 @@ class TailoringService:
                 log_path=compile_result["log_path"],
                 diffs=diffs,
             )
+            validation["unchanged_master"] = unchanged_master
+            validation["source_sha256"] = sha256_file(source_path)
             (package / "validation.json").write_text(json.dumps(validation, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
 
             components = {
@@ -216,6 +223,7 @@ class TailoringService:
                 "device_id": device_id,
                 "resume_key": resume_key,
                 "validation_overall_pass": validation["overall_pass"],
+                "unchanged_master": unchanged_master,
                 "components": components,
             }
             manifest_path = package / "manifest.json"
@@ -253,7 +261,7 @@ class TailoringService:
                     manifest_sha256=manifest_sha256,
                 )
 
-            status = "auto_validated" if self._auto_tailoring_current(model_install_id, str(context["review_context_sha256"])) else "needs_review"
+            status = "auto_validated" if not unchanged_master and self._auto_tailoring_current(model_install_id, str(context["review_context_sha256"])) else "needs_review"
             return self.store.complete_run(
                 run_id,
                 status=status,
@@ -278,6 +286,16 @@ class TailoringService:
     def approve(self, run_id: str, note: str | None = None) -> dict[str, Any]:
         run = self._require_reviewable_fresh(run_id)
         model_id = str(run["model_install_id"])
+        if (run.get("validation") or {}).get("unchanged_master"):
+            if run.get("diff") or str(run.get("source_sha256")) != str(run.get("master_sha256")):
+                raise RuntimeError("unchanged resume evidence does not match the verified master")
+            approved = self.store.set_review_status(run_id, "approved", note)
+            return {
+                "run": approved,
+                "gate_reset": False,
+                "review_gate": self.models.store.review_gate(model_id),
+                "unchanged_master": True,
+            }
         result = self.store.approve_with_review_gate(
             run_id,
             model_install_id=model_id,
@@ -359,7 +377,7 @@ class TailoringService:
             raise RuntimeError("tailored resume is not awaiting human review")
         if not bool((run.get("validation") or {}).get("overall_pass")):
             raise RuntimeError("tailored resume did not pass deterministic validation")
-        if not run.get("diff"):
+        if not run.get("diff") and not (run.get("validation") or {}).get("unchanged_master"):
             raise RuntimeError("tailored resume contains no validated wording changes")
         stale = self._stale_reason(run)
         if stale:
