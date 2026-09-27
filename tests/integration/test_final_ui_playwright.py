@@ -229,6 +229,10 @@ def test_live_form_question_is_visible_and_approvable_in_exact_context(chromium_
         approve = question.locator('[data-question-approve]')
         assert approve.is_disabled()
         question.locator('[data-question-answer]').fill("Yes, verified for this location")
+        chromium_page.locator('[data-view="dashboard"]').click()
+        chromium_page.locator('[data-view="history"]').click()
+        chromium_page.evaluate("state => render(state, {preserveEditing: true})", state)
+        assert question.locator('[data-question-answer]').input_value() == "Yes, verified for this location"
         approve.click()
         chromium_page.wait_for_function("window.__calls.length === 1")
         assert chromium_page.evaluate("window.__calls") == [
@@ -248,6 +252,11 @@ def test_background_poll_keeps_active_review_draft(chromium_page) -> None:
         note = chromium_page.locator('[data-orchestration-eligibility-note="app-1"]')
         note.fill("Checked the employer location")
         chromium_page.evaluate("state => render({...state, session_state: 'running'}, {preserveEditing: true})", state)
+        assert note.input_value() == "Checked the employer location"
+        assert chromium_page.locator('[data-orchestration-eligibility="approved"]').is_enabled()
+        chromium_page.locator('[data-view="dashboard"]').click()
+        chromium_page.locator('[data-view="history"]').click()
+        chromium_page.evaluate("state => render(state, {preserveEditing: true})", state)
         assert note.input_value() == "Checked the employer location"
         assert chromium_page.locator('[data-orchestration-eligibility="approved"]').is_enabled()
 
@@ -356,6 +365,12 @@ def test_job_and_application_workspace_filters_and_saves_local_follow_up(chromiu
         chromium_page.locator("#application-follow-up").fill("2026-10-01")
         chromium_page.locator("#application-next-action").fill("Follow up with recruiter")
         chromium_page.locator("#application-notes").fill("Screening completed.")
+        chromium_page.locator('[data-view="jobs"]').click()
+        chromium_page.locator('[data-view="history"]').click()
+        chromium_page.evaluate("state => render(state, {preserveEditing: true})", state)
+        assert chromium_page.locator("#application-notes").input_value() == "Screening completed."
+        assert chromium_page.locator("#application-next-action").input_value() == "Follow up with recruiter"
+        assert chromium_page.locator("#application-follow-up").input_value() == "2026-10-01"
         chromium_page.locator("#application-workspace-form button[type='submit']").click()
         chromium_page.wait_for_function("window.__calls.some(call => call[0] === 'update_application_workspace')")
         call = chromium_page.evaluate("window.__calls.find(call => call[0] === 'update_application_workspace')")
