@@ -56,17 +56,18 @@ class ApplicationEngineController(JobController):
             self.database.record_foundation_activity(self.session_id, "pause", "No new controlled applications will be claimed")
             return self.snapshot()
 
-    def stop(self) -> dict[str, Any]:
+    def stop(self, timeout: float = 60.0) -> dict[str, Any]:
         with self._lock:
             self._require_open()
             if self._state is SessionState.IDLE:
                 return self.snapshot()
-            SESSION_MACHINE.require_transition(self._state, SessionState.STOPPING)
-            self._state = SessionState.STOPPING
-            self.database.set_runtime_session_state(self.session_id, self._state)
+            if self._state is not SessionState.STOPPING:
+                SESSION_MACHINE.require_transition(self._state, SessionState.STOPPING)
+                self._state = SessionState.STOPPING
+                self.database.set_runtime_session_state(self.session_id, self._state)
             worker = self._application_worker
-        if worker is not None:
-            worker.stop(60.0)
+        if worker is not None and not worker.stop(timeout):
+            raise RuntimeError("application worker is still finishing; retry Stop after it reaches a safe checkpoint")
         with self._lock:
             self._application_worker = None
             SESSION_MACHINE.require_transition(self._state, SessionState.IDLE)
@@ -119,8 +120,8 @@ class ApplicationEngineController(JobController):
     def close(self) -> None:
         with self._lock:
             worker = self._application_worker
-        if worker is not None:
-            worker.stop(60.0)
+        if worker is not None and not worker.stop(60.0):
+            raise RuntimeError("application worker is still active; its database must remain open")
         with self._lock:
             self._application_worker = None
         super().close()

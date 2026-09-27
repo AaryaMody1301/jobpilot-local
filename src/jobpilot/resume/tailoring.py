@@ -191,6 +191,14 @@ def _protected_literals(value: str) -> list[str]:
     return [" ".join(match.group(0).split()).casefold() for match in PROTECTED_LITERAL_RE.finditer(value)]
 
 
+def _metric_context(value: str) -> list[tuple[str, tuple[str, ...]]]:
+    context: list[tuple[str, tuple[str, ...]]] = []
+    for match in PROTECTED_LITERAL_RE.finditer(value):
+        preceding = [_stem(token) for token in _content_tokens(value[:match.start()])]
+        context.append((" ".join(match.group(0).split()).casefold(), tuple(preceding[-2:])))
+    return context
+
+
 def validate_tailoring_plan(
     plan: TailoringPlan,
     *,
@@ -254,6 +262,17 @@ def validate_tailoring_plan(
             raise StructuredOutputError(
                 f"field {edit.field_id!r} removed protected numeric/date/metric literal(s): {', '.join(missing_literals[:12])}"
             )
+        # A bag of numbers accepts swapped years or metrics, which changes the factual claim.
+        original_literals = _protected_literals(original)
+        if original_literals != _protected_literals(edit.replacement):
+            raise StructuredOutputError(f"field {edit.field_id!r} reordered or added protected numeric/date/metric literals")
+        if _metric_context(original) != _metric_context(edit.replacement):
+            raise StructuredOutputError(f"field {edit.field_id!r} changed a protected metric's claim context")
+        negations = re.compile(r"\b(?:not|never|no|without|neither|cannot|can't|didn't|wasn't|isn't)\b", re.I)
+        if [match.group(0).casefold() for match in negations.finditer(original)] != [
+            match.group(0).casefold() for match in negations.finditer(edit.replacement)
+        ]:
+            raise StructuredOutputError(f"field {edit.field_id!r} changed a protected negation")
         for keyword in edit.keywords:
             normalized = normalize_phrase(keyword)
             mapping = mapping_by_keyword.get(normalized)

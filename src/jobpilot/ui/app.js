@@ -1,6 +1,7 @@
 const titles = { dashboard: 'Dashboard', resume: 'Resume & facts', model: 'Model & resources', tailoring: 'Tailor resume', jobs: 'Jobs', settings: 'Targeting', history: 'Applications', system: 'Local data' };
 let latestState = null;
 let refreshTimer = null;
+let refreshPending = false;
 let inspectedRunId = null;
 let clientOnboardingBusy = null;
 let activeView = 'dashboard';
@@ -57,7 +58,10 @@ async function invokeOnboarding(name, label, ...args) {
   }
 }
 
-function render(state) {
+function render(state, {preserveEditing = false} = {}) {
+  if (!state || typeof state.session_state !== 'string' || !state.resume || !('model' in state)) {
+    throw new Error('Desktop action returned an incomplete application state');
+  }
   latestState = state;
   const session = state.session_state;
   const badge = document.getElementById('session-badge');
@@ -85,7 +89,11 @@ function render(state) {
   const daily = state.orchestration?.daily || {};
   document.getElementById('confirmed-today').textContent = Number(daily.confirmed_real ?? state.confirmed_applications_today ?? 0);
 
-  renderActiveView(state, session, busy);
+  // Background polling must not replace a form while someone is typing in it.
+  const focused = document.activeElement;
+  if (!preserveEditing || !focused?.matches('input, textarea, select') || focused === document.body) {
+    renderActiveView(state, session, busy);
+  }
 }
 
 function renderActiveView(state, session, busy) {
@@ -348,7 +356,7 @@ document.getElementById('check-model-updates').addEventListener('click', async (
 document.getElementById('runtime-catalogue').addEventListener('click', async e => { if (e.target.dataset.runtimeAction !== 'install') return; const item = e.target.closest('[data-runtime-id]'); const runtime = latestState.model.catalogue.runtimes.find(r => r.id === item.dataset.runtimeId); if (!runtime) return; if (!window.confirm(`Download ${runtime.id} (${formatBytes(runtime.bytes)}) from the pinned llama.cpp release and verify SHA-256 before installation?`)) return; await invokeOnboarding('install_model_runtime', 'llama.cpp runtime installation', runtime.id); toast('Local runtime installed, verified, and device-probed'); });
 document.getElementById('model-catalogue').addEventListener('click', async e => { const action = e.target.dataset.modelAction; if (!action) return; const item = e.target.closest('[data-model-id]'); const model = latestState.model.catalogue.models.find(m => m.id === item.dataset.modelId); if (!model) return; if (action === 'install') { if (!window.confirm(`Download ${model.display_name} (${formatBytes(model.bytes)}, ${model.license}) from pinned revision ${shortHash(model.source_revision)} and require its exact SHA-256 and byte size? No cloud inference or vision component is used.`)) return; await invokeOnboarding('install_local_model', 'local model installation', model.id); toast('Local model revision downloaded and checksum verified'); } else if (action === 'evaluate') { if (!model.install) return; const config = item.querySelector('.model-config')?.value || ''; const separator = config.indexOf('|'); if (separator < 1) return; const runtimeId = config.slice(0, separator); const deviceId = config.slice(separator + 1); await invokeOnboarding('evaluate_local_model', 'local model evaluation', model.install.id, runtimeId, deviceId); toast('Device-local model evaluation finished'); } else if (action === 'select') { if (!model.install) return; await invoke('select_model_for_review', model.install.id); toast('Fastest passing configuration selected; five-resume review gate remains pending'); } });
 document.getElementById('jd-form').addEventListener('submit', async e => { e.preventDefault(); const text = document.getElementById('jd-text').value.trim(); if (!text) { toast('Paste a job description first'); return; } await invoke('import_manual_job_description', text, document.getElementById('jd-source-url').value.trim() || null); document.getElementById('jd-text').value = ''; document.getElementById('jd-source-url').value = ''; toast('Manual JD saved locally as untrusted data'); });
-document.getElementById('manual-jd-list').addEventListener('click', async e => { if (e.target.dataset.jdAction !== 'generate') return; const jdId = e.target.closest('[data-jd-id]')?.dataset.jdId; if (!jdId) return; if (!window.confirm('Run the selected validated local model against this untrusted JD using approved facts only, then compile and validate the result locally?')) return; await invoke('generate_tailored_resume', jdId); toast('Local tailoring run finished; review deterministic evidence before approval'); });
+document.getElementById('manual-jd-list').addEventListener('click', async e => { if (e.target.dataset.jdAction !== 'generate') return; const jdId = e.target.closest('[data-jd-id]')?.dataset.jdId; if (!jdId) return; if (!window.confirm('Run the selected validated local model against this untrusted JD using approved facts only, then compile and validate the result locally?')) return; await invokeOnboarding('generate_tailored_resume', 'local resume generation', jdId); toast('Local tailoring run finished; review deterministic evidence before approval'); });
 document.getElementById('tailoring-runs').addEventListener('click', async e => { const action = e.target.dataset.runAction; if (!action) return; const runId = e.target.closest('[data-run-id]')?.dataset.runId; if (!runId) return; if (action === 'preview') { await inspectTailoringRun(runId); return; } if (action === 'approve') { if (!window.confirm('Approve this exact tailored resume as one distinct human review for the selected local model?')) return; await invoke('approve_tailored_resume', runId, null); toast('Tailored resume approved and persisted in the five-resume gate'); } else if (action === 'reject') { if (!window.confirm('Reject this tailored resume? It will not count toward the five-resume gate.')) return; await invoke('reject_tailored_resume', runId, null); toast('Tailored resume rejected'); } });
 document.getElementById('enable-auto-tailoring').addEventListener('click', async () => { if (!window.confirm('Enable automatic local resume tailoring for this exact validated model/configuration? This does not enable job discovery or employer submission.')) return; await invoke('enable_automatic_tailoring', false); toast('Automatic local tailoring enabled for the validated local configuration'); });
 document.getElementById('close-tailoring-inspector').addEventListener('click', closeTailoringInspector);
@@ -357,8 +365,11 @@ document.getElementById('targeting-form').addEventListener('submit', async e => 
 window.addEventListener('pywebviewready', async () => {
   await invoke('get_state');
   refreshTimer = setInterval(async () => {
-    if (latestState && (latestState.session_state === 'running' || latestState.session_state === 'paused' || latestState.onboarding_busy)) {
-      try { render(await window.pywebview.api.get_state()); } catch (_) { clearInterval(refreshTimer); }
+    if (!refreshPending && latestState && (latestState.session_state === 'running' || latestState.session_state === 'paused' || latestState.onboarding_busy)) {
+      refreshPending = true;
+      try { render(await window.pywebview.api.get_state(), {preserveEditing: true}); }
+      catch (error) { document.getElementById('session-badge').title = `Refresh failed: ${error.message || error}`; }
+      finally { refreshPending = false; }
     }
   }, 1000);
 });
@@ -529,6 +540,10 @@ const jobsView = document.getElementById('jobs');
       <div id="orchestration-attention" class="fact-list"></div>
     </article>
     <article class="card section-card">
+      <div class="card-heading"><div><h2>Form answers awaiting your review</h2><p>Approve an answer for the exact question and form context shown. The worker resumes after all questions for that application are answered.</p></div><span id="application-question-count" class="muted"></span></div>
+      <div id="application-questions" class="fact-list"></div>
+    </article>
+    <article class="card section-card">
       <div class="card-heading"><div><h2>Application workspace</h2><p>Keep the saved job, exact tailored resume/package, follow-up plan and application journal together.</p></div><span id="orchestration-counts" class="muted"></span></div>
       <div class="workspace-toolbar"><label>Search<input id="application-search" type="search" placeholder="Employer, role, notes, next action"></label><label>Status<select id="application-state-filter"><option value="all">All statuses</option></select></label></div>
       <div class="workspace-grid"><div id="orchestration-history" class="workspace-list"></div><div id="application-detail" class="workspace-detail"><p>Select an application to inspect its local record.</p></div></div>
@@ -541,6 +556,9 @@ const jobsView = document.getElementById('jobs');
   }
 
   function attentionAction(item) {
+    if (item.attention_kind === 'form_answer_review') {
+      return '<div class="fact-source">Review this application’s exact form fields in the answer panel below.</div>';
+    }
     if (item.attention_kind === 'eligibility_review') {
       return `<div class="form-row"><label>Review note<input data-orchestration-eligibility-note="${escapeAttr(item.id)}" maxlength="1000" placeholder="Record the evidence/decision" required></label><button data-orchestration-eligibility="approved" data-id="${escapeAttr(item.id)}" class="primary" disabled>Mark eligible</button><button data-orchestration-eligibility="rejected" data-id="${escapeAttr(item.id)}" disabled>Mark ineligible</button></div>`;
     }
@@ -572,6 +590,16 @@ const jobsView = document.getElementById('jobs');
       const reasons = [...(eligibility.hard_reasons || []), ...(eligibility.review_reasons || [])];
       return `<div class="fact-item"><div class="fact-meta"><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span><strong>${escapeHtml(identity(item))}</strong></div><div class="fact-source">${escapeHtml(item.attention_kind.replaceAll('_', ' '))}${reasons.length ? `<br>${escapeHtml(reasons.join(' · '))}` : ''}${item.last_reason ? `<br>${escapeHtml(item.last_reason)}` : ''}</div>${attentionAction(item)}</div>`;
     }).join('') : '<p>No orchestration item currently needs attention.</p>';
+
+    const questions = state.applications?.open_questions || [];
+    document.getElementById('application-question-count').textContent = `${questions.length} open`;
+    document.getElementById('application-questions').innerHTML = questions.length ? questions.map(question => `
+      <div class="fact-item" data-question-id="${escapeAttr(question.id)}">
+        <div class="fact-meta"><strong>${escapeHtml(question.job_identity)}</strong><span class="pill needs_review">Human review</span></div>
+        <div class="fact-source">${escapeHtml(question.label)}<br>Field: ${escapeHtml(question.question_key)} · Context SHA-256: ${escapeHtml(question.context_sha256)}</div>
+        <label>Approved answer<textarea data-question-answer rows="2" maxlength="4000" placeholder="Enter an answer verified for this application"></textarea></label>
+        <button data-question-approve class="primary" disabled>Approve exact answer</button>
+      </div>`).join('') : '<p>No form answers currently need review.</p>';
 
     const states = [...new Set(orchestration.history.map(item => item.state))].sort();
     const stateFilter = document.getElementById('application-state-filter');
@@ -617,6 +645,7 @@ const jobsView = document.getElementById('jobs');
           <div><span>Confirmed</span><strong>${escapeHtml(displayDate(selectedApplication.confirmed_at))}</strong></div>
         </div>
         <div class="fact-source"><strong>Last journal reason</strong><br>${escapeHtml(selectedApplication.last_reason || 'No recorded reason')}</div>
+        ${editable && selectedApplication.discovered_job_id && !selectedApplication.submit_started_at && ['blocked', 'failed', 'stale', 'ineligible'].includes(selectedApplication.state) ? '<button type="button" data-application-rebuild class="primary">Reassess and rebuild from current job and evidence</button>' : ''}
         ${selectedApplication.source_url ? `<div class="fact-source"><strong>Saved source URL</strong><br>${escapeHtml(selectedApplication.source_url)}</div>` : ''}
         ${selectedApplication.apply_url ? `<div class="fact-source"><strong>Saved apply URL</strong><br>${escapeHtml(selectedApplication.apply_url)}</div>` : ''}
         <div class="workspace-artifact-grid">
@@ -627,7 +656,7 @@ const jobsView = document.getElementById('jobs');
           <div class="form-row"><label>Follow-up date<input id="application-follow-up" type="date" value="${escapeAttr((selectedApplication.follow_up_at || '').slice(0, 10))}" ${editable ? '' : 'disabled'}></label><label>Next action<input id="application-next-action" maxlength="500" value="${escapeAttr(selectedApplication.next_action || '')}" placeholder="e.g. Follow up with recruiter" ${editable ? '' : 'disabled'}></label></div>
           <label>Notes<textarea id="application-notes" rows="5" maxlength="4000" placeholder="Interview notes, contacts, reminders…" ${editable ? '' : 'disabled'}>${escapeHtml(selectedApplication.notes || '')}</textarea></label>
           <button type="submit" class="primary" ${editable ? '' : 'disabled'}>Save workspace</button>
-          ${editable ? '' : '<small>Pause or stop the active session before editing workspace metadata.</small>'}
+          ${editable ? '' : '<small>Stop the active session before editing workspace metadata.</small>'}
         </form>
         ${selectedApplication.description ? `<details class="workspace-description"><summary>Saved job description</summary><pre>${escapeHtml(selectedApplication.description)}</pre></details>` : ''}
         <iframe id="application-resume-preview" class="pdf-preview" title="Tailored resume used for this application" hidden></iframe>`;
@@ -665,6 +694,15 @@ const jobsView = document.getElementById('jobs');
     toast('Application workspace saved locally');
   });
   document.getElementById('application-detail').addEventListener('click', async event => {
+    if (event.target.closest('[data-application-rebuild]') && selectedApplicationId) {
+      if (!window.confirm('Create a new, separate attempt using current targeting and evidence? Previous audit history will remain.')) return;
+      const previousId = selectedApplicationId;
+      selectedApplicationId = null;
+      selectedApplicationDetail = null;
+      await invoke('rebuild_application', previousId);
+      toast('Application reassessed; inspect the new attempt in the workspace');
+      return;
+    }
     const runId = event.target.dataset.applicationPreview;
     if (!runId) return;
     const iframe = document.getElementById('application-resume-preview');
@@ -678,6 +716,20 @@ const jobsView = document.getElementById('jobs');
     const row = input.closest('.form-row');
     const disabled = !input.value.trim();
     row?.querySelectorAll('[data-orchestration-eligibility]').forEach(button => { button.disabled = disabled; });
+  });
+  document.getElementById('application-questions').addEventListener('input', event => {
+    const answer = event.target.closest('[data-question-answer]');
+    if (answer) answer.closest('[data-question-id]').querySelector('[data-question-approve]').disabled = !answer.value.trim();
+  });
+  document.getElementById('application-questions').addEventListener('click', async event => {
+    const button = event.target.closest('[data-question-approve]');
+    if (!button) return;
+    const row = button.closest('[data-question-id]');
+    const answer = row.querySelector('[data-question-answer]').value.trim();
+    if (!answer) return;
+    button.disabled = true;
+    try { await invoke('approve_application_question', row.dataset.questionId, answer); toast('Exact-context answer approved locally'); }
+    catch (_) { button.disabled = false; }
   });
 
   document.getElementById('orchestration-attention').addEventListener('click', event => {
@@ -796,4 +848,3 @@ const jobsView = document.getElementById('jobs');
     const id = event.target.dataset.pilotQueue;
     if (id) invoke('queue_prepared_pilot_application', id);
   });
-

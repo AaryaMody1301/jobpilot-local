@@ -60,23 +60,34 @@ class OrchestrationController(ApplicationEngineController):
         self._orchestration_stop.set()
         self._orchestration_paused.clear()
         self.models.cancel_current()
+        worker = self._application_worker
+        if worker is not None:
+            worker.request_stop()
+        deadline = time.monotonic() + 60.0
         thread = self._orchestration_thread
         if thread is not None:
-            thread.join(60.0)
+            thread.join(max(0.0, deadline - time.monotonic()))
+        if thread is not None and thread.is_alive():
+            raise RuntimeError("orchestration worker is still active; retry Stop after its safe checkpoint")
+        super().stop(timeout=max(0.0, deadline - time.monotonic()))
         with self._lock:
-            if thread is None or not thread.is_alive():
-                self._orchestration_thread = None
+            self._orchestration_thread = None
             self._orchestration_current_id = None
             self._orchestration_status_text = "Idle"
-        return super().stop()
+        return self.snapshot()
 
     def close(self) -> None:
         self._orchestration_stop.set()
         self._orchestration_paused.clear()
         self.models.cancel_current()
+        worker = self._application_worker
+        if worker is not None:
+            worker.request_stop()
         thread = self._orchestration_thread
         if thread is not None and thread is not threading.current_thread():
             thread.join(60.0)
+        if thread is not None and thread.is_alive():
+            raise RuntimeError("orchestration worker is still active; its database must remain open")
         with self._lock:
             self._orchestration_thread = None
             self._orchestration_current_id = None
@@ -118,6 +129,22 @@ class OrchestrationController(ApplicationEngineController):
             self.applications.retry_tailoring(application_id)
             self.database.record_foundation_activity(
                 self.session_id, "tailoring_retry", f"Retried tailoring prerequisite for {application_id}"
+            )
+            return self.snapshot()
+
+    def rebuild_application(self, application_id: str) -> dict[str, Any]:
+        with self._lock:
+            self._require_idle_onboarding()
+            previous = self.applications.attempt(application_id)
+            job_id = str(previous.get("discovered_job_id") or "")
+            if not job_id:
+                raise RuntimeError("only a discovered job can be rebuilt")
+            job = self.job_store.job(job_id)
+            assessment = assess_job(job, self._targeting, self._approved_evidence())
+            rebuilt = self.applications.register_discovered_job(job, assessment, rebuild_from=application_id)
+            self.database.record_foundation_activity(
+                self.session_id, "application_rebuilt",
+                f"User requested fresh eligibility and package workflow for {rebuilt['id']} from {application_id}",
             )
             return self.snapshot()
 
@@ -321,9 +348,12 @@ class OrchestrationController(ApplicationEngineController):
             self._orchestration_status_text = f"Invalidated {stale} stale prepared package(s)"
             return True
 
-        for attempt in self.applications.history():
-            if str(attempt["state"]) != ApplicationState.REVIEW_REQUIRED.value:
-                continue
+        with self.database._lock:
+            reviews = [dict(row) for row in self.database.connection.execute(
+                "SELECT id, tailoring_run_id FROM application_attempts WHERE state=? ORDER BY created_at, id",
+                (ApplicationState.REVIEW_REQUIRED.value,),
+            )]
+        for attempt in reviews:
             run_id = str(attempt.get("tailoring_run_id") or "")
             run = self.tailoring_store.get_run(run_id) if run_id else None
             status = str((run or {}).get("status") or "")
@@ -334,33 +364,29 @@ class OrchestrationController(ApplicationEngineController):
             if status == "stale":
                 self.applications.transition(str(attempt["id"]), ApplicationState.STALE, "linked tailored resume became stale")
                 return True
-            if status in {"blocked", "failed"}:
+            if status in {"blocked", "failed", "rejected"}:
                 self.applications.transition(str(attempt["id"]), ApplicationState.BLOCKED, f"linked tailored resume is {status}")
                 return True
 
-        candidate = next(
-            (
-                item for item in reversed(self.applications.history())
-                if str(item["state"]) in {ApplicationState.ELIGIBLE.value, ApplicationState.TAILORING.value}
-            ),
-            None,
-        )
+        with self.database._lock:
+            row = self.database.connection.execute(
+                """SELECT id, state, discovered_job_id FROM application_attempts
+                   WHERE state IN (?, ?) ORDER BY created_at, id LIMIT 1""",
+                (ApplicationState.ELIGIBLE.value, ApplicationState.TAILORING.value),
+            ).fetchone()
+        candidate = dict(row) if row is not None else None
         if candidate is not None:
             application_id = str(candidate["id"])
             state = ApplicationState(str(candidate["state"]))
             if state is ApplicationState.ELIGIBLE:
                 gate_reason = self._tailoring_gate_reason()
                 if gate_reason:
-                    if gate_reason.startswith("select and validate"):
-                        self.applications.transition(application_id, ApplicationState.NEEDS_REVIEW, gate_reason)
-                        self._orchestration_status_text = gate_reason
-                        return True
                     self._orchestration_status_text = gate_reason
-                    return False
+                    return self._register_unprocessed_job() or False
                 pressure = self._resource_pressure()
                 if pressure == "critical":
                     self._orchestration_status_text = "Critical memory pressure; new tailoring is paused without weakening quality gates"
-                    return False
+                    return self._register_unprocessed_job() or False
                 self.applications.begin_tailoring(application_id)
             self._orchestration_current_id = application_id
             try:
@@ -399,9 +425,15 @@ class OrchestrationController(ApplicationEngineController):
             finally:
                 self._orchestration_current_id = None
 
+        return self._register_unprocessed_job()
+
+    def _register_unprocessed_job(self) -> bool:
         facts = self._approved_evidence()
-        existing = {str(item.get("discovered_job_id") or "") for item in self.applications.history()}
-        assessed = [assess_job(job, self._targeting, facts) for job in dedupe_jobs(self.job_store.jobs())]
+        with self.database._lock:
+            existing = {str(row[0]) for row in self.database.connection.execute(
+                "SELECT discovered_job_id FROM application_attempts WHERE discovered_job_id IS NOT NULL"
+            )}
+        assessed = [assess_job(job, self._targeting, facts) for job in dedupe_jobs(self.job_store.jobs(limit=None))]
         order = {"eligible": 0, "review": 1, "ineligible": 2}
         assessed.sort(key=lambda job: (order[str(job["eligibility"])], -int(job["score"]), str(job["employer"]), str(job["title"])))
         for job in assessed:

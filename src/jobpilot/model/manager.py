@@ -130,6 +130,7 @@ class ModelManager:
             if cancel_event.is_set():
                 raise RuntimeError("model evaluation cancelled")
 
+            previously_validated = self.store.best_passing_evaluation(model_install_id) is not None
             self.store.set_model_status(model_install_id, "evaluating")
             self._active_models.add(model_install_id)
             session: LlamaRuntimeSession | None = None
@@ -200,7 +201,7 @@ class ModelManager:
                 self.store.record_evaluation(payload)
                 self.store.set_model_status(
                     model_install_id,
-                    "validated" if overall_pass else "failed",
+                    "validated" if overall_pass or previously_validated else "failed",
                     None if overall_pass else "controlled model evaluation failed",
                 )
                 return payload
@@ -208,7 +209,7 @@ class ModelManager:
                 retryable_resource_event = cancel_event.is_set() or bool(watcher and watcher.critical)
                 self.store.set_model_status(
                     model_install_id,
-                    "installed" if retryable_resource_event else "failed",
+                    "validated" if previously_validated else "installed" if retryable_resource_event else "failed",
                     str(exc)[-1000:],
                 )
                 raise
@@ -274,7 +275,9 @@ class ModelManager:
         gate = self.store.review_gate(model_install_id)
         if not gate["complete"]:
             raise RuntimeError("five-distinct-resume review gate has not passed")
-        evaluation = self.store.best_passing_evaluation(model_install_id)
+        evaluation = self.store.best_passing_evaluation(
+            model_install_id, str(state.get("selected_runtime_install_id") or ""), str(state.get("selected_device_id") or "")
+        )
         if not evaluation:
             raise RuntimeError("replacement model does not have a passing evaluation")
         self.model_installer.require_verified_path(model_install_id)

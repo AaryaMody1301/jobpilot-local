@@ -136,8 +136,18 @@ class JobController(TailoringController):
         return self.tailoring._approved_current_facts(master) if master else []
 
     def _job_snapshot(self) -> dict[str, Any]:
-        facts = self._approved_evidence()
+        evidence_error = None
+        try:
+            facts = self._approved_evidence()
+        except Exception as exc:
+            facts = []
+            evidence_error = f"approved resume evidence is unavailable: {str(exc)[:300]}"
         jobs = [assess_job(job, self._targeting, facts) for job in dedupe_jobs(self.job_store.jobs())]
+        if evidence_error:
+            for job in jobs:
+                if job["eligibility"] == "eligible":
+                    job["eligibility"] = "review"
+                job["review_reasons"].append(evidence_error)
         order = {"eligible": 0, "review": 1, "ineligible": 2}
         jobs.sort(key=lambda job: (order[job["eligibility"]], -int(job["score"]), str(job["employer"]), str(job["title"])))
         jobs = [{key: value for key, value in job.items() if key != "description"} for job in jobs]
@@ -151,4 +161,5 @@ class JobController(TailoringController):
             "discovery_enabled": True,
             "employer_submission_enabled": False,
             "approved_evidence_facts": len(facts),
+            "evidence_error": evidence_error,
         }

@@ -163,6 +163,8 @@ def test_fastest_passing_evaluation_is_selected_by_measured_generation_speed(tmp
         best = store.best_passing_evaluation("model")
         assert best is not None
         assert best["id"] == "fast" and best["device_id"] == "Vulkan0"
+        selected = store.best_passing_evaluation("model", "cpu", "none")
+        assert selected is not None and selected["id"] == "slow"
 
 
 def test_rollback_restores_previous_validated_weights_without_deleting_failed_candidate(tmp_path: Path) -> None:

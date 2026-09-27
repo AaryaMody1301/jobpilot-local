@@ -148,8 +148,6 @@ def fetch_job_metadata(job: Mapping[str, Any]) -> dict[str, str | None]:
 
 def _employment(value: object, description: str = "") -> str:
     text = _key(value) or _key(description[:3000])
-    if any(term in text for term in ("full time", "fulltime", "permanent")):
-        return "permanent_full_time"
     if "part time" in text or "parttime" in text:
         return "part_time"
     if "contract" in text:
@@ -158,6 +156,8 @@ def _employment(value: object, description: str = "") -> str:
         return "internship"
     if "temporary" in text or "temp " in f"{text} ":
         return "temporary"
+    if any(term in text for term in ("full time", "fulltime", "permanent")):
+        return "permanent_full_time"
     return ""
 
 
@@ -243,9 +243,14 @@ def parse_board_payload(provider: str, employer: str, token: str, payload: objec
                     f"{_clean(salary.get('currency'))} {salary.get('min')} - {salary.get('max')}"
                     + (f" ({_clean(salary.get('interval'))})" if _clean(salary.get("interval")) else "")
                 )
+            lists = item.get("lists") or []
+            details = "\n".join(
+                f"{_plain(section.get('text') or '')}\n{_plain(section.get('content') or '')}"
+                for section in lists if isinstance(section, Mapping)
+            ) if isinstance(lists, list) else ""
             jobs.append(_job(
                 provider, token, employer, item["id"], title=item["text"], location=categories.get("location", ""),
-                description=item.get("descriptionPlain") or item.get("description", ""),
+                description=f"{item.get('descriptionPlain') or item.get('description') or ''}\n{details}",
                 workplace=item.get("workplaceType", ""), employment=categories.get("commitment", ""),
                 source_url=item.get("hostedUrl", ""), apply_url=item.get("applyUrl", ""),
                 compensation=salary_text,
@@ -356,8 +361,9 @@ def assess_job(job: Mapping[str, Any], targeting: TargetingSettings, approved_fa
     if not role_matches:
         hard.append("title does not match a configured target role")
 
-    if employment and employment != "permanent full time":
-        hard.append(f"employment type is {job.get('employment_type')}, not permanent full-time")
+    accepted_employment = {_key(item) for item in targeting.employment_types}
+    if employment and employment not in accepted_employment:
+        hard.append(f"employment type is {job.get('employment_type')}, outside configured types")
     elif not employment:
         review.append("employment type is not explicit")
 
@@ -370,7 +376,11 @@ def assess_job(job: Mapping[str, Any], targeting: TargetingSettings, approved_fa
         review.append("mandatory work-authorization condition requires review")
     if workplace == "remote":
         if targeting.remote_must_allow_origin:
-            origin_ok = _key(targeting.remote_origin_city) in combined or _key(targeting.remote_origin_country) in combined
+            origin = rf"(?:{re.escape(_key(targeting.remote_origin_city))}|{re.escape(_key(targeting.remote_origin_country))})"
+            origin_ok = bool(re.search(
+                rf"\b(?:remote|work from|work remotely|based in)\b[^.!?]{{0,24}}\b{origin}\b",
+                f"{str(job.get('location') or '').casefold()} {description.casefold()[:5000]}",
+            ))
             if any(term in combined for term in REMOTE_RESTRICTED):
                 hard.append("remote role explicitly restricts work to the United States")
             elif not origin_ok:
@@ -384,10 +394,15 @@ def assess_job(job: Mapping[str, Any], targeting: TargetingSettings, approved_fa
         if not targeting.relocation_outside_india:
             hard.append("outside-India office/hybrid role requires relocation but relocation is disabled")
         elif targeting.require_overseas_sponsorship:
-            if any(term in combined for term in NO_SPONSORSHIP):
+            if any(term in combined for term in NO_SPONSORSHIP) or re.search(
+                r"\b(?:visa\s+)?sponsorship\s+(?:is\s+)?(?:not|unavailable|isn t|isn't)\b", combined
+            ):
                 hard.append("role explicitly says visa sponsorship is unavailable")
             elif not any(term in combined for term in YES_SPONSORSHIP):
                 review.append("overseas sponsorship requirement is not explicit")
+
+    if targeting.salary_minimum is not None:
+        review.append("configured salary minimum requires a verified annual amount and matching currency")
 
     required, preferred = _requirements(description)
     fact_token_sets = [_tokens(str(fact.get("value_text") or fact.get("value") or "")) for fact in approved_facts]
@@ -558,9 +573,11 @@ class JobStore:
             for job in jobs:
                 self._upsert_on(connection, job, board_id, now)
 
-    def jobs(self, limit: int = 500) -> list[dict[str, Any]]:
+    def jobs(self, limit: int | None = 500) -> list[dict[str, Any]]:
         with self.database._lock:
+            query = "SELECT * FROM discovered_jobs WHERE active=1 ORDER BY last_seen_at DESC"
             rows = self.database.connection.execute(
-                "SELECT * FROM discovered_jobs WHERE active=1 ORDER BY last_seen_at DESC LIMIT ?", (limit,)
+                query + (" LIMIT ?" if limit is not None else ""),
+                (limit,) if limit is not None else (),
             ).fetchall()
         return [dict(row) for row in rows]

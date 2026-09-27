@@ -202,6 +202,34 @@ def test_plan_rejects_removal_of_existing_numeric_metric_literal() -> None:
         validate_tailoring_plan(plan, jd_text="Improve checks", editable_regions={"field-1": region}, approved_facts=facts)
 
 
+def test_plan_rejects_reordered_metrics_and_removed_negation() -> None:
+    original = "Improved checks by 25% in 2025; did not claim a certification"
+    region = {"id": "field-1", "editable": 1, "display_text": original}
+    facts = {"fact-1": _approved_fact("fact-1", original)}
+    for replacement, message in (
+        ("Improved checks by 2025 in 25%; did not claim a certification", "reordered"),
+        ("Improved checks by 25% in 2025; did claim a certification", "negation"),
+    ):
+        plan = TailoringPlan.from_value({
+            "keyword_mappings": [{"keyword": "checks", "fact_ids": ["fact-1"]}],
+            "edits": [{"field_id": "field-1", "replacement": replacement,
+                       "fact_ids": ["fact-1"], "keywords": ["checks"]}],
+        })
+        with pytest.raises(StructuredOutputError, match=message):
+            validate_tailoring_plan(plan, jd_text="Improve checks", editable_regions={"field-1": region}, approved_facts=facts)
+
+    original = "Reduced latency by 20% and costs by 50%"
+    region["display_text"] = original
+    facts["fact-1"] = _approved_fact("fact-1", original)
+    plan = TailoringPlan.from_value({
+        "keyword_mappings": [{"keyword": "latency", "fact_ids": ["fact-1"]}],
+        "edits": [{"field_id": "field-1", "replacement": "Reduced costs by 20% and latency by 50%",
+                   "fact_ids": ["fact-1"], "keywords": ["latency"]}],
+    })
+    with pytest.raises(StructuredOutputError, match="claim context"):
+        validate_tailoring_plan(plan, jd_text="Reduce latency", editable_regions={"field-1": region}, approved_facts=facts)
+
+
 def test_renderer_changes_only_simple_confirmed_item_and_escapes_latex() -> None:
     digest = hashlib.sha256(MASTER.encode()).hexdigest()
     regions = _persisted_regions(MASTER, digest)

@@ -14,6 +14,7 @@ from jobpilot.pilot import (
     PilotApplicationWorker,
 )
 from jobpilot.storage.database import utc_now_text
+from jobpilot.runtime.profile_lock import ProfileLock
 from jobpilot.version import __version__
 
 
@@ -21,24 +22,33 @@ class ProductController(OrchestrationController):
     """Current product controller: distribution, orchestration, and explicitly activated measured pilot."""
 
     def __init__(self, paths: Any, migrations_dir: Path, *args: Any, **kwargs: Any) -> None:
-        self._restore_applied = BackupManager.apply_pending_restore(paths, migrations_dir)
-        self._snapshot_read = False
-        self._pilot_session_authorized = False
-        self._pilot_armed_application_ids: set[str] = set()
-        super().__init__(paths, migrations_dir, *args, **kwargs)
-        self.applications = PilotApplicationJournal(self.database, self.tailoring)
-        recovered = self.applications.recover_live_pre_submit()
-        reset = self._reset_live_pilot_queue(
-            "new launch requires explicit per-application real-pilot re-arming"
-        )
-        self.recovery["recovered_live_pre_submit"] = recovered
-        self.recovery["reset_live_queue_for_rearm"] = reset
-        self.backups = BackupManager(self.paths, migrations_dir)
-        self.database.record_foundation_activity(
-            self.session_id,
-            "pilot_available",
-            "Measured-pilot implementation is available but resets to inactive on every launch; real submissions require local activation, a fresh read-only inspection, and per-application arming",
-        )
+        self._profile_lock = ProfileLock(paths.root)
+        try:
+            self._restore_applied = BackupManager.apply_pending_restore(paths, migrations_dir)
+            self._snapshot_read = False
+            self._pilot_session_authorized = False
+            self._pilot_armed_application_ids: set[str] = set()
+            super().__init__(paths, migrations_dir, *args, **kwargs)
+            self.applications = PilotApplicationJournal(self.database, self.tailoring)
+            recovered = self.applications.recover_live_pre_submit()
+            reset = self._reset_live_pilot_queue(
+                "new launch requires explicit per-application real-pilot re-arming"
+            )
+            self.recovery["recovered_live_pre_submit"] = recovered
+            self.recovery["reset_live_queue_for_rearm"] = reset
+            self.backups = BackupManager(self.paths, migrations_dir)
+            self.database.record_foundation_activity(
+                self.session_id,
+                "pilot_available",
+                "Measured-pilot implementation is available but resets to inactive on every launch; real submissions require local activation, a fresh read-only inspection, and per-application arming",
+            )
+        except BaseException:
+            self._profile_lock.close()
+            raise
+
+    def close(self) -> None:
+        super().close()
+        self._profile_lock.close()
 
     def _require_open(self) -> None:
         super()._require_open()
