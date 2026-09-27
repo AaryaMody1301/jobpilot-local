@@ -1,14 +1,20 @@
 # Progress
 
-## Repair work in review (27 September 2026)
+## Follow-up repair batch (27 September 2026)
 
-The earlier statement that the technical product implementation was complete is no longer a reliable readiness claim. A repository-wide audit found production-path defects despite green Windows checks. This repair branch addresses the desktop model-state contract, human review of exact-context form questions, orchestration transitions and scheduling beyond UI limits, pre-submit rebuilds with preserved history, scoped answer dependencies, Stop/Close worker ownership, final pilot freshness checks, exclusive profile ownership, factual/eligibility conservatism, Lever requirements extraction, selected-config evaluation binding, cheaper display snapshots, and main-only release execution. Dedicated regression cases have been added.
+PR #31 merged at `484182281e0ed506a28b06f7d9c1987060eb2538` and passed its Windows CI/release workflows. This follow-up branch fixes valid no-change tailoring by copying and offline-compiling the verified original into a per-job audit package; explicit approval is still required and unchanged examples do not count toward the five edited-resume reviews. It also preserves unsaved targeting/application-workspace drafts through desktop refresh and navigation, and rejects malformed individual board postings without discarding their valid siblings (or erasing prior jobs when every posting is malformed).
 
-This branch is not a claim that live employer automation or all audit findings are solved. Remaining work includes full desktop/Windows acceptance, browser variants and iframe support, custom LaTeX dependency bundles and no-change resume packaging, fully paginated workspaces, deeper source-integrity recovery UX, and repository-admin enforcement of required CI/acceptance checks. The gate report is now read-only even while the desktop is open. Real employer submissions remain outside synthetic tests. Keep the measured pilot inactive by default and do not expand it until the repair work and private human gates are validated.
+Local targeted tests and JavaScript syntax checks passed. The Linux workspace has no Playwright Chromium, so the affected browser UI checks and Windows acceptance must run on the PR. Full workspace pagination, custom LaTeX dependency bundles, richer supported-form fixtures/iframe handling, source-integrity recovery UX, and normalized salary/experience matching remain open. A new versioned Windows download is needed before merged repairs reach installed `v0.2.1` users. No real employer applications were submitted.
+
+## PR #31 repair work merged (27 September 2026)
+
+The earlier statement that the technical product implementation was complete is no longer a reliable readiness claim. A repository-wide audit found production-path defects despite green Windows checks. PR #31 addressed the desktop model-state contract, human review of exact-context form questions, orchestration transitions and scheduling beyond UI limits, pre-submit rebuilds with preserved history, scoped answer dependencies, Stop/Close worker ownership, final pilot freshness checks, exclusive profile ownership, factual/eligibility conservatism, Lever requirements extraction, selected-config evaluation binding, cheaper display snapshots, and main-only release execution. Dedicated regression cases were added.
+
+That merge is not a claim that live employer automation or all audit findings are solved. Remaining work includes browser variants and iframe support, custom LaTeX dependency bundles, fully paginated workspaces, deeper source-integrity recovery UX, and repository-admin enforcement of required CI/acceptance checks. The gate report is read-only even while the desktop is open. Real employer submissions remain outside synthetic tests. Keep the measured pilot inactive by default and do not expand it until the repair work and private human gates are validated.
 
 ## Current repository state
 
-JobPilot's technical product implementation is complete through verified Windows distribution and the explicitly user-authorized measured-pilot write path.
+The historical product slices below were implemented and packaged; the repository-wide audit identified defects that remain under repair. Green synthetic checks do not establish private pilot readiness.
 
 Recent cleanup:
 
