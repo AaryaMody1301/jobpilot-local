@@ -13,6 +13,10 @@ let jobSearchTerm = '';
 let jobEligibilityFilter = 'all';
 let applicationSearchTerm = '';
 let applicationStateFilter = 'all';
+let targetingDirty = false;
+const applicationDrafts = new Map();
+const eligibilityDrafts = new Map();
+const answerDrafts = new Map();
 
 function csv(value) { return value.split(',').map(v => v.trim()).filter(Boolean); }
 function toast(message) { const el = document.getElementById('toast'); el.textContent = message; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2600); }
@@ -132,6 +136,7 @@ function renderActiveView(state, session, busy) {
 }
 
 function renderTargeting(t) {
+  if (targetingDirty) return;
   document.getElementById('roles').value = t.roles.join(', ');
   document.getElementById('min-years').value = t.target_experience_min_years;
   document.getElementById('max-years').value = t.target_experience_max_years;
@@ -272,7 +277,7 @@ function renderTailoring(tailoring, session, busy, resume, model) {
         const valid = Boolean(run.validation?.overall_pass);
         const canReview = idle && run.status === 'needs_review' && valid;
         const statusDetail = run.failure_message ? `<br><span class="error-text">${escapeHtml(run.failure_message)}</span>` : '';
-        return `<div class="fact-item" data-run-id="${escapeAttr(run.id)}"><div class="fact-meta"><code>${escapeHtml(run.id)}</code><span class="pill ${escapeAttr(run.status)}">${escapeHtml(run.status)}</span></div><strong>${escapeHtml(run.jd_id)}</strong><div class="fact-source">Model ${escapeHtml(run.model_install_id)} · ${escapeHtml(run.runtime_install_id)}/${escapeHtml(run.device_id)} · fact revision ${run.fact_bank_revision}<br>Changes: ${(run.diff || []).length} · validation: ${valid ? 'PASS' : 'not passed'} · resume key ${escapeHtml(shortHash(run.resume_key))}${statusDetail}</div><div class="button-row"><button data-run-action="preview" ${run.pdf_relpath ? '' : 'disabled'}>Preview + evidence</button><button data-run-action="approve" ${canReview ? '' : 'disabled'}>Approve</button><button data-run-action="reject" ${canReview ? '' : 'disabled'}>Reject</button></div></div>`;
+        return `<div class="fact-item" data-run-id="${escapeAttr(run.id)}"><div class="fact-meta"><code>${escapeHtml(run.id)}</code><span class="pill ${escapeAttr(run.status)}">${escapeHtml(run.status)}</span></div><strong>${escapeHtml(run.jd_id)}</strong><div class="fact-source">Model ${escapeHtml(run.model_install_id)} · ${escapeHtml(run.runtime_install_id)}/${escapeHtml(run.device_id)} · fact revision ${run.fact_bank_revision}<br>${run.validation?.unchanged_master ? 'Original resume unchanged; explicit approval required, does not count toward five edited-resume reviews' : `Changes: ${(run.diff || []).length}`} · validation: ${valid ? 'PASS' : 'not passed'} · resume key ${escapeHtml(shortHash(run.resume_key))}${statusDetail}</div><div class="button-row"><button data-run-action="preview" ${run.pdf_relpath ? '' : 'disabled'}>Preview + evidence</button><button data-run-action="approve" ${canReview ? '' : 'disabled'}>Approve</button><button data-run-action="reject" ${canReview ? '' : 'disabled'}>Reject</button></div></div>`;
       }).join('')
     : '<p>No tailored resumes yet.</p>';
 
@@ -288,7 +293,7 @@ async function inspectTailoringRun(runId) {
   document.getElementById('tailoring-inspector-meta').textContent = `${run.id} · ${run.status} · ${run.model_install_id} · fact revision ${run.fact_bank_revision}`;
   document.getElementById('tailoring-diff').innerHTML = (run.diff || []).length
     ? run.diff.map(item => `<div class="activity-item"><strong>${escapeHtml(item.field_id)}</strong><span><b>Before:</b> ${escapeHtml(item.before)}</span><br><span><b>After:</b> ${escapeHtml(item.after)}</span><br><span>Facts: ${escapeHtml((item.fact_ids || []).join(', '))} · JD keywords: ${escapeHtml((item.keywords || []).join(', ') || 'none')}</span></div>`).join('')
-    : '<p>No validated wording diff.</p>';
+    : `<p>${run.validation?.unchanged_master ? 'Original resume unchanged; inspect and approve the verified PDF before this application can proceed.' : 'No validated wording diff.'}</p>`;
   document.getElementById('tailoring-keywords').innerHTML = (run.keyword_mapping || []).length
     ? run.keyword_mapping.map(item => `<div class="activity-item"><strong>${escapeHtml(item.keyword)}</strong><span>${escapeHtml((item.fact_ids || []).join(', '))}</span></div>`).join('')
     : '<p>No keyword mapping.</p>';
@@ -357,10 +362,12 @@ document.getElementById('runtime-catalogue').addEventListener('click', async e =
 document.getElementById('model-catalogue').addEventListener('click', async e => { const action = e.target.dataset.modelAction; if (!action) return; const item = e.target.closest('[data-model-id]'); const model = latestState.model.catalogue.models.find(m => m.id === item.dataset.modelId); if (!model) return; if (action === 'install') { if (!window.confirm(`Download ${model.display_name} (${formatBytes(model.bytes)}, ${model.license}) from pinned revision ${shortHash(model.source_revision)} and require its exact SHA-256 and byte size? No cloud inference or vision component is used.`)) return; await invokeOnboarding('install_local_model', 'local model installation', model.id); toast('Local model revision downloaded and checksum verified'); } else if (action === 'evaluate') { if (!model.install) return; const config = item.querySelector('.model-config')?.value || ''; const separator = config.indexOf('|'); if (separator < 1) return; const runtimeId = config.slice(0, separator); const deviceId = config.slice(separator + 1); await invokeOnboarding('evaluate_local_model', 'local model evaluation', model.install.id, runtimeId, deviceId); toast('Device-local model evaluation finished'); } else if (action === 'select') { if (!model.install) return; await invoke('select_model_for_review', model.install.id); toast('Fastest passing configuration selected; five-resume review gate remains pending'); } });
 document.getElementById('jd-form').addEventListener('submit', async e => { e.preventDefault(); const text = document.getElementById('jd-text').value.trim(); if (!text) { toast('Paste a job description first'); return; } await invoke('import_manual_job_description', text, document.getElementById('jd-source-url').value.trim() || null); document.getElementById('jd-text').value = ''; document.getElementById('jd-source-url').value = ''; toast('Manual JD saved locally as untrusted data'); });
 document.getElementById('manual-jd-list').addEventListener('click', async e => { if (e.target.dataset.jdAction !== 'generate') return; const jdId = e.target.closest('[data-jd-id]')?.dataset.jdId; if (!jdId) return; if (!window.confirm('Run the selected validated local model against this untrusted JD using approved facts only, then compile and validate the result locally?')) return; await invokeOnboarding('generate_tailored_resume', 'local resume generation', jdId); toast('Local tailoring run finished; review deterministic evidence before approval'); });
-document.getElementById('tailoring-runs').addEventListener('click', async e => { const action = e.target.dataset.runAction; if (!action) return; const runId = e.target.closest('[data-run-id]')?.dataset.runId; if (!runId) return; if (action === 'preview') { await inspectTailoringRun(runId); return; } if (action === 'approve') { if (!window.confirm('Approve this exact tailored resume as one distinct human review for the selected local model?')) return; await invoke('approve_tailored_resume', runId, null); toast('Tailored resume approved and persisted in the five-resume gate'); } else if (action === 'reject') { if (!window.confirm('Reject this tailored resume? It will not count toward the five-resume gate.')) return; await invoke('reject_tailored_resume', runId, null); toast('Tailored resume rejected'); } });
+document.getElementById('tailoring-runs').addEventListener('click', async e => { const action = e.target.dataset.runAction; if (!action) return; const runId = e.target.closest('[data-run-id]')?.dataset.runId; if (!runId) return; const original = Boolean(latestState?.tailoring?.runs.find(run => run.id === runId)?.validation?.unchanged_master); if (action === 'preview') { await inspectTailoringRun(runId); return; } if (action === 'approve') { if (!window.confirm(original ? 'Approve this exact unchanged original resume for this application? It will not count toward the five edited-resume reviews.' : 'Approve this exact tailored resume as one distinct human review for the selected local model?')) return; await invoke('approve_tailored_resume', runId, null); toast(original ? 'Original resume approved for this application' : 'Tailored resume approved and persisted in the five-resume gate'); } else if (action === 'reject') { if (!window.confirm('Reject this resume? It will not count toward the five-resume gate.')) return; await invoke('reject_tailored_resume', runId, null); toast('Resume rejected'); } });
 document.getElementById('enable-auto-tailoring').addEventListener('click', async () => { if (!window.confirm('Enable automatic local resume tailoring for this exact validated model/configuration? This does not enable job discovery or employer submission.')) return; await invoke('enable_automatic_tailoring', false); toast('Automatic local tailoring enabled for the validated local configuration'); });
 document.getElementById('close-tailoring-inspector').addEventListener('click', closeTailoringInspector);
-document.getElementById('targeting-form').addEventListener('submit', async e => { e.preventDefault(); const save = document.getElementById('save-state'); save.textContent = 'Saving...'; try { await invoke('save_targeting', targetingFromForm()); save.textContent = 'Saved locally'; toast('Targeting saved'); } catch { save.textContent = 'Not saved'; } });
+document.getElementById('targeting-form').addEventListener('input', () => { targetingDirty = true; document.getElementById('save-state').textContent = 'Unsaved draft'; });
+document.getElementById('targeting-form').addEventListener('change', () => { targetingDirty = true; document.getElementById('save-state').textContent = 'Unsaved draft'; });
+document.getElementById('targeting-form').addEventListener('submit', async e => { e.preventDefault(); const save = document.getElementById('save-state'); save.textContent = 'Saving...'; try { await invoke('save_targeting', targetingFromForm()); targetingDirty = false; save.textContent = 'Saved locally'; toast('Targeting saved'); } catch { save.textContent = 'Not saved; draft retained'; } });
 
 window.addEventListener('pywebviewready', async () => {
   await invoke('get_state');
@@ -560,7 +567,8 @@ const jobsView = document.getElementById('jobs');
       return '<div class="fact-source">Review this application’s exact form fields in the answer panel below.</div>';
     }
     if (item.attention_kind === 'eligibility_review') {
-      return `<div class="form-row"><label>Review note<input data-orchestration-eligibility-note="${escapeAttr(item.id)}" maxlength="1000" placeholder="Record the evidence/decision" required></label><button data-orchestration-eligibility="approved" data-id="${escapeAttr(item.id)}" class="primary" disabled>Mark eligible</button><button data-orchestration-eligibility="rejected" data-id="${escapeAttr(item.id)}" disabled>Mark ineligible</button></div>`;
+      const note = eligibilityDrafts.get(item.id) || '';
+      return `<div class="form-row"><label>Review note<input data-orchestration-eligibility-note="${escapeAttr(item.id)}" maxlength="1000" value="${escapeAttr(note)}" placeholder="Record the evidence/decision" required></label><button data-orchestration-eligibility="approved" data-id="${escapeAttr(item.id)}" class="primary" ${note.trim() ? '' : 'disabled'}>Mark eligible</button><button data-orchestration-eligibility="rejected" data-id="${escapeAttr(item.id)}" ${note.trim() ? '' : 'disabled'}>Mark ineligible</button></div>`;
     }
     if (item.attention_kind === 'tailoring_prerequisite') {
       return `<button data-orchestration-retry-tailoring="${escapeAttr(item.id)}" class="primary">Retry tailoring</button>`;
@@ -597,8 +605,8 @@ const jobsView = document.getElementById('jobs');
       <div class="fact-item" data-question-id="${escapeAttr(question.id)}">
         <div class="fact-meta"><strong>${escapeHtml(question.job_identity)}</strong><span class="pill needs_review">Human review</span></div>
         <div class="fact-source">${escapeHtml(question.label)}<br>Field: ${escapeHtml(question.question_key)} · Context SHA-256: ${escapeHtml(question.context_sha256)}</div>
-        <label>Approved answer<textarea data-question-answer rows="2" maxlength="4000" placeholder="Enter an answer verified for this application"></textarea></label>
-        <button data-question-approve class="primary" disabled>Approve exact answer</button>
+        <label>Approved answer<textarea data-question-answer rows="2" maxlength="4000" placeholder="Enter an answer verified for this application">${escapeHtml(answerDrafts.get(question.id) || '')}</textarea></label>
+        <button data-question-approve class="primary" ${String(answerDrafts.get(question.id) || '').trim() ? '' : 'disabled'}>Approve exact answer</button>
       </div>`).join('') : '<p>No form answers currently need review.</p>';
 
     const states = [...new Set(orchestration.history.map(item => item.state))].sort();
@@ -633,6 +641,8 @@ const jobsView = document.getElementById('jobs');
       detail.innerHTML = '<p>Select an application to inspect its local record.</p>';
     } else {
       const editable = state.session_state === 'idle' && !state.onboarding_busy && !clientOnboardingBusy;
+      const draft = applicationDrafts.get(selectedApplicationId);
+      const workspace = draft ? {...selectedApplication, ...draft} : selectedApplication;
       const packageHash = selectedApplication.package_manifest_sha256 || '';
       const resumeHash = selectedApplication.tailored_pdf_sha256 || '';
       detail.innerHTML = `<div class="card-heading"><div><h2>${escapeHtml(selectedApplication.title || 'Application')}</h2><p>${escapeHtml(selectedApplication.employer || 'Unknown employer')} · ${escapeHtml(selectedApplication.location || 'Unknown location')}</p></div><span class="pill ${escapeAttr(selectedApplication.state)}">${escapeHtml(selectedApplication.state)}</span></div>
@@ -649,12 +659,13 @@ const jobsView = document.getElementById('jobs');
         ${selectedApplication.source_url ? `<div class="fact-source"><strong>Saved source URL</strong><br>${escapeHtml(selectedApplication.source_url)}</div>` : ''}
         ${selectedApplication.apply_url ? `<div class="fact-source"><strong>Saved apply URL</strong><br>${escapeHtml(selectedApplication.apply_url)}</div>` : ''}
         <div class="workspace-artifact-grid">
-          <div><span>Tailoring run</span><strong>${escapeHtml(selectedApplication.tailoring_run_id || 'None')}</strong><small>${escapeHtml(selectedApplication.tailoring_status || '')}${resumeHash ? ` · PDF ${escapeHtml(shortHash(resumeHash))}` : ''}</small>${selectedApplication.tailored_pdf_relpath ? `<button type="button" data-application-preview="${escapeAttr(selectedApplication.tailoring_run_id)}">Preview exact tailored resume</button>` : ''}</div>
+          <div><span>Resume evidence</span><strong>${escapeHtml(selectedApplication.tailoring_run_id || 'None')}</strong><small>${selectedApplication.uses_original_resume ? 'Verified original · ' : ''}${escapeHtml(selectedApplication.tailoring_status || '')}${resumeHash ? ` · PDF ${escapeHtml(shortHash(resumeHash))}` : ''}</small>${selectedApplication.tailored_pdf_relpath ? `<button type="button" data-application-preview="${escapeAttr(selectedApplication.tailoring_run_id)}">Preview exact ${selectedApplication.uses_original_resume ? 'original' : 'tailored'} resume</button>` : ''}</div>
           <div><span>Application package</span><strong>${escapeHtml(selectedApplication.package_id || 'None')}</strong><small>${packageHash ? `Manifest ${escapeHtml(shortHash(packageHash))}` : 'No immutable package yet'}</small></div>
         </div>
         <form id="application-workspace-form" class="section-card">
-          <div class="form-row"><label>Follow-up date<input id="application-follow-up" type="date" value="${escapeAttr((selectedApplication.follow_up_at || '').slice(0, 10))}" ${editable ? '' : 'disabled'}></label><label>Next action<input id="application-next-action" maxlength="500" value="${escapeAttr(selectedApplication.next_action || '')}" placeholder="e.g. Follow up with recruiter" ${editable ? '' : 'disabled'}></label></div>
-          <label>Notes<textarea id="application-notes" rows="5" maxlength="4000" placeholder="Interview notes, contacts, reminders…" ${editable ? '' : 'disabled'}>${escapeHtml(selectedApplication.notes || '')}</textarea></label>
+          <div class="form-row"><label>Follow-up date<input id="application-follow-up" type="date" value="${escapeAttr((workspace.follow_up_at || '').slice(0, 10))}" ${editable ? '' : 'disabled'}></label><label>Next action<input id="application-next-action" maxlength="500" value="${escapeAttr(workspace.next_action || '')}" placeholder="e.g. Follow up with recruiter" ${editable ? '' : 'disabled'}></label></div>
+          <label>Notes<textarea id="application-notes" rows="5" maxlength="4000" placeholder="Interview notes, contacts, reminders…" ${editable ? '' : 'disabled'}>${escapeHtml(workspace.notes || '')}</textarea></label>
+          ${draft ? '<small>Unsaved draft; save before closing JobPilot.</small>' : ''}
           <button type="submit" class="primary" ${editable ? '' : 'disabled'}>Save workspace</button>
           ${editable ? '' : '<small>Stop the active session before editing workspace metadata.</small>'}
         </form>
@@ -682,16 +693,27 @@ const jobsView = document.getElementById('jobs');
   document.getElementById('application-detail').addEventListener('submit', async event => {
     if (event.target.id !== 'application-workspace-form' || !selectedApplicationId) return;
     event.preventDefault();
+    const applicationId = selectedApplicationId;
     await invoke(
       'update_application_workspace',
-      selectedApplicationId,
+      applicationId,
       document.getElementById('application-follow-up').value || null,
       document.getElementById('application-notes').value,
       document.getElementById('application-next-action').value,
     );
-    selectedApplicationDetail = await invokeRaw('application_workspace_detail', selectedApplicationId);
+    applicationDrafts.delete(applicationId);
+    if (selectedApplicationId !== applicationId) return;
+    selectedApplicationDetail = await invokeRaw('application_workspace_detail', applicationId);
     if (latestState) renderOrchestration(latestState);
     toast('Application workspace saved locally');
+  });
+  document.getElementById('application-detail').addEventListener('input', event => {
+    if (!selectedApplicationId || !event.target.closest('#application-workspace-form')) return;
+    applicationDrafts.set(selectedApplicationId, {
+      follow_up_at: document.getElementById('application-follow-up').value,
+      notes: document.getElementById('application-notes').value,
+      next_action: document.getElementById('application-next-action').value,
+    });
   });
   document.getElementById('application-detail').addEventListener('click', async event => {
     if (event.target.closest('[data-application-rebuild]') && selectedApplicationId) {
@@ -713,13 +735,18 @@ const jobsView = document.getElementById('jobs');
   document.getElementById('orchestration-attention').addEventListener('input', event => {
     const input = event.target.closest('[data-orchestration-eligibility-note]');
     if (!input) return;
+    eligibilityDrafts.set(input.dataset.orchestrationEligibilityNote, input.value);
     const row = input.closest('.form-row');
     const disabled = !input.value.trim();
     row?.querySelectorAll('[data-orchestration-eligibility]').forEach(button => { button.disabled = disabled; });
   });
   document.getElementById('application-questions').addEventListener('input', event => {
     const answer = event.target.closest('[data-question-answer]');
-    if (answer) answer.closest('[data-question-id]').querySelector('[data-question-approve]').disabled = !answer.value.trim();
+    if (answer) {
+      const row = answer.closest('[data-question-id]');
+      answerDrafts.set(row.dataset.questionId, answer.value);
+      row.querySelector('[data-question-approve]').disabled = !answer.value.trim();
+    }
   });
   document.getElementById('application-questions').addEventListener('click', async event => {
     const button = event.target.closest('[data-question-approve]');
@@ -728,11 +755,11 @@ const jobsView = document.getElementById('jobs');
     const answer = row.querySelector('[data-question-answer]').value.trim();
     if (!answer) return;
     button.disabled = true;
-    try { await invoke('approve_application_question', row.dataset.questionId, answer); toast('Exact-context answer approved locally'); }
+    try { await invoke('approve_application_question', row.dataset.questionId, answer); answerDrafts.delete(row.dataset.questionId); toast('Exact-context answer approved locally'); }
     catch (_) { button.disabled = false; }
   });
 
-  document.getElementById('orchestration-attention').addEventListener('click', event => {
+  document.getElementById('orchestration-attention').addEventListener('click', async event => {
     const eligibility = event.target.dataset.orchestrationEligibility;
     if (eligibility) {
       const id = event.target.dataset.id;
@@ -743,7 +770,8 @@ const jobsView = document.getElementById('jobs');
         input?.focus();
         return;
       }
-      invoke('resolve_application_eligibility', id, eligibility === 'approved', note);
+      await invoke('resolve_application_eligibility', id, eligibility === 'approved', note);
+      eligibilityDrafts.delete(id);
       return;
     }
     const retry = event.target.dataset.orchestrationRetryTailoring;
