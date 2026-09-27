@@ -76,7 +76,9 @@ class TailoringController(ModelController):
             self.database.record_foundation_activity(
                 self.session_id,
                 "tailoring_approved",
-                f"Approved distinct tailored resume {run_id}; model review gate {gate['approved_distinct_resumes']}/5{reset}",
+                (f"Approved unchanged master resume {run_id}; this approval does not count toward the five edited-resume reviews"
+                 if result.get("unchanged_master") else
+                 f"Approved distinct tailored resume {run_id}; model review gate {gate['approved_distinct_resumes']}/5{reset}"),
             )
             return self.snapshot()
 
