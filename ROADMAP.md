@@ -2,6 +2,13 @@
 
 Status legend: `[ ] planned`, `[~] in progress`, `[x] complete`, `[!]` private evidence pending.
 
+## Post-audit repairs [~]
+
+- [x] PR #31: desktop and orchestration response/state fixes, package freshness and session ownership, evidence/eligibility guards, selected evaluation binding, and main-only release execution.
+- [~] Validated unchanged-master application packages, browser draft retention, and partial-malformed-board recovery; Windows acceptance pending.
+- [ ] Fully paginated workspaces; custom LaTeX dependency bundles; supported hosted-form/frame variants; deeper evidence recovery; normalized salary/experience preferences.
+- [ ] Publish a new versioned Windows release after the repair batch passes acceptance; `v0.2.1` is immutable and predates PR #31.
+
 ## Completed product foundation [x]
 
 The Windows desktop foundation, immutable resume/fact system, local AI/resource manager, evidence-backed tailoring, public Greenhouse/Lever/Ashby discovery, controlled application engine, supported hosted-form adapters, orchestration, backup/restore, Windows distribution, and explicitly user-authorized measured-pilot write path are implemented.
