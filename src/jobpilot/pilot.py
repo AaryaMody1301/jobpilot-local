@@ -419,16 +419,32 @@ class LiveHostedFormEngine:
                     ApplicationState.READY_TO_SUBMIT,
                     "live form filled only with current tailored resume and exact-context approved answers",
                 )
-                if stop_event.is_set() or not self.live_enabled():
-                    self.journal.stop_pre_submit(application_id, "pilot stopped at final pre-submit boundary")
-                    return
-
-                self.journal.transition(application_id, ApplicationState.SUBMITTING, "user-armed real pilot submit click started")
-                try:
-                    adapter.submit()
-                except Exception as exc:
-                    self.journal.transition(application_id, ApplicationState.UNCERTAIN, f"real pilot submit outcome ambiguous: {exc}")
-                    return
+                # Serialize mutable package/answer records with the irreversible click.
+                # The lock is released as soon as the submit action completes; confirmation is separate.
+                with self.journal.database._lock:
+                    if stop_event.is_set() or not self.live_enabled():
+                        self.journal.stop_pre_submit(application_id, "pilot stopped at final pre-submit boundary")
+                        return
+                    stale = self.journal.package_stale_reason(application_id)
+                    if stale:
+                        self.journal.transition(application_id, ApplicationState.STALE, f"pilot package invalidated at final submit boundary: {stale}")
+                        return
+                    for field in inspection.fields:
+                        if field.field_type == "file" or field.name not in answers:
+                            continue
+                        question = _question(provider, target, field)
+                        if self.journal.approved_answer(str(question["question_key"]), str(question["context_sha256"])) != answers[field.name]:
+                            self.journal.transition(application_id, ApplicationState.STALE, "approved form answer changed during live filling")
+                            return
+                    if stop_event.is_set() or not self.live_enabled():
+                        self.journal.stop_pre_submit(application_id, "pilot stopped at final pre-submit boundary")
+                        return
+                    self.journal.transition(application_id, ApplicationState.SUBMITTING, "user-armed real pilot submit click started")
+                    try:
+                        adapter.submit()
+                    except Exception as exc:
+                        self.journal.transition(application_id, ApplicationState.UNCERTAIN, f"real pilot submit outcome ambiguous: {exc}")
+                        return
                 self.journal.transition(application_id, ApplicationState.CONFIRMING, "real pilot submit returned; awaiting explicit positive confirmation")
                 confirmation = adapter.confirm()
                 if not confirmation.confirmed:

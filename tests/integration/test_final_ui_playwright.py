@@ -202,6 +202,56 @@ def test_active_pilot_arming_is_available_from_applications_attention_lane(chrom
         ]
 
 
+def test_live_form_question_is_visible_and_approvable_in_exact_context(chromium_page) -> None:
+    state = _state()
+    state["applications"] = {"open_questions": [{
+        "id": "question-1", "application_id": "app-1", "job_identity": "Example · Data Engineer",
+        "question_key": "work_authorization", "context_sha256": "a" * 64,
+        "label": "Are you authorized to work here?", "required": 1,
+    }]}
+    state["orchestration"]["attention"] = [{
+        "id": "app-1", "state": "needs_review", "job_identity": "Example · Data Engineer",
+        "attention_kind": "form_answer_review", "eligibility": {},
+    }]
+    chromium_page.add_init_script("""
+        window.__calls = [];
+        window.pywebview = {api: new Proxy({}, {get: (_, name) => async (...args) => {
+            window.__calls.push([String(name), ...args]); return window.__fixtureState;
+        }})};
+    """)
+    with local_ui_server() as url:
+        chromium_page.goto(url)
+        chromium_page.evaluate("state => { window.__fixtureState = state; render(state); showView('history'); }", state)
+        assert chromium_page.locator('[data-orchestration-retry-tailoring]').count() == 0
+        question = chromium_page.locator('[data-question-id="question-1"]')
+        assert "Are you authorized to work here?" in question.inner_text()
+        assert "a" * 64 in question.inner_text()
+        approve = question.locator('[data-question-approve]')
+        assert approve.is_disabled()
+        question.locator('[data-question-answer]').fill("Yes, verified for this location")
+        approve.click()
+        chromium_page.wait_for_function("window.__calls.length === 1")
+        assert chromium_page.evaluate("window.__calls") == [
+            ["approve_application_question", "question-1", "Yes, verified for this location"],
+        ]
+
+
+def test_background_poll_keeps_active_review_draft(chromium_page) -> None:
+    state = _state()
+    state["orchestration"]["attention"] = [{
+        "id": "app-1", "state": "needs_review", "job_identity": "Example",
+        "attention_kind": "eligibility_review", "eligibility": {"review_reasons": ["location unknown"]},
+    }]
+    with local_ui_server() as url:
+        chromium_page.goto(url)
+        chromium_page.evaluate("state => { render(state); showView('history'); }", state)
+        note = chromium_page.locator('[data-orchestration-eligibility-note="app-1"]')
+        note.fill("Checked the employer location")
+        chromium_page.evaluate("state => render({...state, session_state: 'running'}, {preserveEditing: true})", state)
+        assert note.input_value() == "Checked the employer location"
+        assert chromium_page.locator('[data-orchestration-eligibility="approved"]').is_enabled()
+
+
 def test_job_and_application_workspace_filters_and_saves_local_follow_up(chromium_page) -> None:
     state = _state()
     state["jobs"] = {

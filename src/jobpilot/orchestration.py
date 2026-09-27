@@ -40,19 +40,36 @@ class OrchestrationJournal(ApplicationJournal):
     def attempt_for_job(self, discovered_job_id: str) -> dict[str, Any] | None:
         with self.database._lock:
             row = self.database.connection.execute(
-                "SELECT * FROM application_attempts WHERE discovered_job_id=? ORDER BY updated_at DESC LIMIT 1",
+                "SELECT * FROM application_attempts WHERE discovered_job_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1",
                 (str(discovered_job_id),),
             ).fetchone()
         return None if row is None else dict(row)
 
-    def register_discovered_job(self, job: Mapping[str, Any], assessment: Mapping[str, Any]) -> dict[str, Any]:
+    def register_discovered_job(
+        self, job: Mapping[str, Any], assessment: Mapping[str, Any], *, rebuild_from: str | None = None
+    ) -> dict[str, Any]:
         job_id = str(job.get("id") or "").strip()
         if not job_id:
             raise ValueError("discovered job id is required for orchestration")
         existing = self.attempt_for_job(job_id)
-        if existing is not None:
+        if existing is not None and rebuild_from is None:
             return existing
-        identity = f"job:{job_id}"
+        if rebuild_from is not None:
+            if existing is None or str(existing["id"]) != rebuild_from:
+                raise RuntimeError("only the latest application attempt can be rebuilt")
+            if str(existing["state"]) not in {
+                ApplicationState.BLOCKED.value, ApplicationState.FAILED.value,
+                ApplicationState.STALE.value, ApplicationState.INELIGIBLE.value,
+            } or not bool(job.get("active")):
+                raise RuntimeError("only a terminal, never-submitted attempt for an active job can be rebuilt")
+            with self.database._lock:
+                submitted = self.database.connection.execute(
+                    "SELECT 1 FROM application_attempts WHERE discovered_job_id=? AND (submit_started_at IS NOT NULL OR state IN ('confirmed','uncertain','submitting','confirming')) LIMIT 1",
+                    (job_id,),
+                ).fetchone()
+            if submitted is not None:
+                raise RuntimeError("this job has submission evidence and cannot be retried automatically")
+        identity = f"job:{job_id}" if rebuild_from is None else f"job:{job_id}:rebuild:{uuid.uuid4()}"
         now = utc_now_text()
         eligibility = str(assessment.get("eligibility") or "review")
         reasons = [str(item) for item in assessment.get("hard_reasons", [])]
@@ -192,15 +209,21 @@ class OrchestrationJournal(ApplicationJournal):
         self.tailoring._verify_run_artifacts(run)
         return run
 
-    def _answers_fingerprint(self) -> str:
+    def _answers_fingerprint(self, application_id: str | None = None) -> str:
         with self.database._lock:
-            rows = self.database.connection.execute(
-                """
-                SELECT id, question_key, context_sha256, label, answer, approved_at
-                  FROM approved_application_answers
-                 ORDER BY question_key, context_sha256
-                """
-            ).fetchall()
+            if application_id is None:  # Existing schema-1 packages used the global answer set.
+                rows = self.database.connection.execute(
+                    "SELECT id, question_key, context_sha256, label, answer, approved_at FROM approved_application_answers ORDER BY question_key, context_sha256"
+                ).fetchall()
+            else:
+                rows = self.database.connection.execute(
+                    """SELECT ans.id, ans.question_key, ans.context_sha256, ans.label, ans.answer, ans.approved_at
+                         FROM approved_application_answers ans
+                         JOIN application_questions q ON q.question_key=ans.question_key AND q.context_sha256=ans.context_sha256
+                        WHERE q.application_id=? AND q.state='answered'
+                        ORDER BY ans.question_key, ans.context_sha256""",
+                    (application_id,),
+                ).fetchall()
         return _sha([dict(row) for row in rows])
 
     def _job(self, discovered_job_id: str) -> dict[str, Any]:
@@ -224,9 +247,9 @@ class OrchestrationJournal(ApplicationJournal):
         job = self._job(job_id)
         if not bool(job.get("active")):
             raise RuntimeError("discovered job is no longer active")
-        answers_sha = self._answers_fingerprint()
+        answers_sha = self._answers_fingerprint(application_id)
         manifest = {
-            "schema_version": 1,
+            "schema_version": 2,
             "application_id": application_id,
             "job": {
                 "id": job_id,
@@ -318,7 +341,7 @@ class OrchestrationJournal(ApplicationJournal):
             return "tailoring audit manifest changed"
         if str(run.get("pdf_sha256") or "") != str(tailoring_manifest.get("pdf_sha256") or ""):
             return "tailored resume PDF changed"
-        current_answers = self._answers_fingerprint()
+        current_answers = self._answers_fingerprint(application_id if manifest.get("schema_version") == 2 else None)
         if current_answers != str(package["answers_sha256"]) or current_answers != str(manifest.get("approved_answers_sha256") or ""):
             return "approved application answers changed"
         if bool(application.get("controlled_fixture")):
@@ -526,6 +549,7 @@ class OrchestrationJournal(ApplicationJournal):
 
     def orchestration_summary(self) -> dict[str, Any]:
         history = self.history()
+        open_question_ids = {str(question["application_id"]) for question in self.open_questions()}
         counts: dict[str, int] = {}
         attention: list[dict[str, Any]] = []
         for item in history:
@@ -534,7 +558,9 @@ class OrchestrationJournal(ApplicationJournal):
             kind = ""
             if state == ApplicationState.NEEDS_REVIEW.value:
                 assessment = item.get("eligibility") or {}
-                if str(assessment.get("eligibility")) == "review" and not item.get("eligibility_resolution") and not item.get("tailoring_run_id"):
+                if str(item["id"]) in open_question_ids:
+                    kind = "form_answer_review"
+                elif str(assessment.get("eligibility")) == "review" and not item.get("eligibility_resolution") and not item.get("tailoring_run_id"):
                     kind = "eligibility_review"
                 else:
                     kind = "tailoring_prerequisite"

@@ -295,6 +295,12 @@ class ApplicationJournal:
             ).fetchone()
             if question is None:
                 raise KeyError(question_id)
+            app = connection.execute(
+                "SELECT state, submit_started_at FROM application_attempts WHERE id=?",
+                (question["application_id"],),
+            ).fetchone()
+            if question["state"] != "review" or app is None or app["state"] != ApplicationState.NEEDS_REVIEW.value or app["submit_started_at"]:
+                raise RuntimeError("only an open question on a never-submitted application awaiting review can be approved")
             answer_id = hashlib.sha256(
                 f"{question['question_key']}|{question['context_sha256']}".encode()
             ).hexdigest()
@@ -636,20 +642,18 @@ class ApplicationWorker:
         self._paused.clear()
 
     def stop(self, timeout: float = 60.0) -> bool:
-        self._stop.set()
-        self._paused.clear()
+        self.request_stop()
         thread = self._thread
         if thread is None:
             return True
+        if thread is threading.current_thread():
+            return False
         thread.join(timeout)
-        if thread.is_alive() and self._current_application_id:
-            attempt = self.journal.attempt(self._current_application_id)
-            state = ApplicationState(str(attempt["state"]))
-            if state in {ApplicationState.SUBMITTING, ApplicationState.CONFIRMING}:
-                self.journal.transition(self._current_application_id, ApplicationState.UNCERTAIN, "confirmation window expired during Stop/Close")
-            elif state in PRE_SUBMIT_STATES:
-                self.journal.stop_pre_submit(self._current_application_id, "Stop/Close interrupted pre-submit work")
         return not thread.is_alive()
+
+    def request_stop(self) -> None:
+        self._stop.set()
+        self._paused.clear()
 
     def status(self) -> dict[str, Any]:
         thread = self._thread

@@ -80,11 +80,9 @@ class SelectedModelManager(ModelManager):
             runtime = self.store.runtime_install(runtime_install_id)
             if runtime is None or runtime.get("status") != "installed":
                 raise RuntimeError("selected llama.cpp runtime is not installed")
-            evaluation = self.store.best_passing_evaluation(model_install_id)
+            evaluation = self.store.best_passing_evaluation(model_install_id, runtime_install_id, device_id)
             if evaluation is None:
                 raise RuntimeError("selected local model has no passing evaluation")
-            if str(evaluation["runtime_install_id"]) != runtime_install_id or str(evaluation["device_id"]) != device_id:
-                raise RuntimeError("selected inference configuration no longer matches its passing evaluation")
 
             hardware = self.refresh_hardware()
             budget = hardware["budget"]

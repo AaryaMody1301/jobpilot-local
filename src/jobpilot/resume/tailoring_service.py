@@ -306,7 +306,7 @@ class TailoringService:
         for run in self.store.list_runs(100):
             if run.get("status") not in {"needs_review", "auto_validated"}:
                 continue
-            reason = self._stale_reason(run)
+            reason = self._stale_reason(run, verify_artifacts=False)
             if reason:
                 self.store.set_review_status(str(run["id"]), "stale", reason)
                 count += 1
@@ -368,7 +368,7 @@ class TailoringService:
         self._verify_run_artifacts(run)
         return run
 
-    def _stale_reason(self, run: Mapping[str, Any]) -> str | None:
+    def _stale_reason(self, run: Mapping[str, Any], *, verify_artifacts: bool = True) -> str | None:
         master = self.resume_store.get_active_master()
         if master is None or str(master["id"]) != str(run["master_document_id"]) or str(master["sha256"]) != str(run["master_sha256"]):
             return "master resume changed"
@@ -383,8 +383,9 @@ class TailoringService:
             return "selected model configuration changed"
         try:
             self._approved_current_facts(master)
-            self.models.model_installer.require_verified_path(str(run["model_install_id"]))
-            self.models.runtime_installer.require_verified_executable(str(run["runtime_install_id"]))
+            if verify_artifacts:
+                self.models.model_installer.require_verified_path(str(run["model_install_id"]))
+                self.models.runtime_installer.require_verified_executable(str(run["runtime_install_id"]))
             context = self._dependency_context(
                 master,
                 str(run["model_install_id"]),
@@ -622,15 +623,13 @@ class TailoringService:
     def _model_evidence(self, model_install_id: str, runtime_install_id: str, device_id: str) -> dict[str, Any]:
         model = self.models.store.model_install(model_install_id)
         runtime = self.models.store.runtime_install(runtime_install_id)
-        evaluation = self.models.store.best_passing_evaluation(model_install_id)
+        evaluation = self.models.store.best_passing_evaluation(model_install_id, runtime_install_id, device_id)
         if model is None or model.get("status") != "validated":
             raise RuntimeError("selected model validation evidence is missing")
         if runtime is None or runtime.get("status") != "installed":
             raise RuntimeError("selected runtime validation evidence is missing")
         if evaluation is None or not evaluation.get("overall_pass"):
             raise RuntimeError("selected model has no passing evaluation")
-        if str(evaluation.get("runtime_install_id")) != runtime_install_id or str(evaluation.get("device_id")) != device_id:
-            raise RuntimeError("selected configuration no longer matches its passing evaluation")
         return {
             "model": {
                 "id": model_install_id,

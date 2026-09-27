@@ -205,11 +205,20 @@ class ModelStore:
             row = self.database.connection.execute(sql, tuple(params)).fetchone()
         return self._decode_evaluation(row) if row is not None else None
 
-    def best_passing_evaluation(self, model_install_id: str) -> dict[str, Any] | None:
+    def best_passing_evaluation(
+        self, model_install_id: str, runtime_install_id: str | None = None, device_id: str | None = None
+    ) -> dict[str, Any] | None:
+        query = "SELECT * FROM model_evaluations WHERE model_install_id=? AND overall_pass=1"
+        params: list[object] = [model_install_id]
+        if runtime_install_id is not None:
+            query += " AND runtime_install_id=?"
+            params.append(runtime_install_id)
+        if device_id is not None:
+            query += " AND device_id=?"
+            params.append(device_id)
         with self.database._lock:
             rows = self.database.connection.execute(
-                "SELECT * FROM model_evaluations WHERE model_install_id=? AND overall_pass=1 ORDER BY created_at DESC",
-                (model_install_id,),
+                query + " ORDER BY created_at DESC", tuple(params),
             ).fetchall()
         if not rows:
             return None

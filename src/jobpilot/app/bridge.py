@@ -102,7 +102,8 @@ class DesktopBridge:
         return self._controller.snapshot()
 
     def select_model_for_review(self, model_install_id: str) -> dict[str, Any]:
-        return self._controller.select_model_for_review(model_install_id)
+        self._controller.select_model_for_review(model_install_id)
+        return self._controller.snapshot()
 
     def check_model_updates(self) -> dict[str, Any]:
         self._controller.check_model_updates()
@@ -122,9 +123,10 @@ class DesktopBridge:
         return self._controller.reject_tailored_resume(run_id, note)
 
     def enable_automatic_tailoring(self, delete_previous_app_managed_weights: bool = False) -> dict[str, Any]:
-        return self._controller.enable_automatic_tailoring(
+        self._controller.enable_automatic_tailoring(
             delete_previous_app_managed_weights=bool(delete_previous_app_managed_weights)
         )
+        return self._controller.snapshot()
 
     def tailored_pdf_data_uri(self, run_id: str) -> str:
         return self._controller.tailored_pdf_data_uri(run_id)
@@ -158,6 +160,9 @@ class DesktopBridge:
 
     def retry_application_tailoring(self, application_id: str) -> dict[str, Any]:
         return self._controller.retry_application_tailoring(application_id)
+
+    def rebuild_application(self, application_id: str) -> dict[str, Any]:
+        return self._controller.rebuild_application(application_id)
 
     def application_workspace_detail(self, application_id: str) -> dict[str, Any]:
         return self._controller.application_workspace_detail(application_id)

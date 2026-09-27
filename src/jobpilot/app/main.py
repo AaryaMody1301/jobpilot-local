@@ -11,7 +11,13 @@ from pathlib import Path
 
 from jobpilot.app.bridge import DesktopBridge
 from jobpilot.app.product_controller import ProductController
+from jobpilot.model.inference import SelectedModelManager
+from jobpilot.resume.documents import sha256_file
+from jobpilot.resume.store import ResumeStore
+from jobpilot.resume.tailoring_service import TailoringService
+from jobpilot.resume.tailoring_store import TailoringStore
 from jobpilot.runtime.paths import ManagedPaths
+from jobpilot.storage.database import Database
 
 
 def _repository_root() -> Path:
@@ -47,62 +53,94 @@ def create_controller(
 
 
 def run_review_gate_report(paths: ManagedPaths | None = None) -> dict[str, object]:
-    """Return a privacy-safe human-review gate report for the active local profile."""
-    controller = create_controller(paths)
-    try:
-        state = controller.snapshot()
-        tailoring = state["tailoring"]
-        selected = tailoring.get("selected_model_install_id")
-        raw_gate = tailoring.get("review_gate") or {}
-        required = int(raw_gate.get("required_distinct_resumes") or 5)
-        approved = int(raw_gate.get("approved_distinct_resumes") or 0)
-        remaining = max(
-            0,
-            int(
-                raw_gate.get("remaining")
-                if raw_gate.get("remaining") is not None
-                else required - approved
-            ),
-        )
-        gate_current = False
-        gate_reason: str | None = None
-        if selected:
-            try:
-                controller.tailoring.require_review_gate_current(str(selected))
-                gate_current = True
-            except Exception as exc:
-                gate_reason = str(exc)
-        else:
-            gate_reason = "no selected validated model/configuration is awaiting human review"
+    """Read private gate status without creating a session or modifying an active profile."""
+    profile = paths or ManagedPaths.default()
+    selected = None
+    raw_gate: dict[str, object] = {}
+    gate_current = False
+    gate_reason: str | None = "no selected validated model/configuration is awaiting human review"
+    auto_enabled = False
+    readiness: dict[str, object] = {
+        "onboarding_ready": False,
+        "master_present": False,
+        "master_integrity_verified": False,
+        "baseline_compiled": False,
+        "offline_baseline_verified": False,
+        "template_map_confirmed": False,
+        "candidate_facts": 0,
+        "approved_facts": 0,
+        "rejected_facts": 0,
+    }
+    if profile.database_file.is_file():
+        with Database.open_read_only(profile.database_file) as database:
+            resume = ResumeStore(database, profile.root)
+            models = SelectedModelManager(profile, database)
+            tailoring = TailoringService(profile, resume, TailoringStore(database, profile.root), models)
+            state = models.store.model_state()
+            selected = state.get("selected_model_install_id")
+            raw_gate = models.store.review_gate(str(selected)) if selected else {}
+            master = resume.get_active_master()
+            baseline = resume.get_baseline(str(master["id"])) if master else None
+            integrity_ok = False
+            if master:
+                source = resume.document_path(master)
+                integrity_ok = source.is_file() and sha256_file(source) == str(master["sha256"])
+            scoped_facts: list[dict[str, object]] = []
+            for fact in resume.list_facts():
+                source = resume.get_document(str(fact["source_document_id"]))
+                if source and ((master is not None and str(source["id"]) == str(master["id"]))
+                               or str(source.get("kind")) == "supporting"):
+                    scoped_facts.append(fact)
+            counts = {name: sum(fact["current_status"] == name for fact in scoped_facts)
+                      for name in ("candidate", "approved", "rejected")}
+            template_ok = bool(master and resume.template_map_status(str(master["id"])) == "confirmed")
+            baseline_ok = bool(baseline and baseline.get("status") == "compiled")
+            offline_ok = bool(baseline and baseline.get("offline_verified"))
+            readiness = {
+                "onboarding_ready": bool(master and integrity_ok and baseline_ok and offline_ok and template_ok
+                                         and not counts["candidate"] and counts["approved"]),
+                "master_present": bool(master),
+                "master_integrity_verified": integrity_ok,
+                "baseline_compiled": baseline_ok,
+                "offline_baseline_verified": offline_ok,
+                "template_map_confirmed": template_ok,
+                "candidate_facts": counts["candidate"],
+                "approved_facts": counts["approved"],
+                "rejected_facts": counts["rejected"],
+            }
+            if selected:
+                try:
+                    if not integrity_ok:
+                        raise RuntimeError("master resume source failed integrity verification")
+                    tailoring._approved_current_facts(master)
+                    models.model_installer.require_verified_path(str(selected))
+                    models.runtime_installer.require_verified_executable(
+                        str(state.get("selected_runtime_install_id") or "")
+                    )
+                    tailoring.require_review_gate_current(str(selected))
+                    gate_current = True
+                    gate_reason = None
+                except Exception as exc:
+                    gate_reason = str(exc)
+                auto_enabled = bool(gate_current and tailoring.auto_tailoring_is_current())
 
-        resume = state["resume"]
-        baseline = resume.get("baseline") or {}
-        fact_counts = resume.get("fact_counts") or {}
-        return {
-            "selected_model_install_id": selected,
-            "required_distinct_resumes": required,
-            "approved_distinct_resumes": approved,
-            "remaining": remaining,
-            "persisted_gate_complete": bool(raw_gate.get("complete")),
-            "current_review_context_complete": gate_current,
-            "ready_to_close_review_gate": gate_current,
-            "automatic_tailoring_enabled": bool(tailoring.get("auto_tailoring_enabled")),
-            "employer_submission_enabled": bool(tailoring.get("employer_submission_enabled")),
-            "gate_reason": gate_reason,
-            "resume_readiness": {
-                "onboarding_ready": bool(resume.get("onboarding_ready")),
-                "master_present": bool(resume.get("master")),
-                "master_integrity_verified": resume.get("integrity") == "verified",
-                "baseline_compiled": baseline.get("status") == "compiled",
-                "offline_baseline_verified": bool(baseline.get("offline_verified")),
-                "template_map_confirmed": resume.get("template_map_status") == "confirmed",
-                "candidate_facts": int(fact_counts.get("candidate") or 0),
-                "approved_facts": int(fact_counts.get("approved") or 0),
-                "rejected_facts": int(fact_counts.get("rejected") or 0),
-            },
-        }
-    finally:
-        controller.close()
+    required = int(raw_gate.get("required_distinct_resumes") or 5)
+    approved = int(raw_gate.get("approved_distinct_resumes") or 0)
+    remaining = max(0, int(raw_gate.get("remaining") if raw_gate.get("remaining") is not None else required - approved))
+    # No sensitive source text, answers, or local paths leave this diagnostic.
+    return {
+        "selected_model_install_id": selected,
+        "required_distinct_resumes": required,
+        "approved_distinct_resumes": approved,
+        "remaining": remaining,
+        "persisted_gate_complete": bool(raw_gate.get("complete")),
+        "current_review_context_complete": gate_current,
+        "ready_to_close_review_gate": gate_current,
+        "automatic_tailoring_enabled": auto_enabled,
+        "employer_submission_enabled": False,
+        "gate_reason": gate_reason,
+        "resume_readiness": readiness,
+    }
 
 
 # Backward-compatible name retained for scripts/docs that predate the final product terminology.

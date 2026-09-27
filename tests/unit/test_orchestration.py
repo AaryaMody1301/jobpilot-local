@@ -127,6 +127,15 @@ def test_orchestration_eligibility_review_and_package_staleness_are_transactiona
                 ("e" * 64, now),
             )
 
+        assert journal.package_stale_reason(str(application["id"])) is None
+        with db.transaction() as connection:
+            connection.execute(
+                """INSERT INTO application_questions(id, application_id, question_key, context_sha256,
+                   label, required, state, answer_id, created_at, updated_at)
+                   VALUES ('question-1', ?, 'notice', ?, 'Notice period', 1, 'answered', 'answer-1', ?, ?)""",
+                (application["id"], "e" * 64, now, now),
+            )
+
         assert journal.claim_next("session-1") is None
         stale = journal.attempt(str(application["id"]))
         assert stale["state"] == "stale"

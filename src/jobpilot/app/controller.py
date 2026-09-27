@@ -349,6 +349,8 @@ class ApplicationController:
         self._require_open()
         if self._state is not SessionState.IDLE:
             raise RuntimeError("resume onboarding changes are allowed only while the session is idle")
+        if self._onboarding_busy is not None:
+            raise RuntimeError(f"finish or cancel {self._onboarding_busy} before changing onboarding data")
 
     def _require_open(self) -> None:
         if self._closed or self._state is SessionState.EXITED:

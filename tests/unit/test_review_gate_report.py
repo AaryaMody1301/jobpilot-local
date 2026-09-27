@@ -5,7 +5,9 @@ from jobpilot.runtime.paths import ManagedPaths
 
 
 def test_review_gate_report_is_privacy_safe_and_fail_closed(tmp_path: Path) -> None:
-    report = run_review_gate_report(ManagedPaths(tmp_path / "JobPilotLocal"))
+    paths = ManagedPaths(tmp_path / "JobPilotLocal")
+    report = run_review_gate_report(paths)
+    assert not paths.root.exists(), "a read-only report must not create a local profile"
 
     assert report["selected_model_install_id"] is None
     assert report["required_distinct_resumes"] == 5
