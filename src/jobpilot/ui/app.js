@@ -209,6 +209,7 @@ function renderTargeting(t) {
   document.getElementById('remote-country').value = t.remote_origin_country;
   document.getElementById('remote-origin-required').checked = t.remote_must_allow_origin;
   document.getElementById('salary-minimum').value = t.salary_minimum === null ? '' : t.salary_minimum;
+  document.getElementById('salary-currency').value = t.salary_currency || '';
   document.getElementById('notice-days').value = t.notice_period_days;
   document.getElementById('employment-types').value = t.employment_types.join(', ');
   document.getElementById('excluded-employers').value = t.excluded_employers.join(', ');
@@ -392,6 +393,7 @@ function targetingFromForm() {
     remote_origin_country: document.getElementById('remote-country').value.trim(),
     remote_must_allow_origin: document.getElementById('remote-origin-required').checked,
     salary_minimum: document.getElementById('salary-minimum').value.trim() === '' ? null : Number(document.getElementById('salary-minimum').value),
+    salary_currency: document.getElementById('salary-currency').value.trim().toUpperCase() || null,
     notice_period_days: Number(document.getElementById('notice-days').value),
     employment_types: csv(document.getElementById('employment-types').value),
     excluded_employers: csv(document.getElementById('excluded-employers').value),
