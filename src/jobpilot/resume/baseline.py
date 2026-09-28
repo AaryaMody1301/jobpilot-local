@@ -9,7 +9,7 @@ from typing import Any
 
 from pypdf import PdfReader
 
-from jobpilot.resume.documents import sha256_file
+from jobpilot.resume.documents import DocumentWorkspace, sha256_file
 from jobpilot.resume.store import ResumeStore
 from jobpilot.resume.tectonic import TectonicCompiler
 from jobpilot.resume.template_map import map_editable_regions, source_metrics
@@ -62,6 +62,9 @@ class ResumeBaselineService:
         if not source.is_file() or sha256_file(source) != str(document["sha256"]):
             self.store.set_integrity(str(document["id"]), "missing" if not source.exists() else "mismatch")
             raise RuntimeError("master resume integrity verification failed; re-import the source before compiling")
+        bundle = DocumentWorkspace(self.paths, self.store).verified_bundle(document)
+        if bundle is not None:
+            source = bundle[0] / "source.tex"
         tool_status = TectonicInstallService(self.paths).status()
         executable = resolve_tectonic_executable(self.paths)
         if not tool_status.get("installed") or tool_status.get("integrity") != "verified" or executable is None:
@@ -115,6 +118,7 @@ class ResumeBaselineService:
         source_text = source.read_text(encoding="utf-8-sig")
         regions = map_editable_regions(source_text, str(document["sha256"]))
         metrics = source_metrics(source_text, regions)
+        metrics["template_bundle_sha256"] = self.store.active_template_bundle(document_id)
         if pdf["page_count"] < 1:
             error = "compiled baseline PDF contains no pages"
             self._record_failure(document_id, source, expected_log, error, used_network=allow_package_downloads)
