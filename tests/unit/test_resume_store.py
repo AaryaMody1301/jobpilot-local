@@ -34,6 +34,55 @@ def _resume(path: Path, text: str = "Built verified pipelines.") -> Path:
     return path
 
 
+def test_master_import_versions_and_verifies_local_template_files(tmp_path: Path) -> None:
+    paths, db, store, workspace = _workspace(tmp_path)
+    try:
+        (tmp_path / "sections").mkdir()
+        part = tmp_path / "sections" / "history.tex"
+        part.write_text("\\section{Experience}\\begin{itemize}\\item Built pipelines.\\end{itemize}", encoding="utf-8")
+        (tmp_path / "local.sty").write_text("\\ProvidesPackage{local}", encoding="utf-8")
+        source = tmp_path / "resume.tex"
+        source.write_text("\\documentclass{article}\\usepackage{local}\\begin{document}"
+                          "\\input{sections/history}\\end{document}", encoding="utf-8")
+        imported = workspace.import_master(source)
+        master = store.get_active_master()
+        assert master and master["id"] == imported["document_id"]
+        original_source_hash = master["sha256"]
+        bundle = workspace.verified_bundle(master)
+        assert bundle is not None
+        assert set(bundle[1]) == {"sections/history.tex", "local.sty"}
+        old_part = bundle[0] / "sections" / "history.tex"
+        old_content = old_part.read_bytes()
+
+        with db.transaction() as connection:
+            connection.execute("UPDATE resume_baselines SET status='compiled', offline_verified=1 WHERE document_id=?", (master["id"],))
+        part.write_text("\\section{Experience}\\begin{itemize}\\item Built safer pipelines.\\end{itemize}", encoding="utf-8")
+        imported_again = workspace.import_master(source)
+        assert imported_again["deduplicated"]
+        updated = store.get_active_master()
+        assert updated and updated["sha256"] == original_source_hash
+        new_bundle = workspace.verified_bundle(updated)
+        assert new_bundle and new_bundle[0] != bundle[0] and old_part.read_bytes() == old_content
+        assert store.get_baseline(str(master["id"]))["status"] == "pending"
+        (new_bundle[0] / "local.sty").write_text("tampered", encoding="utf-8")
+        with pytest.raises(RuntimeError, match="integrity verification"):
+            workspace.verified_bundle(updated)
+    finally:
+        db.close()
+
+
+def test_template_import_rejects_relative_path_escape(tmp_path: Path) -> None:
+    paths, db, store, workspace = _workspace(tmp_path)
+    try:
+        source = tmp_path / "resume.tex"
+        source.write_text("\\documentclass{article}\\input{../other}\\begin{document}hello\\end{document}", encoding="utf-8")
+        with pytest.raises(ValueError, match="unsafe local template dependency"):
+            workspace.import_master(source)
+        assert store.get_active_master() is None
+    finally:
+        db.close()
+
+
 def test_master_import_is_immutable_and_deduplicated(tmp_path: Path) -> None:
     paths, db, store, workspace = _workspace(tmp_path)
     try:
