@@ -57,6 +57,31 @@ class ResumeStore:
     def find_document_by_digest(self, kind: str, sha256: str) -> dict[str, Any] | None:
         return self._query_one("SELECT * FROM source_documents WHERE kind = ? AND sha256 = ?", (kind, sha256))
 
+    def active_template_bundle(self, document_id: str) -> str | None:
+        setting = self.database.get_json_setting(f"master_template_bundle:{document_id}")
+        if setting is None:
+            return None
+        digest = setting.get("digest")
+        if digest is not None and (not isinstance(digest, str) or len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest)):
+            raise RuntimeError("active template bundle identifier is invalid")
+        return digest
+
+    def set_active_template_bundle(self, document_id: str, digest: str | None) -> None:
+        if digest is not None and (len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest)):
+            raise ValueError("invalid template bundle identifier")
+        key = f"master_template_bundle:{document_id}"
+        now = utc_now_text()
+        with self.database.transaction() as connection:
+            connection.execute(
+                "INSERT INTO app_settings(key, value_json, updated_at) VALUES (?, ?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=excluded.updated_at",
+                (key, json.dumps({"digest": digest}, sort_keys=True), now),
+            )
+            connection.execute(
+                "UPDATE resume_baselines SET status='pending', offline_verified=0, compile_error='local template dependencies changed; recompile and verify offline', updated_at=? WHERE document_id=?",
+                (now, document_id),
+            )
+
     def register_document(
         self,
         *,
