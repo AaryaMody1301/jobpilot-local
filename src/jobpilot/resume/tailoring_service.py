@@ -13,7 +13,7 @@ from typing import Any, Mapping
 
 from jobpilot.model.inference import SelectedModelManager
 from jobpilot.resume.baseline import inspect_pdf
-from jobpilot.resume.documents import sha256_file
+from jobpilot.resume.documents import DocumentWorkspace, sha256_file
 from jobpilot.resume.jd import normalize_job_description, normalize_phrase
 from jobpilot.resume.store import ResumeStore
 from jobpilot.resume.tailoring import (
@@ -82,6 +82,7 @@ class TailoringService:
             raise RuntimeError("import and approve a master resume before tailoring")
         if not self._onboarding_ready(master):
             raise RuntimeError("resume onboarding must be fully ready before tailoring")
+        bundle = DocumentWorkspace(self.paths, self.resume_store).verified_bundle(dict(master))
 
         model_state = self.models.store.model_state()
         model_install_id = str(model_state.get("selected_model_install_id") or "")
@@ -104,11 +105,10 @@ class TailoringService:
         tailoring_schema = tailoring_schema_for_context(editable, approved_facts)
         context = self._dependency_context(master, model_install_id, runtime_install_id, device_id)
         fact_revision = int(context["fact_bank_revision"])
-        resume_key = hashlib.sha256(
-            "|".join(
-                [str(master["sha256"]), str(jd["jd_sha256"]), model_install_id, runtime_install_id, device_id]
-            ).encode("utf-8")
-        ).hexdigest()
+        key_parts = [str(master["sha256"]), str(jd["jd_sha256"]), model_install_id, runtime_install_id, device_id]
+        if bundle is not None:
+            key_parts.append(str(self.resume_store.active_template_bundle(str(master["id"]))))
+        resume_key = hashlib.sha256("|".join(key_parts).encode("utf-8")).hexdigest()
         run = self.store.create_run(
             jd_id=jd_id,
             master_document_id=str(master["id"]),
@@ -161,6 +161,18 @@ class TailoringService:
                     raise RuntimeError("unchanged master copy failed integrity verification")
             else:
                 source_path.write_text(tailored_text, encoding="utf-8", newline="")
+            dependency_evidence: dict[str, dict[str, Any]] = {}
+            if bundle is not None:
+                for name, evidence in bundle[1].items():
+                    if name in AUDIT_COMPONENTS or name in {"manifest.json", "source.tex"}:
+                        raise RuntimeError(f"template dependency collides with an audit artifact: {name}")
+                    original = bundle[0] / name
+                    copy = package / name
+                    copy.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(original, copy)
+                    if sha256_file(copy) != evidence["sha256"]:
+                        raise RuntimeError(f"template dependency changed while preparing application: {name}")
+                    dependency_evidence[name] = evidence
             (package / "jd.txt").write_text(str(jd["jd_text"]), encoding="utf-8")
             (package / "jd.json").write_text(
                 json.dumps(
@@ -202,7 +214,7 @@ class TailoringService:
 
             components = {
                 name: {"sha256": sha256_file(package / name), "bytes": (package / name).stat().st_size}
-                for name in AUDIT_COMPONENTS
+                for name in (*AUDIT_COMPONENTS, *dependency_evidence)
                 if (package / name).is_file()
             }
             manifest = {
@@ -226,6 +238,8 @@ class TailoringService:
                 "unchanged_master": unchanged_master,
                 "components": components,
             }
+            if bundle is not None:
+                manifest["template_dependencies"] = dependency_evidence
             manifest_path = package / "manifest.json"
             manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
             manifest_sha256 = sha256_file(manifest_path)
@@ -337,6 +351,7 @@ class TailoringService:
         master = self.resume_store.get_active_master()
         if master is None or not self._onboarding_ready(master):
             raise RuntimeError("resume onboarding is no longer ready")
+        DocumentWorkspace(self.paths, self.resume_store).verified_bundle(dict(master))
         context = self._dependency_context(
             master,
             model_install_id,
@@ -359,6 +374,7 @@ class TailoringService:
         if master is None or not self._onboarding_ready(master):
             return False
         try:
+            DocumentWorkspace(self.paths, self.resume_store).verified_bundle(dict(master))
             context = self._dependency_context(
                 master,
                 model_id,
@@ -402,6 +418,7 @@ class TailoringService:
         try:
             self._approved_current_facts(master)
             if verify_artifacts:
+                DocumentWorkspace(self.paths, self.resume_store).verified_bundle(dict(master))
                 self.models.model_installer.require_verified_path(str(run["model_install_id"]))
                 self.models.runtime_installer.require_verified_executable(str(run["runtime_install_id"]))
             context = self._dependency_context(
@@ -429,6 +446,7 @@ class TailoringService:
             baseline
             and baseline.get("status") == "compiled"
             and baseline.get("offline_verified")
+            and (baseline.get("source_metrics") or {}).get("template_bundle_sha256") == self.resume_store.active_template_bundle(str(master["id"]))
             and self.resume_store.template_map_status(str(master["id"])) == "confirmed"
             and facts
             and not any(str(fact["current_status"]) == "candidate" for fact in facts)
@@ -589,6 +607,9 @@ class TailoringService:
             "runtime_install_id": runtime_install_id,
             "device_id": device_id,
         }
+        bundle_id = self.resume_store.active_template_bundle(str(master["id"]))
+        if bundle_id is not None:
+            context["template_bundle_sha256"] = bundle_id
         return {**context, "review_context_sha256": _stable_sha256(context)}
 
     def _template_map_fingerprint(self, document_id: str) -> str:
@@ -711,17 +732,26 @@ class TailoringService:
         if str(manifest.get("review_context_sha256")) != str(run.get("review_context_sha256") or ""):
             raise RuntimeError("tailoring audit manifest review context does not match")
         components = manifest.get("components")
-        if not isinstance(components, dict):
+        dependencies = manifest.get("template_dependencies", {})
+        if not isinstance(components, dict) or not isinstance(dependencies, dict):
             raise RuntimeError("tailoring audit manifest has no component hashes")
         package = manifest_path.parent.resolve(strict=False)
         for name, evidence in components.items():
-            if name not in AUDIT_COMPONENTS or not isinstance(evidence, dict):
+            if not isinstance(name, str) or name.startswith("/") or "\\" in name or ":" in name or ".." in Path(name).parts:
+                raise RuntimeError("tailoring audit manifest contains an unsafe component path")
+            if (name not in AUDIT_COMPONENTS and name not in dependencies) or not isinstance(evidence, dict):
                 raise RuntimeError("tailoring audit manifest contains an unexpected component")
-            component = (package / name).resolve(strict=False)
-            if component.parent != package or not component.is_file():
+            raw_component = package / name
+            component = raw_component.resolve(strict=False)
+            if (not component.is_relative_to(package) or component == package or not component.is_file()
+                    or any(path.is_symlink() for path in (package / Path(*Path(name).parts[:n]) for n in range(1, len(Path(name).parts) + 1)))):
                 raise RuntimeError(f"tailoring audit component {name} is missing")
             if sha256_file(component) != str(evidence.get("sha256") or "") or component.stat().st_size != int(evidence.get("bytes") or -1):
                 raise RuntimeError(f"tailoring audit component {name} failed integrity verification")
+            if name in dependencies and evidence != dependencies[name]:
+                raise RuntimeError(f"tailoring template dependency {name} does not match its manifest")
+        if not set(dependencies).issubset(components):
+            raise RuntimeError("tailoring audit manifest is missing template dependencies")
         required = {"resume.tex", "resume.pdf", "jd.txt", "jd.json", "diff.json", "keyword_mapping.json", "fact_references.json", "validation.json", "model.json", "model_usage.json"}
         if not required.issubset(components):
             raise RuntimeError("tailoring audit manifest is missing required evidence files")
