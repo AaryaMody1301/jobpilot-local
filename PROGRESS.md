@@ -1,5 +1,9 @@
 # Progress
 
+## Versioned repair release preparation (28 September 2026)
+
+Project and runtime versions are aligned at `0.2.2`; the release documentation distinguishes this pending build from the immutable published `v0.2.1`. The PR Windows CI/Acceptance checks validate the proposed source, while the Windows Release workflow intentionally runs and publishes only from `main` after the reviewed repair stack is merged. Private five-resume approval and the measured pilot remain separate local evidence gates, and repository-admin protection of `main` is still outstanding.
+
 ## Source-integrity recovery (28 September 2026)
 
 An explicit reimport of the exact trusted original bytes now repairs a damaged app-managed master or supporting file when its hash matches the registered source. The damaged copy or symlink is moved into app-owned quarantine; fact IDs and approval history remain. Unsafe managed paths still fail closed, while the desktop snapshot reports mismatch and keeps reimport/Stop available. Supporting integrity failures are recorded when approved facts are checked. Local controlled recovery and symlink tests pass; Windows CI and Acceptance remain required. No source records were reset or deleted.
