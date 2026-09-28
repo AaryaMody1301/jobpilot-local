@@ -23,7 +23,7 @@ def test_targeting_exposes_all_editable_preferences() -> None:
     html = (UI / "index.html").read_text(encoding="utf-8")
     for control_id in (
         "roles", "min-years", "max-years", "india-cities", "remote-city", "remote-country",
-        "remote-origin-required", "salary-minimum", "notice-days", "employment-types",
+        "remote-origin-required", "salary-minimum", "salary-currency", "notice-days", "employment-types",
         "excluded-employers", "relocation", "sponsorship",
     ):
         assert f'id="{control_id}"' in html
