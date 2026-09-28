@@ -131,6 +131,9 @@ class DesktopBridge:
     def tailored_pdf_data_uri(self, run_id: str) -> str:
         return self._controller.tailored_pdf_data_uri(run_id)
 
+    def tailoring_workspace_page(self, kind: str, search: str = "", offset: int = 0) -> dict[str, Any]:
+        return self._controller.tailoring_workspace_page(kind, search, offset)
+
     def import_manual_job(self, raw: Mapping[str, Any]) -> dict[str, Any]:
         return self._controller.import_manual_job(raw)
 
@@ -145,6 +148,9 @@ class DesktopBridge:
 
     def job_workspace_detail(self, job_id: str) -> dict[str, Any]:
         return self._controller.job_workspace_detail(job_id)
+
+    def job_workspace_page(self, search: str = "", eligibility: str = "all", offset: int = 0) -> dict[str, Any]:
+        return self._controller.job_workspace_page(search, eligibility, offset)
 
     def refresh_job_metadata(self, job_id: str) -> dict[str, Any]:
         return self._controller.refresh_job_metadata(job_id)
@@ -166,6 +172,9 @@ class DesktopBridge:
 
     def application_workspace_detail(self, application_id: str) -> dict[str, Any]:
         return self._controller.application_workspace_detail(application_id)
+
+    def application_workspace_page(self, search: str = "", state: str = "all", offset: int = 0) -> dict[str, Any]:
+        return self._controller.application_workspace_page(search, state, offset)
 
     def update_application_workspace(
         self,
