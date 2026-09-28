@@ -13,6 +13,11 @@ let jobSearchTerm = '';
 let jobEligibilityFilter = 'all';
 let applicationSearchTerm = '';
 let applicationStateFilter = 'all';
+let jobPage = null;
+let applicationPage = null;
+const tailoringPages = {jds: null, runs: null};
+const pageRequests = {jobs: 0, applications: 0, jds: 0, runs: 0};
+const searchTimers = {};
 let targetingDirty = false;
 const applicationDrafts = new Map();
 const eligibilityDrafts = new Map();
@@ -30,12 +35,71 @@ function setBusy(message) { document.getElementById('fact-bank-status').textCont
 async function invoke(name, ...args) {
   try {
     const result = await window.pywebview.api[name](...args);
+    if (name !== 'get_state') {
+      jobPage = null;
+      applicationPage = null;
+      tailoringPages.jds = null;
+      tailoringPages.runs = null;
+    }
     render(result);
+    if (name !== 'get_state') void loadActiveWorkspacePage();
     return result;
   } catch (error) {
     toast(error.message || String(error));
     throw error;
   }
+}
+
+function renderPager(id, page, load) {
+  const target = document.getElementById(id);
+  if (!target) return;
+  if (!page) { target.textContent = ''; return; }
+  const from = page.total ? page.offset + 1 : 0;
+  const to = Math.min(page.total, page.offset + page.items.length);
+  target.innerHTML = `<button type="button" data-direction="previous" ${page.offset ? '' : 'disabled'}>Previous</button><span>${from}–${to} of ${page.total}</span><button type="button" data-direction="next" ${to < page.total ? '' : 'disabled'}>Next</button>`;
+  target.onclick = event => {
+    const direction = event.target.dataset.direction;
+    if (direction) void load(Math.max(0, page.offset + (direction === 'next' ? page.page_size : -page.page_size)));
+  };
+}
+
+async function loadWorkspacePage(kind, offset = 0) {
+  const request = ++pageRequests[kind];
+  let result;
+  try {
+    if (kind === 'jobs') result = await invokeRaw('job_workspace_page', jobSearchTerm, jobEligibilityFilter, offset);
+    else if (kind === 'applications') result = await invokeRaw('application_workspace_page', applicationSearchTerm, applicationStateFilter, offset);
+    else result = await invokeRaw('tailoring_workspace_page', kind, document.getElementById(kind === 'jds' ? 'jd-search' : 'run-search').value, offset);
+  } catch { return; }
+  if (request !== pageRequests[kind]) return;
+  if (kind === 'jobs') jobPage = result;
+  else if (kind === 'applications') applicationPage = result;
+  else tailoringPages[kind] = result;
+  if (latestState && ((kind === 'jobs' && activeView === 'jobs') || (kind === 'applications' && activeView === 'history') || (['jds', 'runs'].includes(kind) && activeView === 'tailoring'))) {
+    renderActiveView(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
+  }
+}
+
+function loadActiveWorkspacePage() {
+  if (activeView === 'jobs' && (jobPage || latestState?.jobs?.items.length >= 500)) return loadWorkspacePage('jobs', jobPage?.offset || 0);
+  if (activeView === 'history' && (applicationPage || latestState?.orchestration?.history.length >= 200)) return loadWorkspacePage('applications', applicationPage?.offset || 0);
+  if (activeView === 'tailoring') return Promise.all([
+    tailoringPages.jds || latestState?.tailoring?.manual_jds.length >= 30 ? loadWorkspacePage('jds', tailoringPages.jds?.offset || 0) : Promise.resolve(),
+    tailoringPages.runs || latestState?.tailoring?.runs.length >= 30 ? loadWorkspacePage('runs', tailoringPages.runs?.offset || 0) : Promise.resolve(),
+  ]);
+  return Promise.resolve();
+}
+
+function searchWorkspace(kind) {
+  const complete = kind === 'jobs' ? latestState?.jobs?.items.length < 500
+    : kind === 'applications' ? latestState?.orchestration?.history.length < 200
+      : kind === 'jds' ? latestState?.tailoring?.manual_jds.length < 30 : latestState?.tailoring?.runs.length < 30;
+  if (complete && !(kind === 'jobs' ? jobPage : kind === 'applications' ? applicationPage : tailoringPages[kind])) {
+    if (latestState) renderActiveView(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
+    return;
+  }
+  clearTimeout(searchTimers[kind]);
+  searchTimers[kind] = setTimeout(() => void loadWorkspacePage(kind), 250);
 }
 
 async function invokeRaw(name, ...args) {
@@ -164,7 +228,7 @@ function renderResume(resume, session, busy) {
   document.getElementById('confirm-template-map').disabled = !idle || !master || !resume.regions.length || !hasEditableRegion || resume.template_map_status === 'confirmed';
 
   document.getElementById('master-summary').innerHTML = master
-    ? `<div><strong>${escapeHtml(master.original_name)}</strong><span>Integrity: ${escapeHtml(resume.integrity)}</span><span>SHA-256: ${escapeHtml(shortHash(master.sha256))}</span><span>Imported: ${escapeHtml(master.imported_at)}</span></div>`
+    ? `<div><strong>${escapeHtml(master.original_name)}</strong><span>Integrity: ${escapeHtml(resume.integrity)}</span>${resume.integrity !== 'verified' ? '<span class="error-text">The saved resume source failed verification. Stop the session and reimport your trusted original, then compile and review its evidence again. Existing approval history is preserved.</span>' : ''}<span>SHA-256: ${escapeHtml(shortHash(master.sha256))}</span><span>Imported: ${escapeHtml(master.imported_at)}</span></div>`
     : '<p>No master resume imported. Select your actual UTF-8 `.tex` source.</p>';
   const tectonic = resume.tectonic;
   document.getElementById('tectonic-summary').innerHTML = `<div><strong>${tectonic.installed ? 'Installed' : 'Not installed'}</strong><span>Version: ${escapeHtml(tectonic.version)}</span><span>Integrity: ${escapeHtml(tectonic.integrity)}</span><span>App-managed Windows x64 binary</span></div>`;
@@ -268,12 +332,16 @@ function renderTailoring(tailoring, session, busy, resume, model) {
     : '<p>Select a validated local model/configuration before beginning the five-resume review gate.</p>';
   document.getElementById('enable-auto-tailoring').disabled = !idle || tailoring.auto_tailoring_enabled || !gate?.complete;
 
-  document.getElementById('manual-jd-list').innerHTML = tailoring.manual_jds.length
-    ? tailoring.manual_jds.map(jd => `<div class="fact-item" data-jd-id="${escapeAttr(jd.id)}"><div class="fact-meta"><code>${escapeHtml(jd.id)}</code><span class="pill">${jd.instruction_like ? 'instruction-like text detected' : 'untrusted data'}</span></div><strong>${jd.source_url ? escapeHtml(jd.source_url) : 'Pasted manual JD'}</strong><div class="fact-source">SHA ${escapeHtml(shortHash(jd.jd_sha256))} · ${jd.character_count} characters · stored locally<br>${escapeHtml(jd.preview)}</div><div class="button-row"><button data-jd-action="generate" ${canGenerate ? '' : 'disabled'}>Generate evidence-backed resume</button></div></div>`).join('')
+  const jdQuery = document.getElementById('jd-search').value.trim().toLowerCase();
+  const runQuery = document.getElementById('run-search').value.trim().toLowerCase();
+  const jds = tailoringPages.jds?.items || tailoring.manual_jds.filter(jd => [jd.source_url, jd.preview].some(value => String(value || '').toLowerCase().includes(jdQuery)));
+  const runs = tailoringPages.runs?.items || tailoring.runs.filter(run => [run.jd_id, run.model_install_id, run.status].some(value => String(value || '').toLowerCase().includes(runQuery)));
+  document.getElementById('manual-jd-list').innerHTML = jds.length
+    ? jds.map(jd => `<div class="fact-item" data-jd-id="${escapeAttr(jd.id)}"><div class="fact-meta"><code>${escapeHtml(jd.id)}</code><span class="pill">${jd.instruction_like ? 'instruction-like text detected' : 'untrusted data'}</span></div><strong>${jd.source_url ? escapeHtml(jd.source_url) : 'Pasted manual JD'}</strong><div class="fact-source">SHA ${escapeHtml(shortHash(jd.jd_sha256))} · ${jd.character_count} characters · stored locally<br>${escapeHtml(jd.preview)}</div><div class="button-row"><button data-jd-action="generate" ${canGenerate ? '' : 'disabled'}>Generate evidence-backed resume</button></div></div>`).join('')
     : '<p>No manual job descriptions saved yet.</p>';
 
-  document.getElementById('tailoring-runs').innerHTML = tailoring.runs.length
-    ? tailoring.runs.map(run => {
+  document.getElementById('tailoring-runs').innerHTML = runs.length
+    ? runs.map(run => {
         const valid = Boolean(run.validation?.overall_pass);
         const canReview = idle && run.status === 'needs_review' && valid;
         const statusDetail = run.failure_message ? `<br><span class="error-text">${escapeHtml(run.failure_message)}</span>` : '';
@@ -281,11 +349,13 @@ function renderTailoring(tailoring, session, busy, resume, model) {
       }).join('')
     : '<p>No tailored resumes yet.</p>';
 
-  if (inspectedRunId && !tailoring.runs.some(run => run.id === inspectedRunId)) closeTailoringInspector();
+  renderPager('jd-pages', tailoringPages.jds, offset => loadWorkspacePage('jds', offset));
+  renderPager('run-pages', tailoringPages.runs, offset => loadWorkspacePage('runs', offset));
+  if (inspectedRunId && !runs.some(run => run.id === inspectedRunId)) closeTailoringInspector();
 }
 
 async function inspectTailoringRun(runId) {
-  const run = latestState?.tailoring?.runs.find(item => item.id === runId);
+  const run = (tailoringPages.runs?.items || latestState?.tailoring?.runs || []).find(item => item.id === runId);
   if (!run) return;
   inspectedRunId = runId;
   const inspector = document.getElementById('tailoring-inspector');
@@ -341,6 +411,7 @@ function showView(name) {
   });
   document.getElementById('page-title').textContent = titles[name];
   if (latestState) render(latestState);
+  void loadActiveWorkspacePage();
 }
 
 document.getElementById('nav').addEventListener('click', e => { const name = e.target.dataset.view; if (name) showView(name); });
@@ -362,7 +433,9 @@ document.getElementById('runtime-catalogue').addEventListener('click', async e =
 document.getElementById('model-catalogue').addEventListener('click', async e => { const action = e.target.dataset.modelAction; if (!action) return; const item = e.target.closest('[data-model-id]'); const model = latestState.model.catalogue.models.find(m => m.id === item.dataset.modelId); if (!model) return; if (action === 'install') { if (!window.confirm(`Download ${model.display_name} (${formatBytes(model.bytes)}, ${model.license}) from pinned revision ${shortHash(model.source_revision)} and require its exact SHA-256 and byte size? No cloud inference or vision component is used.`)) return; await invokeOnboarding('install_local_model', 'local model installation', model.id); toast('Local model revision downloaded and checksum verified'); } else if (action === 'evaluate') { if (!model.install) return; const config = item.querySelector('.model-config')?.value || ''; const separator = config.indexOf('|'); if (separator < 1) return; const runtimeId = config.slice(0, separator); const deviceId = config.slice(separator + 1); await invokeOnboarding('evaluate_local_model', 'local model evaluation', model.install.id, runtimeId, deviceId); toast('Device-local model evaluation finished'); } else if (action === 'select') { if (!model.install) return; await invoke('select_model_for_review', model.install.id); toast('Fastest passing configuration selected; five-resume review gate remains pending'); } });
 document.getElementById('jd-form').addEventListener('submit', async e => { e.preventDefault(); const text = document.getElementById('jd-text').value.trim(); if (!text) { toast('Paste a job description first'); return; } await invoke('import_manual_job_description', text, document.getElementById('jd-source-url').value.trim() || null); document.getElementById('jd-text').value = ''; document.getElementById('jd-source-url').value = ''; toast('Manual JD saved locally as untrusted data'); });
 document.getElementById('manual-jd-list').addEventListener('click', async e => { if (e.target.dataset.jdAction !== 'generate') return; const jdId = e.target.closest('[data-jd-id]')?.dataset.jdId; if (!jdId) return; if (!window.confirm('Run the selected validated local model against this untrusted JD using approved facts only, then compile and validate the result locally?')) return; await invokeOnboarding('generate_tailored_resume', 'local resume generation', jdId); toast('Local tailoring run finished; review deterministic evidence before approval'); });
-document.getElementById('tailoring-runs').addEventListener('click', async e => { const action = e.target.dataset.runAction; if (!action) return; const runId = e.target.closest('[data-run-id]')?.dataset.runId; if (!runId) return; const original = Boolean(latestState?.tailoring?.runs.find(run => run.id === runId)?.validation?.unchanged_master); if (action === 'preview') { await inspectTailoringRun(runId); return; } if (action === 'approve') { if (!window.confirm(original ? 'Approve this exact unchanged original resume for this application? It will not count toward the five edited-resume reviews.' : 'Approve this exact tailored resume as one distinct human review for the selected local model?')) return; await invoke('approve_tailored_resume', runId, null); toast(original ? 'Original resume approved for this application' : 'Tailored resume approved and persisted in the five-resume gate'); } else if (action === 'reject') { if (!window.confirm('Reject this resume? It will not count toward the five-resume gate.')) return; await invoke('reject_tailored_resume', runId, null); toast('Resume rejected'); } });
+document.getElementById('tailoring-runs').addEventListener('click', async e => { const action = e.target.dataset.runAction; if (!action) return; const runId = e.target.closest('[data-run-id]')?.dataset.runId; if (!runId) return; const original = Boolean((tailoringPages.runs?.items || latestState?.tailoring?.runs || []).find(run => run.id === runId)?.validation?.unchanged_master); if (action === 'preview') { await inspectTailoringRun(runId); return; } if (action === 'approve') { if (!window.confirm(original ? 'Approve this exact unchanged original resume for this application? It will not count toward the five edited-resume reviews.' : 'Approve this exact tailored resume as one distinct human review for the selected local model?')) return; await invoke('approve_tailored_resume', runId, null); toast(original ? 'Original resume approved for this application' : 'Tailored resume approved and persisted in the five-resume gate'); } else if (action === 'reject') { if (!window.confirm('Reject this resume? It will not count toward the five-resume gate.')) return; await invoke('reject_tailored_resume', runId, null); toast('Resume rejected'); } });
+document.getElementById('jd-search').addEventListener('input', () => { tailoringPages.jds = null; searchWorkspace('jds'); });
+document.getElementById('run-search').addEventListener('input', () => { tailoringPages.runs = null; searchWorkspace('runs'); });
 document.getElementById('enable-auto-tailoring').addEventListener('click', async () => { if (!window.confirm('Enable automatic local resume tailoring for this exact validated model/configuration? This does not enable job discovery or employer submission.')) return; await invoke('enable_automatic_tailoring', false); toast('Automatic local tailoring enabled for the validated local configuration'); });
 document.getElementById('close-tailoring-inspector').addEventListener('click', closeTailoringInspector);
 document.getElementById('targeting-form').addEventListener('input', () => { targetingDirty = true; document.getElementById('save-state').textContent = 'Unsaved draft'; });
@@ -413,7 +486,8 @@ const jobsView = document.getElementById('jobs');
     <article class="card section-card">
       <div class="card-heading"><div><h2>Matched jobs</h2><p>Search and filter the saved job snapshots, then inspect the exact description and evidence match without reopening the posting.</p></div><span id="job-counts" class="muted"></span></div>
       <div class="workspace-toolbar"><label>Search<input id="job-search" type="search" placeholder="Employer, title, location"></label><label>Eligibility<select id="job-eligibility-filter"><option value="all">All</option><option value="eligible">Eligible</option><option value="review">Review</option><option value="ineligible">Ineligible</option></select></label></div>
-      <div class="workspace-grid"><div id="job-list" class="workspace-list"></div><div id="job-detail" class="workspace-detail"><p>Select a job to inspect its saved snapshot.</p></div></div>
+      <div id="job-evidence-error" class="error-text"></div>
+      <div class="workspace-grid"><div id="job-list" class="workspace-list"></div><div id="job-detail" class="workspace-detail"><p>Select a job to inspect its saved snapshot.</p></div></div><div id="job-pages" class="button-row"></div>
     </article>`;
 
   function renderJobs(state, session, busy) {
@@ -423,11 +497,14 @@ const jobsView = document.getElementById('jobs');
     document.getElementById('job-discover').disabled = !idle;
     document.querySelector('#job-board-form button[type="submit"]').disabled = !idle;
     document.querySelector('#manual-job-form button[type="submit"]').disabled = !idle;
-    document.getElementById('job-counts').textContent = `${jobs.counts.eligible} eligible · ${jobs.counts.review} review · ${jobs.counts.ineligible} ineligible · ${jobs.approved_evidence_facts} approved evidence facts`;
+    const counts = jobPage?.counts || jobs.counts;
+    document.getElementById('job-counts').textContent = `${counts.eligible} eligible · ${counts.review} review · ${counts.ineligible} ineligible${!jobPage && jobs.items.length >= 500 ? ' (latest 500)' : ''} · ${jobs.approved_evidence_facts} approved evidence facts`;
+    document.getElementById('job-evidence-error').textContent = jobPage?.evidence_error || jobs.evidence_error || '';
     document.getElementById('job-board-list').innerHTML = jobs.boards.map(board => `
       <label class="region-item"><input type="checkbox" data-job-board-id="${escapeAttr(board.id)}" ${Number(board.enabled) === 1 ? 'checked' : ''} ${idle ? '' : 'disabled'}><span><strong>${escapeHtml(board.employer)}</strong> · ${escapeHtml(board.provider)} · <code>${escapeHtml(board.board_token)}</code><br>${board.last_checked_at ? `Checked ${escapeHtml(board.last_checked_at)}` : 'Not checked this install'}${board.last_error ? `<br><span class="error-text">${escapeHtml(board.last_error)}</span>` : ''}</span></label>`).join('');
     const query = jobSearchTerm.toLowerCase();
-    const filteredJobs = jobs.items.filter(job => {
+    const filteredJobs = (jobPage?.items || jobs.items).filter(job => {
+      if (jobPage) return true;
       if (jobEligibilityFilter !== 'all' && job.eligibility !== jobEligibilityFilter) return false;
       if (!query) return true;
       return [job.employer, job.title, job.location, job.compensation_text].some(value => String(value || '').toLowerCase().includes(query));
@@ -440,6 +517,7 @@ const jobsView = document.getElementById('jobs');
       const selected = job.id === selectedJobId ? ' selected' : '';
       return `<button type="button" class="workspace-list-item${selected}" data-job-select="${escapeAttr(job.id)}"><span><strong>${escapeHtml(job.title)}</strong><br><span class="muted">${escapeHtml(job.employer)} · ${escapeHtml(job.location)}</span></span><span><span class="pill ${escapeAttr(job.eligibility)}">${escapeHtml(job.eligibility)}</span><br><strong>${Number(job.score)}/100</strong></span></button>`;
     }).join('') : '<p>No jobs match the current filters.</p>';
+    renderPager('job-pages', jobPage, offset => loadWorkspacePage('jobs', offset));
 
     const selectedJobSummary = filteredJobs.find(job => job.id === selectedJobId);
     const selectedJob = selectedJobDetail?.id === selectedJobId && selectedJobSummary
@@ -477,11 +555,13 @@ const jobsView = document.getElementById('jobs');
 
   document.getElementById('job-search').addEventListener('input', event => {
     jobSearchTerm = event.target.value.trim();
-    if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
+    jobPage = null;
+    searchWorkspace('jobs');
   });
   document.getElementById('job-eligibility-filter').addEventListener('change', event => {
     jobEligibilityFilter = event.target.value;
-    if (latestState) renderJobs(latestState, latestState.session_state, Boolean(latestState.onboarding_busy || clientOnboardingBusy));
+    jobPage = null;
+    searchWorkspace('jobs');
   });
   document.getElementById('job-list').addEventListener('click', async event => {
     const button = event.target.closest('[data-job-select]');
@@ -553,7 +633,7 @@ const jobsView = document.getElementById('jobs');
     <article class="card section-card">
       <div class="card-heading"><div><h2>Application workspace</h2><p>Keep the saved job, exact tailored resume/package, follow-up plan and application journal together.</p></div><span id="orchestration-counts" class="muted"></span></div>
       <div class="workspace-toolbar"><label>Search<input id="application-search" type="search" placeholder="Employer, role, notes, next action"></label><label>Status<select id="application-state-filter"><option value="all">All statuses</option></select></label></div>
-      <div class="workspace-grid"><div id="orchestration-history" class="workspace-list"></div><div id="application-detail" class="workspace-detail"><p>Select an application to inspect its local record.</p></div></div>
+      <div class="workspace-grid"><div id="orchestration-history" class="workspace-list"></div><div id="application-detail" class="workspace-detail"><p>Select an application to inspect its local record.</p></div></div><div id="application-pages" class="button-row"></div>
     </article>`;
   history.prepend(orchestrationSection);
 
@@ -609,14 +689,15 @@ const jobsView = document.getElementById('jobs');
         <button data-question-approve class="primary" ${String(answerDrafts.get(question.id) || '').trim() ? '' : 'disabled'}>Approve exact answer</button>
       </div>`).join('') : '<p>No form answers currently need review.</p>';
 
-    const states = [...new Set(orchestration.history.map(item => item.state))].sort();
+    const states = applicationPage ? Object.keys(applicationPage.states).sort() : [...new Set(orchestration.history.map(item => item.state))].sort();
     const stateFilter = document.getElementById('application-state-filter');
     stateFilter.innerHTML = '<option value="all">All statuses</option>' + states.map(value => `<option value="${escapeAttr(value)}">${escapeHtml(value)}</option>`).join('');
     if (!states.includes(applicationStateFilter)) applicationStateFilter = 'all';
     stateFilter.value = applicationStateFilter;
 
     const query = applicationSearchTerm.toLowerCase();
-    const filteredApplications = orchestration.history.filter(item => {
+    const filteredApplications = (applicationPage?.items || orchestration.history).filter(item => {
+      if (applicationPage) return true;
       if (applicationStateFilter !== 'all' && item.state !== applicationStateFilter) return false;
       if (!query) return true;
       return [item.employer, item.title, item.location, item.provider, item.notes, item.next_action]
@@ -631,6 +712,7 @@ const jobsView = document.getElementById('jobs');
       const followUp = item.follow_up_at ? `<br><span class="muted">Follow up ${escapeHtml(displayDate(item.follow_up_at))}</span>` : '';
       return `<button type="button" class="workspace-list-item${selected}" data-application-select="${escapeAttr(item.id)}"><span><strong>${escapeHtml(identity(item))}</strong><br><span class="muted">${escapeHtml(item.provider || 'local')} · ${escapeHtml(item.location || 'location unknown')}</span>${followUp}</span><span class="pill ${escapeAttr(item.state)}">${escapeHtml(item.state)}</span></button>`;
     }).join('') : '<p>No applications match the current filters.</p>';
+    renderPager('application-pages', applicationPage, offset => loadWorkspacePage('applications', offset));
 
     const selectedApplicationSummary = filteredApplications.find(item => item.id === selectedApplicationId);
     const selectedApplication = selectedApplicationDetail?.id === selectedApplicationId && selectedApplicationSummary
@@ -677,11 +759,13 @@ const jobsView = document.getElementById('jobs');
 
   document.getElementById('application-search').addEventListener('input', event => {
     applicationSearchTerm = event.target.value.trim();
-    if (latestState) renderOrchestration(latestState);
+    applicationPage = null;
+    searchWorkspace('applications');
   });
   document.getElementById('application-state-filter').addEventListener('change', event => {
     applicationStateFilter = event.target.value;
-    if (latestState) renderOrchestration(latestState);
+    applicationPage = null;
+    searchWorkspace('applications');
   });
   document.getElementById('orchestration-history').addEventListener('click', async event => {
     const button = event.target.closest('[data-application-select]');
