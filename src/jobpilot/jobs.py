@@ -600,11 +600,21 @@ class JobStore:
             for job in jobs:
                 self._upsert_on(connection, job, board_id, now)
 
-    def jobs(self, limit: int | None = 500) -> list[dict[str, Any]]:
+    def jobs(self, limit: int | None = 500, offset: int = 0, search: str = "") -> list[dict[str, Any]]:
+        if offset < 0 or limit is not None and not 1 <= limit <= 1000:
+            raise ValueError("invalid job page")
+        search = search.strip()[:200].casefold()
         with self.database._lock:
-            query = "SELECT * FROM discovered_jobs WHERE active=1 ORDER BY last_seen_at DESC"
+            query = "SELECT * FROM discovered_jobs WHERE active=1"
+            params: list[Any] = []
+            if search:
+                query += " AND (instr(lower(employer), ?) OR instr(lower(title), ?) OR instr(lower(location), ?) OR instr(lower(COALESCE(compensation_text, '')), ?))"
+                params.extend([search] * 4)
+            query += " ORDER BY last_seen_at DESC, id DESC"
+            if limit is not None:
+                query += " LIMIT ? OFFSET ?"
+                params.extend((limit, offset))
             rows = self.database.connection.execute(
-                query + (" LIMIT ?" if limit is not None else ""),
-                (limit,) if limit is not None else (),
+                query, params,
             ).fetchall()
         return [dict(row) for row in rows]
