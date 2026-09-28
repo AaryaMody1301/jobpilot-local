@@ -135,6 +135,29 @@ def test_job_detail_keeps_integrity_failure_visible_without_trusting_missing_evi
         controller.close()
 
 
+def test_template_dependency_tampering_is_visible_without_crashing_workspace(tmp_path: Path) -> None:
+    controller = create_controller(ManagedPaths(tmp_path / "profile"))
+    try:
+        source = tmp_path / "resume.tex"
+        part = tmp_path / "part.tex"
+        part.write_text("\\section{Experience}\\begin{itemize}\\item Built pipelines.\\end{itemize}", encoding="utf-8")
+        source.write_text("\\documentclass{article}\\begin{document}\\input{part}\\end{document}", encoding="utf-8")
+        controller.import_master_resume(source)
+        controller.job_store.upsert(_job(3))
+        master = controller.resume_store.get_active_master()
+        assert master is not None
+        bundle = controller.documents.verified_bundle(master)
+        assert bundle is not None
+        (bundle[0] / "part.tex").write_text("tampered", encoding="utf-8")
+        state = controller.snapshot()
+        assert "integrity verification" in state["resume"]["template_bundle_error"]
+        assert state["resume"]["onboarding_ready"] is False
+        assert "local template dependencies" in state["jobs"]["evidence_error"]
+        assert state["jobs"]["items"][0]["eligibility"] == "review"
+    finally:
+        controller.close()
+
+
 def test_matching_does_not_infer_permission_from_unrelated_city_or_negated_sponsorship() -> None:
     job = _job(1)
     remote = assess_job({**job, "location": "Remote - Germany only", "workplace_type": "remote",
