@@ -14,7 +14,7 @@ from jobpilot.storage.database import Database, utc_now_text
 
 PROVIDERS = {"greenhouse", "lever", "ashby"}
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
-YEARS_RE = re.compile(r"\b(\d{1,2})(?:\s*(?:-|to)\s*(\d{1,2}))?\+?\s+years?\b", re.I)
+YEARS_RE = re.compile(r"\b(\d{1,2})(?:\s*(?:-|–|—|to)\s*(\d{1,2}))?\+?\s+years?\b", re.I)
 STOPWORDS = {
     "about", "after", "also", "and", "are", "at", "but", "for", "from", "have", "in", "into", "job",
     "more", "of", "or", "our", "role", "team", "that", "the", "their", "this", "to", "using", "will",
@@ -372,6 +372,41 @@ def _explicit_min_years(description: str) -> int | None:
     return max(found) if found else None
 
 
+def _explicit_max_years(description: str) -> int | None:
+    """Only a stated experience range has a reliable upper bound."""
+    found: list[int] = []
+    low = description.casefold()
+    for match in YEARS_RE.finditer(low):
+        if match.group(2) is None:
+            continue
+        context = low[max(0, match.start() - 60):match.end() + 60]
+        if "experience" in context and not any(marker in context for marker in PREFERRED_MARKERS):
+            found.append(int(match.group(2)))
+    return max(found) if found else None
+
+
+def _annual_salary_range(value: object) -> tuple[str, int, int] | None:
+    """Read only an explicit annual base-pay range; unknown formats need human review."""
+    text = str(value or "").strip()
+    if len(text) > 300:
+        return None
+    matched = re.fullmatch(
+        r"(?:Salary Range:\s*)?([A-Z]{3})\s+(\d[\d,]*)([kKlL]?)\s*(?:-|–|to)\s*(?:\1\s*)?"
+        r"(\d[\d,]*)([kKlL]?)\s*(?:\(per-year-salary\)|per year|per annum|annually|annual|/year|LPA)",
+        text, re.I,
+    )
+    if matched is None:
+        return None
+    if any(len(matched.group(index).replace(",", "")) > 12 for index in (2, 4)):
+        return None
+    multiplier = {"": 1, "k": 1_000, "l": 100_000}
+    low = int(matched.group(2).replace(",", "")) * multiplier[matched.group(3).lower()]
+    high = int(matched.group(4).replace(",", "")) * multiplier[matched.group(5).lower()]
+    if high < low:
+        return None
+    return matched.group(1).upper(), low, high
+
+
 def assess_job(job: Mapping[str, Any], targeting: TargetingSettings, approved_facts: list[Mapping[str, Any]]) -> dict[str, Any]:
     hard: list[str] = []
     review: list[str] = []
@@ -397,6 +432,10 @@ def assess_job(job: Mapping[str, Any], targeting: TargetingSettings, approved_fa
     minimum_years = _explicit_min_years(description)
     if minimum_years is not None and minimum_years > targeting.target_experience_max_years:
         hard.append(f"explicit minimum experience is {minimum_years} years, above configured target")
+    maximum_years = _explicit_max_years(description)
+    if (maximum_years is not None and maximum_years < targeting.target_experience_min_years
+            and (minimum_years is None or minimum_years <= maximum_years)):
+        hard.append(f"explicit maximum experience is {maximum_years} years, below configured target")
 
     combined = f"{location_key} {_key(description[:5000])}"
     if any(marker in combined for marker in WORK_AUTH_MARKERS):
@@ -429,7 +468,13 @@ def assess_job(job: Mapping[str, Any], targeting: TargetingSettings, approved_fa
                 review.append("overseas sponsorship requirement is not explicit")
 
     if targeting.salary_minimum is not None:
-        review.append("configured salary minimum requires a verified annual amount and matching currency")
+        pay = _annual_salary_range(job.get("compensation_text"))
+        if pay is None or targeting.salary_currency is None or pay[0] != targeting.salary_currency:
+            review.append("configured salary minimum requires explicit annual base pay in the selected currency")
+        elif pay[2] < targeting.salary_minimum:
+            hard.append("explicit annual base-pay range is below configured salary minimum")
+        elif pay[1] < targeting.salary_minimum:
+            review.append("annual base-pay range overlaps configured salary minimum; confirm exact offer")
 
     required, preferred = _requirements(description)
     fact_token_sets = [_tokens(str(fact.get("value_text") or fact.get("value") or "")) for fact in approved_facts]
