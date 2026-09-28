@@ -17,6 +17,7 @@ MODEL_ID = "qwen3-4b-q4_k_m"
 
 CONTROLLED_RESUME = r"""\documentclass[a4paper,11pt]{article}
 \usepackage[margin=0.7in]{geometry}
+\input{local-extra}
 \begin{document}
 \section*{Experience}
 \begin{itemize}
@@ -41,6 +42,7 @@ def main() -> int:
         paths = ManagedPaths(temp / "JobPilotLocal")
         source = temp / "controlled-resume.tex"
         source.write_text(CONTROLLED_RESUME, encoding="utf-8")
+        (temp / "local-extra.tex").write_text(r"\newcommand{\localfixture}{local fixture}", encoding="utf-8")
         controller = create_controller(paths, sample_item_seconds=0.01)
         try:
             controller.import_master_resume(source)
@@ -91,6 +93,10 @@ def main() -> int:
                 raise RuntimeError("tailored resume page count changed")
             if not run["validation"].get("offline_compile"):
                 raise RuntimeError("tailored resume compile was not cached-only")
+            manifest = json.loads(controller.tailoring_store.absolute_path(str(run["manifest_relpath"])).read_text(encoding="utf-8"))
+            if "local-extra.tex" not in manifest.get("template_dependencies", {}):
+                raise RuntimeError("tailoring audit package omitted the verified local template file")
+            controller.tailoring._verify_run_artifacts(run)
 
             gate = controller.snapshot()["tailoring"]["review_gate"]
             if gate.get("approved_distinct_resumes") != 0 or gate.get("remaining") != 5:
