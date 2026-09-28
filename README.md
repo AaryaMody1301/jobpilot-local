@@ -4,12 +4,12 @@
 
 ## Current status
 
-The repository implementation is technically complete through distribution and the measured-pilot write path. Two private product-evidence gates remain intentionally outside CI:
+The repair changes for pagination, targeting, hosted forms, LaTeX dependencies, and evidence recovery are in review. The published `v0.2.1` installer predates them; version `0.2.2` is prepared to ship after Windows verification and merging. Two private product-evidence gates remain outside CI:
 
 - five distinct real tailored resumes must be explicitly approved under one current validation context before automatic tailoring is considered locally validated;
 - the measured real-world application pilot must be run from private local candidate data before any throughput claim is made.
 
-Repository engineering cleanup is complete through capability-oriented runtime composition. Version 0.2.1 is the final cleanup release line; private product-evidence gates remain deliberately local.
+Passing controlled Windows checks verifies supported paths, not every live employer form or the private pilot. The real-application lane remains inactive until explicitly enabled.
 
 ## Product boundaries
 
@@ -28,9 +28,9 @@ Repository engineering cleanup is complete through capability-oriented runtime c
 
 The desktop keeps job research and application tracking local:
 
-- search/filter saved jobs and inspect the persisted job-description snapshot and evidence match;
+- page and search all saved jobs and inspect the persisted job-description snapshot and evidence match;
 - show public compensation/deadline metadata when exposed by the supported provider, with explicit per-job Greenhouse metadata refresh;
-- search/filter application history while keeping the exact tailoring run and immutable package tied to each attempt;
+- page and search full application history while keeping the exact tailoring run and immutable package tied to each attempt;
 - preview the exact tailored PDF recorded for an application;
 - store local follow-up date, notes, and next action without changing the automation/application state machine.
 
@@ -46,7 +46,7 @@ Verified Windows releases contain:
 - portable backup/restore with integrity validation;
 - per-file release manifest hashes and a ZIP SHA-256 sidecar.
 
-Install a release by extracting `JobPilotLocal-<version>-win-x64.zip` and running `setup.cmd`. Version 0.2.1 contains the final repository-engineering cleanup.
+Install a published release by extracting `JobPilotLocal-<version>-win-x64.zip` and running `setup.cmd`. The `0.2.2` repair build will be published only by the verified `main` release workflow after merge; the immutable `v0.2.1` download is the earlier cleanup build.
 
 The project executable is not publisher Authenticode-signed because no publisher certificate/private key is stored in the repository or CI. The installer independently verifies Microsoft's signature on any downloaded WebView2 bootstrapper.
 
@@ -97,7 +97,7 @@ Official GitHub Actions are pinned to full commit SHAs. Python CI installs the c
 
 ## Local AI baseline
 
-The validated default remains llama.cpp v0.4.0 / build b10809 with the checksum-pinned Qwen3 4B GGUF catalogue entry. The current stable v0.4.1 / build b10964 Windows CPU/Vulkan binaries are catalogued only as maintenance candidates. Installing/evaluating a candidate never switches the selected runtime automatically; replacement still requires explicit local selection and the existing five-distinct-resume review gate. The newer Qwen3.5-4B line is multimodal and is not treated as a drop-in replacement for JobPilot's text-only/no-mmproj boundary.
+The validated default remains llama.cpp v0.4.0 / build b10809 with the checksum-pinned Qwen3 4B GGUF catalogue entry. The v0.4.1 / build b10964 Windows CPU/Vulkan binaries are catalogued only as maintenance candidates. Installing/evaluating a candidate never switches the selected runtime automatically; replacement still requires explicit local selection and the existing five-distinct-resume review gate. The newer Qwen3.5-4B line is multimodal and is not treated as a drop-in replacement for JobPilot's text-only/no-mmproj boundary.
 
 ## Project records
 
