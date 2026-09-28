@@ -14,6 +14,7 @@ _CONFIRMATION_PHRASES = (
     "application was submitted",
     "application received",
 )
+CONFIRMATION_TIMEOUT_MS = 15_000
 _CONFIRMATION_JS = """baseline => {
   const text = String((document.body && document.body.innerText) || '').toLowerCase();
   const markerCount = document.querySelectorAll('[data-jobpilot-confirmation="success"]').length;
@@ -85,6 +86,7 @@ class HostedApplicationAdapter:
         self._required: set[str] = set()
         self._submit: Any = None
         self._confirmation_baseline: dict[str, Any] = {"url": "", "marker_count": 0, "phrases": []}
+        self._frame_confirmation_baseline: dict[str, Any] | None = None
 
     def _validate_target(self, value: object) -> str:
         url = _url(value)
@@ -121,16 +123,22 @@ class HostedApplicationAdapter:
 
         self._frame = frame
         blockers = self._blockers(frame)
+        main_frame = getattr(self.page, "main_frame", None)
+        if main_frame is not None and frame is not main_frame:
+            blockers.extend(self._blockers(main_frame))
+            if not self._frame_host_supported(frame):
+                blockers.append("unsupported_form_frame_host")
         self._fields.clear(); self._field_types.clear(); self._required.clear()
         fields: list[FormField] = []
         seen: set[str] = set()
         controls = frame.locator("input, textarea, select")
         for index in range(controls.count()):
             control = controls.nth(index)
-            if not _visible(control):
-                continue
             tag = str(control.evaluate("el => el.tagName.toLowerCase()"))
             input_type = str(control.get_attribute("type") or "text").casefold()
+            # Playwright can upload to a hidden file input selected by name.
+            if not _visible(control) and not (tag == "input" and input_type == "file"):
+                continue
             if tag == "input" and input_type in {"hidden", "submit", "button", "reset", "image"}:
                 continue
             multiple = tag == "select" and control.get_attribute("multiple") is not None
@@ -197,34 +205,60 @@ class HostedApplicationAdapter:
         self._require_write()
         if self._submit is None:
             raise RuntimeError("supported submit control is not available")
+        if self._frame is not None:
+            if not self._frame_host_supported(self._frame):
+                raise RuntimeError("application form moved to an unsupported frame host before submit")
+            main_frame = getattr(self.page, "main_frame", None)
+            blockers = self._blockers(self._frame)
+            if main_frame is not None and main_frame is not self._frame:
+                blockers.extend(self._blockers(main_frame))
+            if blockers:
+                raise RuntimeError("application form acquired a blocker before submit: " + ", ".join(sorted(set(blockers))))
         self._confirmation_baseline = self._confirmation_state()
+        main_frame = getattr(self.page, "main_frame", None)
+        self._frame_confirmation_baseline = self._confirmation_state(self._frame) if self._frame is not None and self._frame is not main_frame else None
         self._submit.click(timeout=5_000)
 
     def confirm(self) -> SubmissionConfirmation:
-        try:
-            self.page.wait_for_function(_CONFIRMATION_JS, arg=dict(self._confirmation_baseline), timeout=3_000)
-        except Exception:
-            return SubmissionConfirmation(False, None)
-        text = " ".join(self.page.locator("body").inner_text().split())[:500]
-        return SubmissionConfirmation(True, text or "new explicit success state")
+        targets = []
+        if self._frame_confirmation_baseline is not None and self._frame is not None:
+            targets.append((self._frame, self._frame_confirmation_baseline))
+        targets.append((self.page, self._confirmation_baseline))
+        for target, baseline in targets:
+            try:
+                target.wait_for_function(_CONFIRMATION_JS, arg=dict(baseline), timeout=CONFIRMATION_TIMEOUT_MS)
+                text = " ".join(target.locator("body").inner_text().split())[:500]
+                return SubmissionConfirmation(True, text or "new explicit success state")
+            except Exception:
+                continue
+        return SubmissionConfirmation(False, None)
 
-    def _confirmation_state(self) -> dict[str, Any]:
+    def _confirmation_state(self, target: Any = None) -> dict[str, Any]:
+        target = target or self.page
         try:
-            text = " ".join(self.page.locator("body").inner_text().split()).casefold()
+            text = " ".join(target.locator("body").inner_text().split()).casefold()
         except Exception:
             text = ""
         try:
-            marker_count = int(self.page.locator('[data-jobpilot-confirmation="success"]').count())
+            marker_count = int(target.locator('[data-jobpilot-confirmation="success"]').count())
         except Exception:
             marker_count = 0
         return {
-            "url": str(getattr(self.page, "url", "") or ""),
+            "url": str(getattr(target, "url", "") or ""),
             "marker_count": marker_count,
             "phrases": [phrase for phrase in _CONFIRMATION_PHRASES if phrase in text],
         }
 
     def _reset(self) -> None:
         self._frame = None; self._fields.clear(); self._field_types.clear(); self._required.clear(); self._submit = None
+        self._frame_confirmation_baseline = None
+
+    def _frame_host_supported(self, frame: Any) -> bool:
+        url = str(getattr(frame, "url", "") or "")
+        if frame is getattr(self.page, "main_frame", None) or url in {"about:blank", "about:srcdoc"}:
+            return True
+        host = urlparse(url).hostname or ""
+        return _loopback(host) if self.allow_controlled_submit else host.casefold() in self.hosts
 
     def _find_application_frame(self) -> Any | None:
         for frame in self.page.frames:
