@@ -106,7 +106,15 @@ class JobController(TailoringController):
         with self._lock:
             self._require_open()
             job = self.job_store.job(job_id)
-            return assess_job(job, self._targeting, self._approved_evidence())
+            try:
+                facts = self._approved_evidence()
+            except Exception as exc:
+                assessed = assess_job(job, self._targeting, [])
+                if assessed["eligibility"] == "eligible":
+                    assessed["eligibility"] = "review"
+                assessed["review_reasons"].append(f"approved resume evidence is unavailable: {str(exc)[:300]}")
+                return assessed
+            return assess_job(job, self._targeting, facts)
 
     def refresh_job_metadata(self, job_id: str) -> dict[str, Any]:
         with self._lock:
@@ -138,6 +146,33 @@ class JobController(TailoringController):
     def _approved_evidence(self) -> list[dict[str, Any]]:
         master = self.resume_store.get_active_master()
         return self.tailoring._approved_current_facts(master) if master else []
+
+    def job_workspace_page(self, search: str = "", eligibility: str = "all", offset: int = 0) -> dict[str, Any]:
+        """Assess the complete saved match set when the user requests a workspace page."""
+        if eligibility not in {"all", "eligible", "review", "ineligible"} or not 0 <= offset <= 1_000_000:
+            raise ValueError("invalid job workspace filter or offset")
+        with self._lock:
+            self._require_open()
+            error = None
+            try:
+                facts = self._approved_evidence()
+            except Exception as exc:
+                facts = []
+                error = f"approved resume evidence is unavailable: {str(exc)[:300]}"
+            # Dedupe precedes slicing so a duplicate at a page boundary cannot hide a unique job.
+            jobs = [assess_job(job, self._targeting, facts) for job in dedupe_jobs(self.job_store.jobs(None, search=search))]
+            if error:
+                for job in jobs:
+                    if job["eligibility"] == "eligible":
+                        job["eligibility"] = "review"
+                    job["review_reasons"].append(error)
+            counts = {status: sum(job["eligibility"] == status for job in jobs) for status in ("eligible", "review", "ineligible")}
+            if eligibility != "all":
+                jobs = [job for job in jobs if job["eligibility"] == eligibility]
+            order = {"eligible": 0, "review": 1, "ineligible": 2}
+            jobs.sort(key=lambda job: (order[job["eligibility"]], -int(job["score"]), str(job["employer"]), str(job["title"]), str(job["id"])))
+            return {"items": [{key: value for key, value in job.items() if key != "description"} for job in jobs[offset:offset + 50]],
+                    "total": len(jobs), "counts": counts, "offset": offset, "page_size": 50, "evidence_error": error}
 
     def _job_snapshot(self) -> dict[str, Any]:
         evidence_error = None
