@@ -7,7 +7,8 @@ Status legend: `[ ] planned`, `[~] in progress`, `[x] complete`, `[!]` private e
 - [x] PR #31: desktop and orchestration response/state fixes, package freshness and session ownership, evidence/eligibility guards, selected evaluation binding, and main-only release execution.
 - [x] PR #32: validated unchanged-master application packages, browser draft retention, and partial-malformed-board recovery; Windows CI and Acceptance passed.
 - [~] Paginated job, application, JD, and tailoring workspaces; complete application status totals and attention queries; visible evidence-integrity errors. Windows checks pending.
-- [ ] Custom LaTeX dependency bundles; supported hosted-form/frame variants; deeper evidence recovery; normalized salary/experience preferences.
+- [~] Annual salary/currency and explicit experience-range targeting, conservatively reviewing unknown compensation; Windows checks pending.
+- [ ] Custom LaTeX dependency bundles; supported hosted-form/frame variants; deeper evidence recovery.
 - [ ] Publish a new versioned Windows release after the repair batch passes acceptance; `v0.2.1` is immutable and predates PR #31.
 
 ## Completed product foundation [x]
