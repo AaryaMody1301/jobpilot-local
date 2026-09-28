@@ -4,15 +4,17 @@ Status legend: `[ ] planned`, `[~] in progress`, `[x] complete`, `[!]` private e
 
 ## Post-audit repairs [~]
 
+PR #38 is the single repair and `0.2.2` release-preparation PR. It contains all changes from the superseded draft PRs #32–#37; those drafts do not need to be merged separately. The combined source at `7fd1bd7` passed Windows CI and Windows Acceptance. Final checks must also pass after the documentation consolidation.
+
 - [x] PR #31: desktop and orchestration response/state fixes, package freshness and session ownership, evidence/eligibility guards, selected evaluation binding, and main-only release execution.
-- [x] PR #32: validated unchanged-master application packages, browser draft retention, and partial-malformed-board recovery; Windows CI and Acceptance passed.
-- [x] PR #33: paginated job, application, JD, and tailoring workspaces; complete application totals and visible evidence-integrity errors. Windows CI and Acceptance passed.
-- [x] PR #34: annual salary/currency and explicit experience-range targeting, conservatively reviewing unknown compensation. Windows CI and Acceptance passed.
-- [x] PR #35: hidden resume inputs, nested frame blockers/host validation, and delayed iframe confirmation. Windows CI and controlled Acceptance passed.
-- [x] PR #36: immutable local LaTeX dependency revisions copied into baseline and tailoring packages, with integrity/approval invalidation. Windows CI and controlled Tectonic Acceptance passed.
-- [x] PR #37: explicit same-hash master/supporting-source recovery with quarantine and preserved approvals; Windows CI and Acceptance passed.
+- [x] Validated unchanged-master application packages, browser draft retention, and partial-malformed-board recovery.
+- [x] Paginated job, application, JD, and tailoring workspaces; complete application totals and visible evidence-integrity errors.
+- [x] Annual salary/currency and explicit experience-range targeting, conservatively reviewing unknown compensation.
+- [x] Hidden resume inputs, nested frame blockers/host validation, and delayed iframe confirmation.
+- [x] Immutable local LaTeX dependency revisions copied into baseline and tailoring packages, with integrity/approval invalidation.
+- [x] Explicit same-hash master/supporting-source recovery with quarantine and preserved approvals.
 - [ ] Broader real-form compatibility beyond the controlled supported shapes.
-- [~] PR #38: prepare `0.2.2` and publish only after PR #32–#38 merge in order and the `main` Windows release path passes; `v0.2.1` is immutable and predates PR #31.
+- [~] Review and merge only PR #38, then require the `main` Windows release path to pass before treating `0.2.2` as delivered; `v0.2.1` is immutable and predates PR #31.
 
 ## Completed product foundation [x]
 

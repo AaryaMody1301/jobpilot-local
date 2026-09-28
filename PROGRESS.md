@@ -1,8 +1,14 @@
 # Progress
 
+## Single-PR repair consolidation (28 September 2026)
+
+PR #38 is the sole review and merge target for all remaining repository repairs and version `0.2.2`. Its source contains every commit from the superseded draft PRs #32–#37, verified by Git ancestry and a matching local/remote tree. No repair commits or branches are deleted, and no separate merge order is required. The combined source at `7fd1bd70453e145829d2404e5641ff5bf5ee8abc` passed Windows CI (run `36365871078`) and Windows Acceptance (run `36365871103`). This consolidation changes documentation and PR metadata only; the final head must retain passing checks before merge.
+
+Release delivery still requires merging PR #38 and passing the `main`-only Windows Release workflow. Repository-admin protection of `main`, publisher-signing credentials, private five-resume review, and the individually authorized measured pilot are separate boundaries, not completed by synthetic CI. Earlier sections below record the state at the time of each repair batch; their old pending-work statements are superseded by this consolidation and the current roadmap.
+
 ## Versioned repair release preparation (28 September 2026)
 
-Project and runtime versions are aligned at `0.2.2`; the release documentation distinguishes this pending build from the immutable published `v0.2.1`. The PR Windows CI/Acceptance checks validate the proposed source, while the Windows Release workflow intentionally runs and publishes only from `main` after the reviewed repair stack is merged. Private five-resume approval and the measured pilot remain separate local evidence gates, and repository-admin protection of `main` is still outstanding.
+Project and runtime versions are aligned at `0.2.2`; the release documentation distinguishes this pending build from the immutable published `v0.2.1`. The PR Windows CI/Acceptance checks validate the proposed source, while the Windows Release workflow intentionally runs and publishes only from `main` after the single repair PR #38 is merged. Private five-resume approval and the measured pilot remain separate local evidence gates, and repository-admin protection of `main` is still outstanding.
 
 ## Source-integrity recovery (28 September 2026)
 
@@ -96,6 +102,6 @@ After that gate closes, the final remaining item is the measured real-world pilo
 
 ## Repository administration boundary
 
-The remaining source repairs are proposed in draft PR #32–#38 and are not yet in `main` or a published installer. GitHub repository administration is a separate boundary: the live `main` branch remains unprotected. GitHub-native release immutability is enabled and the `v0.2.1` release is immutable. The connected integration can inspect these settings but does not expose the branch-protection administration write needed to protect `main`.
+The remaining source repairs are consolidated in PR #38 and are not yet in `main` or a published installer. GitHub repository administration is a separate boundary: the live `main` branch remains unprotected. GitHub-native release immutability is enabled and the `v0.2.1` release is immutable. The connected integration can inspect these settings but does not expose the branch-protection administration write needed to protect `main`.
 
 A repository administrator must still protect `main` with pull-request-only changes, strict `windows-ci` and `windows-acceptance`, conversation resolution, and disabled force-push/deletion. Release immutability is already enabled. Publisher signing remains a separate credential boundary. See `docs/REPOSITORY_GOVERNANCE.md`.
