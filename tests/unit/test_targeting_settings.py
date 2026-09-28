@@ -13,6 +13,7 @@ def test_default_targeting_matches_agreed_phase1_preferences() -> None:
     assert settings.remote_origin_country == "India"
     assert settings.remote_must_allow_origin is True
     assert settings.salary_minimum is None
+    assert settings.salary_currency is None
     assert settings.require_overseas_sponsorship is True
     assert settings.notice_period_days == 30
     assert settings.employment_types == ("permanent_full_time",)
@@ -26,6 +27,10 @@ def test_round_trip_normalizes_editable_values() -> None:
     parsed = TargetingSettings.from_mapping(raw)
     assert parsed.roles == ("data analyst", "data engineer")
     assert parsed.notice_period_days == 45
+    raw["salary_currency"] = "inr"
+    assert TargetingSettings.from_mapping(raw).salary_currency == "INR"
+    raw.pop("salary_currency")  # Legacy profiles retain an unknown currency until the user chooses one.
+    assert TargetingSettings.from_mapping(raw).salary_currency is None
 
 
 @pytest.mark.parametrize(
@@ -38,6 +43,7 @@ def test_round_trip_normalizes_editable_values() -> None:
         ("remote_origin_city", ""),
         ("remote_must_allow_origin", "yes"),
         ("salary_minimum", -1),
+        ("salary_currency", "rupees"),
         ("require_overseas_sponsorship", "yes"),
     ],
 )

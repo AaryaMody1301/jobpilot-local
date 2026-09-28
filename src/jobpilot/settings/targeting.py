@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import re
 from typing import Any, Mapping
 
 
@@ -31,6 +32,7 @@ class TargetingSettings:
     relocation_outside_india: bool = True
     require_overseas_sponsorship: bool = True
     salary_minimum: int | None = None
+    salary_currency: str | None = None
     notice_period_days: int = 30
     employment_types: tuple[str, ...] = ("permanent_full_time",)
     excluded_employers: tuple[str, ...] = ("Brentwood Industries",)
@@ -54,6 +56,7 @@ class TargetingSettings:
             "relocation_outside_india",
             "require_overseas_sponsorship",
             "salary_minimum",
+            "salary_currency",
             "notice_period_days",
             "employment_types",
             "excluded_employers",
@@ -72,6 +75,7 @@ class TargetingSettings:
         maximum = raw.get("target_experience_max_years", default.target_experience_max_years)
         notice = raw.get("notice_period_days", default.notice_period_days)
         salary = raw.get("salary_minimum", default.salary_minimum)
+        currency = raw.get("salary_currency", default.salary_currency)
         if not isinstance(minimum, int) or isinstance(minimum, bool) or minimum < 0:
             raise InvalidTargetingSettings("target_experience_min_years must be a non-negative integer")
         if not isinstance(maximum, int) or isinstance(maximum, bool) or maximum < minimum:
@@ -80,6 +84,10 @@ class TargetingSettings:
             raise InvalidTargetingSettings("notice_period_days must be a non-negative integer")
         if salary is not None and (not isinstance(salary, int) or isinstance(salary, bool) or salary < 0):
             raise InvalidTargetingSettings("salary_minimum must be null or a non-negative integer")
+        if currency == "":
+            currency = None  # Previously saved amounts had no declared currency and remain review-only.
+        if currency is not None and (not isinstance(currency, str) or re.fullmatch(r"[A-Za-z]{3}", currency) is None):
+            raise InvalidTargetingSettings("salary_currency must be a three-letter currency code or null")
 
         city = raw.get("remote_origin_city", default.remote_origin_city)
         country = raw.get("remote_origin_country", default.remote_origin_country)
@@ -107,6 +115,7 @@ class TargetingSettings:
             relocation_outside_india=relocation,
             require_overseas_sponsorship=sponsorship,
             salary_minimum=salary,
+            salary_currency=currency.upper() if currency else None,
             notice_period_days=notice,
             employment_types=employment,
             excluded_employers=excluded,

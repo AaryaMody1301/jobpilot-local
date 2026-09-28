@@ -34,6 +34,55 @@ def _resume(path: Path, text: str = "Built verified pipelines.") -> Path:
     return path
 
 
+def test_master_import_versions_and_verifies_local_template_files(tmp_path: Path) -> None:
+    paths, db, store, workspace = _workspace(tmp_path)
+    try:
+        (tmp_path / "sections").mkdir()
+        part = tmp_path / "sections" / "history.tex"
+        part.write_text("\\section{Experience}\\begin{itemize}\\item Built pipelines.\\end{itemize}", encoding="utf-8")
+        (tmp_path / "local.sty").write_text("\\ProvidesPackage{local}", encoding="utf-8")
+        source = tmp_path / "resume.tex"
+        source.write_text("\\documentclass{article}\\usepackage{local}\\begin{document}"
+                          "\\input{sections/history}\\end{document}", encoding="utf-8")
+        imported = workspace.import_master(source)
+        master = store.get_active_master()
+        assert master and master["id"] == imported["document_id"]
+        original_source_hash = master["sha256"]
+        bundle = workspace.verified_bundle(master)
+        assert bundle is not None
+        assert set(bundle[1]) == {"sections/history.tex", "local.sty"}
+        old_part = bundle[0] / "sections" / "history.tex"
+        old_content = old_part.read_bytes()
+
+        with db.transaction() as connection:
+            connection.execute("UPDATE resume_baselines SET status='compiled', offline_verified=1 WHERE document_id=?", (master["id"],))
+        part.write_text("\\section{Experience}\\begin{itemize}\\item Built safer pipelines.\\end{itemize}", encoding="utf-8")
+        imported_again = workspace.import_master(source)
+        assert imported_again["deduplicated"]
+        updated = store.get_active_master()
+        assert updated and updated["sha256"] == original_source_hash
+        new_bundle = workspace.verified_bundle(updated)
+        assert new_bundle and new_bundle[0] != bundle[0] and old_part.read_bytes() == old_content
+        assert store.get_baseline(str(master["id"]))["status"] == "pending"
+        (new_bundle[0] / "local.sty").write_text("tampered", encoding="utf-8")
+        with pytest.raises(RuntimeError, match="integrity verification"):
+            workspace.verified_bundle(updated)
+    finally:
+        db.close()
+
+
+def test_template_import_rejects_relative_path_escape(tmp_path: Path) -> None:
+    paths, db, store, workspace = _workspace(tmp_path)
+    try:
+        source = tmp_path / "resume.tex"
+        source.write_text("\\documentclass{article}\\input{../other}\\begin{document}hello\\end{document}", encoding="utf-8")
+        with pytest.raises(ValueError, match="unsafe local template dependency"):
+            workspace.import_master(source)
+        assert store.get_active_master() is None
+    finally:
+        db.close()
+
+
 def test_master_import_is_immutable_and_deduplicated(tmp_path: Path) -> None:
     paths, db, store, workspace = _workspace(tmp_path)
     try:
@@ -103,6 +152,65 @@ def test_managed_source_tampering_is_detected(tmp_path: Path) -> None:
         stored.write_text("tampered", encoding="utf-8")
         assert workspace.verify_active_master() == "mismatch"
         assert store.get_active_master()["integrity_status"] == "mismatch"
+    finally:
+        db.close()
+
+
+def test_explicit_reimport_restores_exact_master_and_supporting_bytes_without_losing_history(tmp_path: Path) -> None:
+    paths, db, store, workspace = _workspace(tmp_path)
+    try:
+        original = _resume(tmp_path / "resume.tex")
+        first = workspace.import_master(original)
+        master = store.get_active_master()
+        assert master is not None
+        fact_ids = [fact["id"] for fact in store.list_facts()]
+        managed = store.document_path(master)
+        managed.write_text("tampered master", encoding="utf-8")
+        assert workspace.verify_active_master() == "mismatch"
+        restored = workspace.import_master(original)
+        assert restored["restored"] and restored["document_id"] == first["document_id"]
+        assert workspace.verify_active_master() == "verified"
+        assert [fact["id"] for fact in store.list_facts()] == fact_ids
+        assert any(path.read_text(encoding="utf-8") == "tampered master" for path in (managed.parent / "quarantine").iterdir())
+
+        support = tmp_path / "evidence.txt"
+        support.write_text("trusted evidence", encoding="utf-8")
+        supporting = workspace.import_supporting(support)
+        supporting_record = store.get_document(supporting["document_id"])
+        assert supporting_record is not None
+        stored_support = store.document_path(supporting_record)
+        stored_support.write_text("tampered evidence", encoding="utf-8")
+        assert workspace.verify_document(supporting_record) == "mismatch"
+        restored_support = workspace.import_supporting(support)
+        assert restored_support["restored"] and restored_support["document_id"] == supporting["document_id"]
+        assert workspace.verify_document(store.get_document(supporting["document_id"])) == "verified"
+        assert any(path.read_text(encoding="utf-8") == "tampered evidence" for path in (stored_support.parent / "quarantine").iterdir())
+    finally:
+        db.close()
+
+
+def test_external_symlink_cannot_break_recovery_snapshot_or_redirect_restore(tmp_path: Path) -> None:
+    paths, db, store, workspace = _workspace(tmp_path)
+    try:
+        original = _resume(tmp_path / "resume.tex")
+        workspace.import_master(original)
+        master = store.get_active_master()
+        assert master is not None
+        stored = store.document_path(master)
+        stored.unlink()
+        outside = tmp_path / "outside.tex"
+        outside.write_text("external data", encoding="utf-8")
+        try:
+            stored.symlink_to(outside)
+        except OSError as exc:
+            pytest.skip(f"symlink creation unavailable: {exc}")
+        assert workspace.verify_active_master() == "mismatch"
+        restored = workspace.import_master(original)
+        assert restored["restored"] and not stored.is_symlink()
+        assert any(path.is_symlink() for path in (paths.runtime / "source-quarantine" / str(master["id"])).iterdir())
+        assert not any(path.is_symlink() for path in paths.documents.rglob("*"))
+        assert outside.read_text(encoding="utf-8") == "external data"
+        assert workspace.verify_active_master() == "verified"
     finally:
         db.close()
 

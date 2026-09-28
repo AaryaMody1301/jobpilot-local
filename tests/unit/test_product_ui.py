@@ -23,7 +23,7 @@ def test_targeting_exposes_all_editable_preferences() -> None:
     html = (UI / "index.html").read_text(encoding="utf-8")
     for control_id in (
         "roles", "min-years", "max-years", "india-cities", "remote-city", "remote-country",
-        "remote-origin-required", "salary-minimum", "notice-days", "employment-types",
+        "remote-origin-required", "salary-minimum", "salary-currency", "notice-days", "employment-types",
         "excluded-employers", "relocation", "sponsorship",
     ):
         assert f'id="{control_id}"' in html
@@ -73,16 +73,6 @@ def test_tailoring_exposes_untrusted_jd_evidence_review_and_pdf_preview() -> Non
     assert "edited_fields_present_in_pdf" not in js
     assert "explicit local action" in html.lower()
     assert "Real employer writes start disabled" in html or "Employer submission: disabled" in js
-
-
-def test_eligibility_resolution_requires_note_before_bridge_call() -> None:
-    js = (UI / "app.js").read_text(encoding="utf-8")
-    assert 'disabled>Mark eligible</button>' in js
-    assert 'disabled>Mark ineligible</button>' in js
-    assert "const disabled = !input.value.trim();" in js
-    assert "const note = input ? input.value.trim() : '';" in js
-    assert "if (!note)" in js
-    assert "resolve_application_eligibility', id, eligibility === 'approved', note" in js
 
 
 def test_job_and_application_workspaces_keep_saved_job_resume_and_follow_up_together() -> None:

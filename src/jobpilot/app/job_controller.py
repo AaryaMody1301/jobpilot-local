@@ -23,7 +23,7 @@ class JobController(TailoringController):
         with self._lock:
             state = super().snapshot()
             state["tailoring"]["job_discovery_enabled"] = True
-            state["jobs"] = self._job_snapshot()
+            state["jobs"] = self._job_snapshot(state["resume"].get("template_bundle_error"))
             return state
 
     def import_manual_job(self, raw: Mapping[str, Any]) -> dict[str, Any]:
@@ -42,18 +42,19 @@ class JobController(TailoringController):
         try:
             if cancel.is_set():
                 raise RuntimeError("job-board verification cancelled")
-            jobs = fetch_board(provider, employer, token)
+            skipped: list[str] = []
+            jobs = fetch_board(provider, employer, token, skipped=skipped)
             with self._lock:
                 self._require_open()
                 board = self.job_store.add_board(
                     provider, employer, token, verification_source="live public ATS endpoint", user_added=True
                 )
                 self.job_store.replace_board_jobs(str(board["id"]), jobs)
-                self.job_store.mark_checked(str(board["id"]))
+                self.job_store.mark_checked(str(board["id"]), f"Skipped {len(skipped)} malformed posting(s): {skipped[0]}"[:500] if skipped else None)
                 self.database.record_foundation_activity(
                     self.session_id,
                     "job_board_added",
-                    f"Verified and added {provider} board {token}; imported {len(jobs)} current jobs",
+                    f"Verified and added {provider} board {token}; imported {len(jobs)} current jobs; skipped {len(skipped)} malformed postings",
                 )
         finally:
             with self._lock:
@@ -74,15 +75,18 @@ class JobController(TailoringController):
             boards = [board for board in self.job_store.boards() if bool(board["enabled"])]
         imported = 0
         failed = 0
+        skipped_total = 0
         try:
             for board in boards:
                 if cancel.is_set():
                     raise RuntimeError("job discovery cancelled")
                 try:
-                    jobs = fetch_board(str(board["provider"]), str(board["employer"]), str(board["board_token"]))
+                    skipped: list[str] = []
+                    jobs = fetch_board(str(board["provider"]), str(board["employer"]), str(board["board_token"]), skipped=skipped)
                     self.job_store.replace_board_jobs(str(board["id"]), jobs)
-                    self.job_store.mark_checked(str(board["id"]))
+                    self.job_store.mark_checked(str(board["id"]), f"Skipped {len(skipped)} malformed posting(s): {skipped[0]}"[:500] if skipped else None)
                     imported += len(jobs)
+                    skipped_total += len(skipped)
                 except Exception as exc:
                     failed += 1
                     self.job_store.mark_checked(str(board["id"]), str(exc)[-500:])
@@ -91,7 +95,7 @@ class JobController(TailoringController):
                 self.database.record_foundation_activity(
                     self.session_id,
                     "job_discovery",
-                    f"Checked {len(boards)} verified public boards; observed {imported} jobs; {failed} board errors",
+                    f"Checked {len(boards)} verified public boards; observed {imported} jobs; skipped {skipped_total} malformed postings; {failed} board errors",
                 )
         finally:
             with self._lock:
@@ -102,7 +106,15 @@ class JobController(TailoringController):
         with self._lock:
             self._require_open()
             job = self.job_store.job(job_id)
-            return assess_job(job, self._targeting, self._approved_evidence())
+            try:
+                facts = self._approved_evidence()
+            except Exception as exc:
+                assessed = assess_job(job, self._targeting, [])
+                if assessed["eligibility"] == "eligible":
+                    assessed["eligibility"] = "review"
+                assessed["review_reasons"].append(f"approved resume evidence is unavailable: {str(exc)[:300]}")
+                return assessed
+            return assess_job(job, self._targeting, facts)
 
     def refresh_job_metadata(self, job_id: str) -> dict[str, Any]:
         with self._lock:
@@ -131,14 +143,43 @@ class JobController(TailoringController):
                 self._end_onboarding_operation()
         return self.snapshot()
 
-    def _approved_evidence(self) -> list[dict[str, Any]]:
+    def _approved_evidence(self, *, verify_template: bool = True) -> list[dict[str, Any]]:
         master = self.resume_store.get_active_master()
+        if master is not None and verify_template:
+            self.documents.verified_bundle(master)
         return self.tailoring._approved_current_facts(master) if master else []
 
-    def _job_snapshot(self) -> dict[str, Any]:
-        evidence_error = None
+    def job_workspace_page(self, search: str = "", eligibility: str = "all", offset: int = 0) -> dict[str, Any]:
+        """Assess the complete saved match set when the user requests a workspace page."""
+        if eligibility not in {"all", "eligible", "review", "ineligible"} or not 0 <= offset <= 1_000_000:
+            raise ValueError("invalid job workspace filter or offset")
+        with self._lock:
+            self._require_open()
+            error = None
+            try:
+                facts = self._approved_evidence()
+            except Exception as exc:
+                facts = []
+                error = f"approved resume evidence is unavailable: {str(exc)[:300]}"
+            # Dedupe precedes slicing so a duplicate at a page boundary cannot hide a unique job.
+            jobs = [assess_job(job, self._targeting, facts) for job in dedupe_jobs(self.job_store.jobs(None, search=search))]
+            if error:
+                for job in jobs:
+                    if job["eligibility"] == "eligible":
+                        job["eligibility"] = "review"
+                    job["review_reasons"].append(error)
+            counts = {status: sum(job["eligibility"] == status for job in jobs) for status in ("eligible", "review", "ineligible")}
+            if eligibility != "all":
+                jobs = [job for job in jobs if job["eligibility"] == eligibility]
+            order = {"eligible": 0, "review": 1, "ineligible": 2}
+            jobs.sort(key=lambda job: (order[job["eligibility"]], -int(job["score"]), str(job["employer"]), str(job["title"]), str(job["id"])))
+            return {"items": [{key: value for key, value in job.items() if key != "description"} for job in jobs[offset:offset + 50]],
+                    "total": len(jobs), "counts": counts, "offset": offset, "page_size": 50, "evidence_error": error}
+
+    def _job_snapshot(self, bundle_error: str | None = None) -> dict[str, Any]:
+        evidence_error = bundle_error
         try:
-            facts = self._approved_evidence()
+            facts = self._approved_evidence(verify_template=False) if not bundle_error else []
         except Exception as exc:
             facts = []
             evidence_error = f"approved resume evidence is unavailable: {str(exc)[:300]}"

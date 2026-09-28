@@ -112,6 +112,11 @@ class OrchestrationController(ApplicationEngineController):
             }
             return state
 
+    def application_workspace_page(self, search: str = "", state: str = "all", offset: int = 0) -> dict[str, Any]:
+        with self._lock:
+            self._require_open()
+            return self.applications.history_page(search, state, offset)
+
     def resolve_application_eligibility(self, application_id: str, eligible: bool, note: str) -> dict[str, Any]:
         with self._lock:
             self._require_open()

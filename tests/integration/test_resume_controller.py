@@ -79,3 +79,23 @@ def test_fact_approval_rechecks_source_integrity(tmp_path: Path) -> None:
         assert controller.snapshot()["resume"]["facts"][0]["current_status"] == "candidate"
     finally:
         controller.close()
+
+
+def test_corrupt_master_reimport_keeps_recovery_ui_and_approval_history(tmp_path: Path) -> None:
+    controller = _controller(tmp_path)
+    try:
+        source = _resume(tmp_path / "resume.tex")
+        controller.import_master_resume(source)
+        master = controller.resume_store.get_active_master()
+        assert master is not None
+        source_copy = controller.paths.root / master["stored_relpath"]
+        source_copy.write_text("damaged", encoding="utf-8")
+        state = controller.snapshot()
+        assert state["resume"]["integrity"] == "mismatch" and not state["resume"]["onboarding_ready"]
+        before = [item["id"] for item in state["resume"]["facts"]]
+        repaired = controller.import_master_resume(source)
+        assert repaired["resume"]["integrity"] == "verified"
+        assert [item["id"] for item in repaired["resume"]["facts"]] == before
+        assert any(item["event_type"] == "resume_source_restored" for item in repaired["activity"])
+    finally:
+        controller.close()

@@ -120,6 +120,44 @@ def test_final_shell_has_current_product_ui_without_development_fixture_controls
         assert chromium_page.locator('[data-view="dashboard"]').get_attribute("aria-current") is None
 
 
+def test_full_workspaces_can_open_records_beyond_snapshot_limits(chromium_page) -> None:
+    state = _state()
+    state["jobs"]["items"] = [{
+        "id": f"job-{index}", "title": "Data Analyst", "employer": f"Employer {index}",
+        "location": "Surat", "eligibility": "review", "score": 10,
+    } for index in range(500)]
+    state["orchestration"]["history"] = [{
+        "id": f"app-{index}", "state": "prepared", "title": "Data Analyst",
+        "employer": f"Employer {index}",
+    } for index in range(200)]
+    state["orchestration"]["counts"] = {"prepared": 201}
+    chromium_page.add_init_script("""
+        window.pywebview = {api: new Proxy({}, {get: (_, method) => async (...args) => {
+            if (method === 'job_workspace_page') return {
+                items: [{id: args[2] ? 'job-500' : 'job-0', title: 'Data Analyst',
+                         employer: args[2] ? 'Employer 500' : 'Employer 0',
+                         location: 'Surat', eligibility: 'review', score: 10}],
+                counts: {eligible: 0, review: 501, ineligible: 0},
+                total: 51, offset: args[2], page_size: 50,
+            };
+            if (method === 'application_workspace_page') return {
+                items: [{id: args[2] ? 'app-200' : 'app-0', state: 'prepared',
+                         title: 'Data Analyst', employer: args[2] ? 'Employer 200' : 'Employer 0'}],
+                states: {prepared: 201}, total: 51, offset: args[2], page_size: 50,
+            };
+            return window.__fixtureState;
+        }})};
+    """)
+    with local_ui_server() as url:
+        chromium_page.goto(url)
+        chromium_page.evaluate("state => { window.__fixtureState = state; render(state); showView('jobs'); }", state)
+        chromium_page.locator("#job-pages").get_by_text("Next").click()
+        assert "Employer 500" in chromium_page.locator("#job-list").inner_text()
+        chromium_page.locator('[data-view="history"]').click()
+        chromium_page.locator("#application-pages").get_by_text("Next").click()
+        assert "Employer 200" in chromium_page.locator("#orchestration-history").inner_text()
+
+
 def test_measured_pilot_actions_render_in_final_shell_and_require_exact_phrase(chromium_page) -> None:
     state = _state()
     chromium_page.add_init_script(
@@ -229,6 +267,10 @@ def test_live_form_question_is_visible_and_approvable_in_exact_context(chromium_
         approve = question.locator('[data-question-approve]')
         assert approve.is_disabled()
         question.locator('[data-question-answer]').fill("Yes, verified for this location")
+        chromium_page.locator('[data-view="dashboard"]').click()
+        chromium_page.locator('[data-view="history"]').click()
+        chromium_page.evaluate("state => render(state, {preserveEditing: true})", state)
+        assert question.locator('[data-question-answer]').input_value() == "Yes, verified for this location"
         approve.click()
         chromium_page.wait_for_function("window.__calls.length === 1")
         assert chromium_page.evaluate("window.__calls") == [
@@ -242,14 +284,29 @@ def test_background_poll_keeps_active_review_draft(chromium_page) -> None:
         "id": "app-1", "state": "needs_review", "job_identity": "Example",
         "attention_kind": "eligibility_review", "eligibility": {"review_reasons": ["location unknown"]},
     }]
+    chromium_page.add_init_script("""
+        window.__calls = [];
+        window.pywebview = {api: {resolve_application_eligibility: async (...args) => {
+            window.__calls.push(args); return window.__fixtureState;
+        }}};
+    """)
     with local_ui_server() as url:
         chromium_page.goto(url)
-        chromium_page.evaluate("state => { render(state); showView('history'); }", state)
+        chromium_page.evaluate("state => { window.__fixtureState = state; render(state); showView('history'); }", state)
         note = chromium_page.locator('[data-orchestration-eligibility-note="app-1"]')
+        assert chromium_page.locator('[data-orchestration-eligibility="approved"]').is_disabled()
         note.fill("Checked the employer location")
         chromium_page.evaluate("state => render({...state, session_state: 'running'}, {preserveEditing: true})", state)
         assert note.input_value() == "Checked the employer location"
         assert chromium_page.locator('[data-orchestration-eligibility="approved"]').is_enabled()
+        chromium_page.locator('[data-view="dashboard"]').click()
+        chromium_page.locator('[data-view="history"]').click()
+        chromium_page.evaluate("state => render(state, {preserveEditing: true})", state)
+        assert note.input_value() == "Checked the employer location"
+        assert chromium_page.locator('[data-orchestration-eligibility="approved"]').is_enabled()
+        chromium_page.locator('[data-orchestration-eligibility="approved"]').click()
+        chromium_page.wait_for_function("window.__calls.length === 1")
+        assert chromium_page.evaluate("window.__calls[0]") == ["app-1", True, "Checked the employer location"]
 
 
 def test_job_and_application_workspace_filters_and_saves_local_follow_up(chromium_page) -> None:
@@ -356,6 +413,12 @@ def test_job_and_application_workspace_filters_and_saves_local_follow_up(chromiu
         chromium_page.locator("#application-follow-up").fill("2026-10-01")
         chromium_page.locator("#application-next-action").fill("Follow up with recruiter")
         chromium_page.locator("#application-notes").fill("Screening completed.")
+        chromium_page.locator('[data-view="jobs"]').click()
+        chromium_page.locator('[data-view="history"]').click()
+        chromium_page.evaluate("state => render(state, {preserveEditing: true})", state)
+        assert chromium_page.locator("#application-notes").input_value() == "Screening completed."
+        assert chromium_page.locator("#application-next-action").input_value() == "Follow up with recruiter"
+        assert chromium_page.locator("#application-follow-up").input_value() == "2026-10-01"
         chromium_page.locator("#application-workspace-form button[type='submit']").click()
         chromium_page.wait_for_function("window.__calls.some(call => call[0] === 'update_application_workspace')")
         call = chromium_page.evaluate("window.__calls.find(call => call[0] === 'update_application_workspace')")

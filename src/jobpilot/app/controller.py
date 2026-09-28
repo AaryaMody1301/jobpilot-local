@@ -113,8 +113,8 @@ class ApplicationController:
             result = self.documents.import_master(source)
             self.database.record_foundation_activity(
                 self.session_id,
-                "resume_import",
-                f"Imported immutable master resume {result['document_id']}",
+                "resume_source_restored" if result.get("restored") else "resume_import",
+                f"{'Restored trusted' if result.get('restored') else 'Imported immutable'} master resume {result['document_id']}",
             )
             return self.snapshot()
 
@@ -124,8 +124,8 @@ class ApplicationController:
             result = self.documents.import_supporting(source)
             self.database.record_foundation_activity(
                 self.session_id,
-                "supporting_import",
-                f"Registered immutable supporting source {result['document_id']}",
+                "supporting_source_restored" if result.get("restored") else "supporting_import",
+                f"{'Restored trusted' if result.get('restored') else 'Registered immutable'} supporting source {result['document_id']}",
             )
             return self.snapshot()
 
@@ -285,8 +285,15 @@ class ApplicationController:
         baseline = None
         regions: list[dict[str, Any]] = []
         mapping_status = "missing"
+        bundle_error = None
+        bundle_id = None
         if master is not None:
             integrity = self.documents.verify_document(master)
+            try:
+                bundle = self.documents.verified_bundle(master)
+                bundle_id = self.resume_store.active_template_bundle(str(master["id"])) if bundle is not None else None
+            except Exception as exc:
+                bundle_error = f"local template dependencies failed verification: {str(exc)[:300]}"
             master = self.resume_store.get_document(str(master["id"])) or master
             baseline = self.resume_store.get_baseline(str(master["id"]))
             regions = self.resume_store.list_template_regions(str(master["id"]))
@@ -308,6 +315,7 @@ class ApplicationController:
         ready = bool(
             master
             and integrity == "verified"
+            and bundle_error is None
             and baseline
             and baseline.get("status") == "compiled"
             and bool(baseline.get("offline_verified"))
@@ -319,6 +327,8 @@ class ApplicationController:
         return {
             "master": master,
             "integrity": integrity,
+            "template_bundle_sha256": bundle_id,
+            "template_bundle_error": bundle_error,
             "baseline": baseline,
             "template_map_status": mapping_status,
             "regions": regions,

@@ -69,7 +69,7 @@ class _ConfirmationPage:
 
     def wait_for_function(self, script: str, *, arg: dict[str, object], timeout: int) -> None:
         assert "newMarker" in script and "newPhrase" in script
-        assert timeout == 3000
+        assert timeout == 15000
         self.seen_baseline = arg
         if not self.allow_confirmation:
             raise TimeoutError("no new post-submit confirmation state")
@@ -107,6 +107,13 @@ def test_static_success_like_text_is_not_confirmation_without_new_state() -> Non
     assert result.confirmed is False
     assert page.seen_baseline is not None
     assert "application received" in page.seen_baseline["phrases"]
+
+
+def test_live_form_frame_cannot_move_to_an_unrecognized_host() -> None:
+    page = _ConfirmationPage(body="Application form")
+    adapter = LeverAdapter(page, allow_live_submit=True)
+    assert adapter._frame_host_supported(SimpleNamespace(url="https://jobs.lever.co/acme/apply"))
+    assert not adapter._frame_host_supported(SimpleNamespace(url="https://unrecognized.invalid/form"))
 
 
 def test_submit_recaptures_confirmation_baseline_immediately_before_click() -> None:

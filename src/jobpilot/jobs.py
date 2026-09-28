@@ -14,7 +14,7 @@ from jobpilot.storage.database import Database, utc_now_text
 
 PROVIDERS = {"greenhouse", "lever", "ashby"}
 TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
-YEARS_RE = re.compile(r"\b(\d{1,2})(?:\s*(?:-|to)\s*(\d{1,2}))?\+?\s+years?\b", re.I)
+YEARS_RE = re.compile(r"\b(\d{1,2})(?:\s*(?:-|–|—|to)\s*(\d{1,2}))?\+?\s+years?\b", re.I)
 STOPWORDS = {
     "about", "after", "also", "and", "are", "at", "but", "for", "from", "have", "in", "into", "job",
     "more", "of", "or", "our", "role", "team", "that", "the", "their", "this", "to", "using", "will",
@@ -215,27 +215,41 @@ def _job(provider: str, board_token: str, employer: str, source_id: object, *, t
     }
 
 
-def parse_board_payload(provider: str, employer: str, token: str, payload: object) -> list[dict[str, Any]]:
+def parse_board_payload(
+    provider: str, employer: str, token: str, payload: object, *, skipped: list[str] | None = None,
+) -> list[dict[str, Any]]:
     token = _board_token(token)
     jobs: list[dict[str, Any]] = []
+    issues = skipped if skipped is not None else []
     if provider == "greenhouse":
         if not isinstance(payload, Mapping) or not isinstance(payload.get("jobs"), list):
             raise RuntimeError("Greenhouse payload is missing jobs[]")
-        for item in payload["jobs"]:
+        for index, item in enumerate(payload["jobs"], start=1):
             if not isinstance(item, Mapping) or not item.get("id") or not item.get("title"):
+                issues.append(f"Greenhouse posting {index}: missing job identity/title")
                 continue
-            jobs.append(_job(
-                provider, token, employer, item["id"], title=item["title"],
-                location=(item.get("location") or {}).get("name", ""), description=item.get("content", ""),
-                source_url=item.get("absolute_url", ""), published_at=item.get("updated_at", ""),
-            ))
+            try:
+                location = item.get("location") or {}
+                if not isinstance(location, Mapping):
+                    raise ValueError("invalid location object")
+                jobs.append(_job(
+                    provider, token, employer, item["id"], title=item["title"],
+                    location=location.get("name", ""), description=item.get("content", ""),
+                    source_url=item.get("absolute_url", ""), published_at=item.get("updated_at", ""),
+                ))
+            except ValueError as exc:
+                issues.append(f"Greenhouse posting {index}: {exc}")
     elif provider == "lever":
         if not isinstance(payload, list):
             raise RuntimeError("Lever payload must be a job list")
-        for item in payload:
+        for index, item in enumerate(payload, start=1):
             if not isinstance(item, Mapping) or not item.get("id") or not item.get("text"):
+                issues.append(f"Lever posting {index}: missing job identity/title")
                 continue
             categories = item.get("categories") or {}
+            if not isinstance(categories, Mapping):
+                issues.append(f"Lever posting {index}: invalid categories object")
+                continue
             salary = item.get("salaryRange") or {}
             salary_text = _clean(item.get("salaryDescriptionPlain"))
             if isinstance(salary, Mapping) and salary.get("currency") and salary.get("min") is not None and salary.get("max") is not None:
@@ -248,18 +262,24 @@ def parse_board_payload(provider: str, employer: str, token: str, payload: objec
                 f"{_plain(section.get('text') or '')}\n{_plain(section.get('content') or '')}"
                 for section in lists if isinstance(section, Mapping)
             ) if isinstance(lists, list) else ""
-            jobs.append(_job(
-                provider, token, employer, item["id"], title=item["text"], location=categories.get("location", ""),
-                description=f"{item.get('descriptionPlain') or item.get('description') or ''}\n{details}",
-                workplace=item.get("workplaceType", ""), employment=categories.get("commitment", ""),
-                source_url=item.get("hostedUrl", ""), apply_url=item.get("applyUrl", ""),
-                compensation=salary_text,
-            ))
+            try:
+                jobs.append(_job(
+                    provider, token, employer, item["id"], title=item["text"], location=categories.get("location", ""),
+                    description=f"{item.get('descriptionPlain') or item.get('description') or ''}\n{details}",
+                    workplace=item.get("workplaceType", ""), employment=categories.get("commitment", ""),
+                    source_url=item.get("hostedUrl", ""), apply_url=item.get("applyUrl", ""),
+                    compensation=salary_text,
+                ))
+            except ValueError as exc:
+                issues.append(f"Lever posting {index}: {exc}")
     elif provider == "ashby":
         if not isinstance(payload, Mapping) or not isinstance(payload.get("jobs"), list):
             raise RuntimeError("Ashby payload is missing jobs[]")
-        for item in payload["jobs"]:
-            if not isinstance(item, Mapping) or item.get("isListed") is False or not item.get("title"):
+        for index, item in enumerate(payload["jobs"], start=1):
+            if isinstance(item, Mapping) and item.get("isListed") is False:
+                continue
+            if not isinstance(item, Mapping) or not item.get("title"):
+                issues.append(f"Ashby posting {index}: missing job title")
                 continue
             compensation = item.get("compensation") or {}
             compensation_text = ""
@@ -268,22 +288,29 @@ def parse_board_payload(provider: str, employer: str, token: str, payload: objec
                     compensation.get("scrapeableCompensationSalarySummary")
                     or compensation.get("compensationTierSummary")
                 )
-            jobs.append(_job(
-                provider, token, employer, item.get("id") or item.get("jobUrl", ""), title=item["title"],
-                location=item.get("location", ""), description=item.get("descriptionPlain") or item.get("descriptionHtml", ""),
-                workplace=item.get("workplaceType", ""), employment=item.get("employmentType", ""),
-                source_url=item.get("jobUrl", ""), apply_url=item.get("applyUrl", ""), published_at=item.get("publishedAt", ""),
-                compensation=compensation_text,
-            ))
+            try:
+                jobs.append(_job(
+                    provider, token, employer, item.get("id") or item.get("jobUrl", ""), title=item["title"],
+                    location=item.get("location", ""), description=item.get("descriptionPlain") or item.get("descriptionHtml", ""),
+                    workplace=item.get("workplaceType", ""), employment=item.get("employmentType", ""),
+                    source_url=item.get("jobUrl", ""), apply_url=item.get("applyUrl", ""), published_at=item.get("publishedAt", ""),
+                    compensation=compensation_text,
+                ))
+            except ValueError as exc:
+                issues.append(f"Ashby posting {index}: {exc}")
     else:
         raise ValueError(f"unsupported job provider: {provider}")
     return jobs
 
 
-def fetch_board(provider: str, employer: str, token: str) -> list[dict[str, Any]]:
+def fetch_board(provider: str, employer: str, token: str, *, skipped: list[str] | None = None) -> list[dict[str, Any]]:
     if provider not in PROVIDERS:
         raise ValueError(f"unsupported job provider: {provider}")
-    return parse_board_payload(provider, _clean(employer), token, _json_get(board_url(provider, token)))
+    issues = skipped if skipped is not None else []
+    jobs = parse_board_payload(provider, _clean(employer), token, _json_get(board_url(provider, token)), skipped=issues)
+    if issues and not jobs:
+        raise RuntimeError(f"all {len(issues)} malformed postings on {provider} board were rejected; keeping prior job snapshots")
+    return jobs
 
 
 def normalize_manual_job(raw: Mapping[str, Any]) -> dict[str, Any]:
@@ -345,6 +372,41 @@ def _explicit_min_years(description: str) -> int | None:
     return max(found) if found else None
 
 
+def _explicit_max_years(description: str) -> int | None:
+    """Only a stated experience range has a reliable upper bound."""
+    found: list[int] = []
+    low = description.casefold()
+    for match in YEARS_RE.finditer(low):
+        if match.group(2) is None:
+            continue
+        context = low[max(0, match.start() - 60):match.end() + 60]
+        if "experience" in context and not any(marker in context for marker in PREFERRED_MARKERS):
+            found.append(int(match.group(2)))
+    return max(found) if found else None
+
+
+def _annual_salary_range(value: object) -> tuple[str, int, int] | None:
+    """Read only an explicit annual base-pay range; unknown formats need human review."""
+    text = str(value or "").strip()
+    if len(text) > 300:
+        return None
+    matched = re.fullmatch(
+        r"(?:Salary Range:\s*)?([A-Z]{3})\s+(\d[\d,]*)([kKlL]?)\s*(?:-|–|to)\s*(?:\1\s*)?"
+        r"(\d[\d,]*)([kKlL]?)\s*(?:\(per-year-salary\)|per year|per annum|annually|annual|/year|LPA)",
+        text, re.I,
+    )
+    if matched is None:
+        return None
+    if any(len(matched.group(index).replace(",", "")) > 12 for index in (2, 4)):
+        return None
+    multiplier = {"": 1, "k": 1_000, "l": 100_000}
+    low = int(matched.group(2).replace(",", "")) * multiplier[matched.group(3).lower()]
+    high = int(matched.group(4).replace(",", "")) * multiplier[matched.group(5).lower()]
+    if high < low:
+        return None
+    return matched.group(1).upper(), low, high
+
+
 def assess_job(job: Mapping[str, Any], targeting: TargetingSettings, approved_facts: list[Mapping[str, Any]]) -> dict[str, Any]:
     hard: list[str] = []
     review: list[str] = []
@@ -370,6 +432,10 @@ def assess_job(job: Mapping[str, Any], targeting: TargetingSettings, approved_fa
     minimum_years = _explicit_min_years(description)
     if minimum_years is not None and minimum_years > targeting.target_experience_max_years:
         hard.append(f"explicit minimum experience is {minimum_years} years, above configured target")
+    maximum_years = _explicit_max_years(description)
+    if (maximum_years is not None and maximum_years < targeting.target_experience_min_years
+            and (minimum_years is None or minimum_years <= maximum_years)):
+        hard.append(f"explicit maximum experience is {maximum_years} years, below configured target")
 
     combined = f"{location_key} {_key(description[:5000])}"
     if any(marker in combined for marker in WORK_AUTH_MARKERS):
@@ -402,7 +468,13 @@ def assess_job(job: Mapping[str, Any], targeting: TargetingSettings, approved_fa
                 review.append("overseas sponsorship requirement is not explicit")
 
     if targeting.salary_minimum is not None:
-        review.append("configured salary minimum requires a verified annual amount and matching currency")
+        pay = _annual_salary_range(job.get("compensation_text"))
+        if pay is None or targeting.salary_currency is None or pay[0] != targeting.salary_currency:
+            review.append("configured salary minimum requires explicit annual base pay in the selected currency")
+        elif pay[2] < targeting.salary_minimum:
+            hard.append("explicit annual base-pay range is below configured salary minimum")
+        elif pay[1] < targeting.salary_minimum:
+            review.append("annual base-pay range overlaps configured salary minimum; confirm exact offer")
 
     required, preferred = _requirements(description)
     fact_token_sets = [_tokens(str(fact.get("value_text") or fact.get("value") or "")) for fact in approved_facts]
@@ -573,11 +645,21 @@ class JobStore:
             for job in jobs:
                 self._upsert_on(connection, job, board_id, now)
 
-    def jobs(self, limit: int | None = 500) -> list[dict[str, Any]]:
+    def jobs(self, limit: int | None = 500, offset: int = 0, search: str = "") -> list[dict[str, Any]]:
+        if offset < 0 or limit is not None and not 1 <= limit <= 1000:
+            raise ValueError("invalid job page")
+        search = search.strip()[:200].casefold()
         with self.database._lock:
-            query = "SELECT * FROM discovered_jobs WHERE active=1 ORDER BY last_seen_at DESC"
+            query = "SELECT * FROM discovered_jobs WHERE active=1"
+            params: list[Any] = []
+            if search:
+                query += " AND (instr(lower(employer), ?) OR instr(lower(title), ?) OR instr(lower(location), ?) OR instr(lower(COALESCE(compensation_text, '')), ?))"
+                params.extend([search] * 4)
+            query += " ORDER BY last_seen_at DESC, id DESC"
+            if limit is not None:
+                query += " LIMIT ? OFFSET ?"
+                params.extend((limit, offset))
             rows = self.database.connection.execute(
-                query + (" LIMIT ?" if limit is not None else ""),
-                (limit,) if limit is not None else (),
+                query, params,
             ).fetchall()
         return [dict(row) for row in rows]

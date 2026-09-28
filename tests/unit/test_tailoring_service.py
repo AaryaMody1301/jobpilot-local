@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import threading
 from pathlib import Path
 
@@ -335,7 +336,7 @@ class _ControlledTailoringService(TailoringService):
         }
 
 
-def _phase4_fixture(tmp_path: Path):
+def _phase4_fixture(tmp_path: Path, *, template_dependency: bool = False):
     paths = ManagedPaths(tmp_path / "JobPilotLocal")
     paths.create_all_roots()
     db = Database(paths.database_file, MIGRATIONS)
@@ -343,7 +344,9 @@ def _phase4_fixture(tmp_path: Path):
     resume_store = ResumeStore(db, paths.root)
     documents = DocumentWorkspace(paths, resume_store)
     source = tmp_path / "resume.tex"
-    source.write_text(MASTER, encoding="utf-8")
+    if template_dependency:
+        (tmp_path / "local-extra.tex").write_text(r"\newcommand{\localfixture}{local fixture}", encoding="utf-8")
+    source.write_text(MASTER.replace(r"\begin{document}", r"\input{local-extra}" + "\n" + r"\begin{document}") if template_dependency else MASTER, encoding="utf-8")
     documents.import_master(source)
     master = resume_store.get_active_master()
     assert master
@@ -361,7 +364,7 @@ def _phase4_fixture(tmp_path: Path):
         "page_sizes": [{"width": 595.0, "height": 842.0}],
         "pdf_sha256": "a" * 64,
         "text_sha256": "b" * 64,
-        "source_metrics": {"bullet_count": 2},
+        "source_metrics": {"bullet_count": 2, "template_bundle_sha256": resume_store.active_template_bundle(str(master["id"]))},
         "offline_verified": True,
         "last_compile_used_network": False,
     })
@@ -412,6 +415,66 @@ def test_tailoring_run_is_auditable_and_duplicate_jd_approval_counts_once(tmp_pa
         service.approve(str(second["id"]))
         assert model_store.review_gate("model")["approved_distinct_resumes"] == 1
         assert model_store.review_gate("model")["remaining"] == 4
+    finally:
+        db.close()
+
+
+def test_tailored_audit_package_copies_and_checks_local_template_dependency(tmp_path: Path) -> None:
+    paths, db, _, _, service, _ = _phase4_fixture(tmp_path, template_dependency=True)
+    try:
+        jd = service.import_manual_jd("Data Engineer. Strong SQL required.")
+        run = service.generate(str(jd["id"]), threading.Event())
+        assert run["status"] == "needs_review"
+        package = paths.root / Path(str(run["source_relpath"])).parent
+        copied = package / "local-extra.tex"
+        assert copied.is_file()
+        manifest = json.loads((package / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["components"]["local-extra.tex"] == manifest["template_dependencies"]["local-extra.tex"]
+        service._verify_run_artifacts(run)
+        copied.write_text("tampered after compilation", encoding="utf-8")
+        with pytest.raises(RuntimeError, match="integrity verification"):
+            service._verify_run_artifacts(run)
+    finally:
+        db.close()
+
+
+def test_unchanged_master_has_reviewable_package_without_completing_edited_resume_gate(tmp_path: Path) -> None:
+    paths, db, resume_store, model_store, service, _ = _phase4_fixture(tmp_path)
+    try:
+        jd = service.import_manual_jd("Data Engineer. Strong SQL required.")
+        infer = service.models.infer_selected_structured
+        service.models.infer_selected_structured = lambda *args, **kwargs: {
+            **infer(*args, **kwargs), "value": {"keyword_mappings": [], "edits": []},
+        }
+        run = service.generate(str(jd["id"]), threading.Event())
+        master = resume_store.get_active_master()
+        assert master is not None
+        assert run["status"] == "needs_review"
+        assert run["validation"]["unchanged_master"] is True
+        assert run["diff"] == []
+        assert run["source_sha256"] == master["sha256"]
+        assert (paths.root / run["source_relpath"]).read_bytes() == resume_store.document_path(master).read_bytes()
+        service._verify_run_artifacts(run)
+        result = service.approve(str(run["id"]))
+        assert result["unchanged_master"] is True
+        assert result["run"]["status"] == "approved"
+        assert model_store.review_gate("model")["approved_distinct_resumes"] == 0
+    finally:
+        db.close()
+
+
+def test_unchanged_master_approval_refuses_tampered_package(tmp_path: Path) -> None:
+    paths, db, _, _, service, _ = _phase4_fixture(tmp_path)
+    try:
+        jd = service.import_manual_jd("Data Engineer. Strong SQL required.")
+        infer = service.models.infer_selected_structured
+        service.models.infer_selected_structured = lambda *args, **kwargs: {
+            **infer(*args, **kwargs), "value": {"keyword_mappings": [], "edits": []},
+        }
+        run = service.generate(str(jd["id"]), threading.Event())
+        (paths.root / run["source_relpath"]).write_text("tampered", encoding="utf-8")
+        with pytest.raises(RuntimeError, match="integrity"):
+            service.approve(str(run["id"]))
     finally:
         db.close()
 

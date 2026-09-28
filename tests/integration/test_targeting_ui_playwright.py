@@ -123,6 +123,11 @@ def test_local_ui_navigation_and_bridge_contract(chromium_page) -> None:
         chromium_page.locator("#salary-minimum").fill("900000")
         chromium_page.locator("#employment-types").fill("permanent_full_time")
         assert chromium_page.locator("#remote-origin-required").is_checked()
+        chromium_page.locator("button[data-view='dashboard']").click()
+        chromium_page.locator("button[data-view='settings']").click()
+        chromium_page.evaluate("state => render(state, {preserveEditing: true})", state)
+        assert chromium_page.locator("#notice-days").input_value() == "45"
+        assert chromium_page.locator("#salary-minimum").input_value() == "900000"
         chromium_page.locator("#targeting-form button[type='submit']").click()
         chromium_page.wait_for_function("window.__calls.length === 1")
         assert chromium_page.evaluate("window.__calls[0]") == ["save", 45, 900000, ["permanent_full_time"], True]

@@ -76,7 +76,9 @@ class TailoringController(ModelController):
             self.database.record_foundation_activity(
                 self.session_id,
                 "tailoring_approved",
-                f"Approved distinct tailored resume {run_id}; model review gate {gate['approved_distinct_resumes']}/5{reset}",
+                (f"Approved unchanged master resume {run_id}; this approval does not count toward the five edited-resume reviews"
+                 if result.get("unchanged_master") else
+                 f"Approved distinct tailored resume {run_id}; model review gate {gate['approved_distinct_resumes']}/5{reset}"),
             )
             return self.snapshot()
 
@@ -143,3 +145,19 @@ class TailoringController(ModelController):
             "job_discovery_enabled": False,
             "employer_submission_enabled": False,
         }
+
+    def tailoring_workspace_page(self, kind: str, search: str = "", offset: int = 0) -> dict[str, Any]:
+        if kind not in {"jds", "runs"}:
+            raise ValueError("invalid tailoring workspace")
+        with self._lock:
+            self._require_open()
+            if kind == "jds":
+                items = self.tailoring_store.list_jds(30, offset, search)
+                for jd in items:
+                    source = str(jd.pop("jd_text"))
+                    jd["preview"] = source[:600]
+                    jd["character_count"] = len(source)
+            else:
+                items = self.tailoring_store.list_runs(30, offset, search)
+            return {"items": items, "total": self.tailoring_store.page_count(kind, search),
+                    "offset": offset, "page_size": 30}

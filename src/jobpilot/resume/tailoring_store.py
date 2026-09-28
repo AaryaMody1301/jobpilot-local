@@ -57,10 +57,14 @@ class TailoringStore:
         result["instruction_like"] = bool(result["instruction_like"])
         return result
 
-    def list_jds(self, limit: int = 30) -> list[dict[str, Any]]:
+    def list_jds(self, limit: int = 30, offset: int = 0, search: str = "") -> list[dict[str, Any]]:
+        if not 1 <= limit <= 100 or not 0 <= offset <= 1_000_000:
+            raise ValueError("invalid JD page")
+        search = search.strip()[:200].casefold()
         with self.database._lock:
             rows = self.database.connection.execute(
-                "SELECT * FROM manual_job_descriptions ORDER BY created_at DESC LIMIT ?", (int(limit),)
+                "SELECT * FROM manual_job_descriptions WHERE instr(lower(COALESCE(source_url, '') || ' ' || jd_text), ?) "
+                "ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?", (search, limit, offset)
             ).fetchall()
         result: list[dict[str, Any]] = []
         for row in rows:
@@ -310,12 +314,27 @@ class TailoringStore:
             row = self.database.connection.execute("SELECT * FROM tailored_resumes WHERE id=?", (run_id,)).fetchone()
         return self._decode_run(row) if row is not None else None
 
-    def list_runs(self, limit: int = 30) -> list[dict[str, Any]]:
+    def list_runs(self, limit: int = 30, offset: int = 0, search: str = "") -> list[dict[str, Any]]:
+        if not 1 <= limit <= 100 or not 0 <= offset <= 1_000_000:
+            raise ValueError("invalid run page")
+        search = search.strip()[:200].casefold()
         with self.database._lock:
             rows = self.database.connection.execute(
-                "SELECT * FROM tailored_resumes ORDER BY created_at DESC LIMIT ?", (int(limit),)
+                "SELECT * FROM tailored_resumes WHERE instr(lower(jd_id || ' ' || model_install_id || ' ' || status), ?) "
+                "ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?", (search, limit, offset)
             ).fetchall()
         return [self._decode_run(row) for row in rows]
+
+    def page_count(self, kind: str, search: str = "") -> int:
+        if kind not in {"jds", "runs"}:
+            raise ValueError("invalid tailoring workspace")
+        search = search.strip()[:200].casefold()
+        table = "manual_job_descriptions" if kind == "jds" else "tailored_resumes"
+        expression = "COALESCE(source_url, '') || ' ' || jd_text" if kind == "jds" else "jd_id || ' ' || model_install_id || ' ' || status"
+        with self.database._lock:
+            return int(self.database.connection.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE instr(lower({expression}), ?)", (search,)
+            ).fetchone()[0])
 
     def absolute_path(self, relative: str) -> Path:
         resolved = (self.root / relative).resolve(strict=False)

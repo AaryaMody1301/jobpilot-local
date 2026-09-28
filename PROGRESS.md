@@ -1,14 +1,50 @@
 # Progress
 
-## Repair work in review (27 September 2026)
+## Single-PR repair consolidation (28 September 2026)
 
-The earlier statement that the technical product implementation was complete is no longer a reliable readiness claim. A repository-wide audit found production-path defects despite green Windows checks. This repair branch addresses the desktop model-state contract, human review of exact-context form questions, orchestration transitions and scheduling beyond UI limits, pre-submit rebuilds with preserved history, scoped answer dependencies, Stop/Close worker ownership, final pilot freshness checks, exclusive profile ownership, factual/eligibility conservatism, Lever requirements extraction, selected-config evaluation binding, cheaper display snapshots, and main-only release execution. Dedicated regression cases have been added.
+PR #38 is the sole review and merge target for all remaining repository repairs and version `0.2.2`. Its source contains every commit from the superseded draft PRs #32–#37, verified by Git ancestry and a matching local/remote tree. No repair commits or branches are deleted, and no separate merge order is required. The combined source at `7fd1bd70453e145829d2404e5641ff5bf5ee8abc` passed Windows CI (run `36365871078`) and Windows Acceptance (run `36365871103`). This consolidation changes documentation and PR metadata only; the final head must retain passing checks before merge.
 
-This branch is not a claim that live employer automation or all audit findings are solved. Remaining work includes full desktop/Windows acceptance, browser variants and iframe support, custom LaTeX dependency bundles and no-change resume packaging, fully paginated workspaces, deeper source-integrity recovery UX, and repository-admin enforcement of required CI/acceptance checks. The gate report is now read-only even while the desktop is open. Real employer submissions remain outside synthetic tests. Keep the measured pilot inactive by default and do not expand it until the repair work and private human gates are validated.
+Release delivery still requires merging PR #38 and passing the `main`-only Windows Release workflow. Repository-admin protection of `main`, publisher-signing credentials, private five-resume review, and the individually authorized measured pilot are separate boundaries, not completed by synthetic CI. Earlier sections below record the state at the time of each repair batch; their old pending-work statements are superseded by this consolidation and the current roadmap.
+
+## Versioned repair release preparation (28 September 2026)
+
+Project and runtime versions are aligned at `0.2.2`; the release documentation distinguishes this pending build from the immutable published `v0.2.1`. The PR Windows CI/Acceptance checks validate the proposed source, while the Windows Release workflow intentionally runs and publishes only from `main` after the single repair PR #38 is merged. Private five-resume approval and the measured pilot remain separate local evidence gates, and repository-admin protection of `main` is still outstanding.
+
+## Source-integrity recovery (28 September 2026)
+
+An explicit reimport of the exact trusted original bytes now repairs a damaged app-managed master or supporting file when its hash matches the registered source. The damaged copy or symlink is moved into app-owned quarantine; fact IDs and approval history remain. Unsafe managed paths still fail closed, while the desktop snapshot reports mismatch and keeps reimport/Stop available. Supporting integrity failures are recorded when approved facts are checked. Local controlled recovery and symlink tests pass; Windows CI and Acceptance remain required. No source records were reset or deleted.
+
+## Local LaTeX template dependencies (28 September 2026)
+
+Master `.tex` import now collects referenced local template files under the selected source folder with path/symlink/size limits, stores immutable content-hashed revisions, and verifies them before baseline compilation, tailoring, review, and application packaging. Changing an adjacent dependency through explicit reimport preserves older revisions and invalidates the old baseline until a new cached-only compile. Tailoring copies the verified files and records their hashes in the run manifest. The resume and job workspaces show an integrity failure while keeping recovery controls available. Controlled source tests cover versioning, tamper detection and path traversal; Windows Tectonic/model Acceptance must validate actual compilation with a local `\\input` file. No private resume or employer form is involved.
+
+## Hosted form boundary (28 September 2026)
+
+Hosted-form inspection now recognizes hidden resume file inputs, reports outer-page blockers when the form lives in a frame, and rejects unsupported frame hosts. The final submit boundary checks blockers and the frame host again. Confirmation can recognize an explicit success change in the active frame or top page after a delayed response, with a bounded wait; unresolved submissions still become `UNCERTAIN` and are never automatically retried. Local unit checks passed. The controlled browser fixtures run only on loopback; Windows CI and Acceptance must verify the browser path because the local Playwright driver cannot initialize. No employer pages were written.
+
+## Targeting normalization (28 September 2026)
+
+The optional salary minimum now compares explicit annual base-pay ranges only when the user chooses a three-letter currency and the posting uses that same currency. Legacy currencyless settings, missing pay periods, mismatched currencies, and overlapping ranges stay in human review; an annual range entirely below the minimum is ineligible. An explicitly stated experience maximum below the configured target minimum is ineligible, with unsupported or unknown experience still conservatively assessed. Focused local unit tests and JavaScript syntax pass. Windows CI and Acceptance are still required; no automatic employer submissions were made.
+
+## Paginated workspace repair (28 September 2026)
+
+The job, application, manual JD, and tailoring-run workspaces now have explicit pages and full-database search. The application status totals and attention lane no longer derive from the newest 200 attempts. Job source-integrity errors remain visible in the list and read-only detail, with unsafe eligibility downgraded to review. Local isolated regression tests cover 510 jobs, 205 applications, and 36 JDs beyond the former display limits. PR #33 targets `main` to trigger the Windows workflows; the local Playwright driver cannot initialize in this Linux workspace, so the Windows CI and Acceptance browser checks are required before this batch is complete. No real employer applications were submitted.
+
+## Follow-up repair batch (27 September 2026)
+
+PR #31 merged at `484182281e0ed506a28b06f7d9c1987060eb2538` and passed its Windows CI/release workflows. This follow-up branch fixes valid no-change tailoring by copying and offline-compiling the verified original into a per-job audit package; explicit approval is still required and unchanged examples do not count toward the five edited-resume reviews. It also preserves unsaved targeting/application-workspace drafts through desktop refresh and navigation, and rejects malformed individual board postings without discarding their valid siblings (or erasing prior jobs when every posting is malformed).
+
+Local targeted tests and JavaScript syntax checks passed. PR #32 Windows CI and Windows Acceptance passed on `f82de3d`. Full workspace pagination is in the next batch; custom LaTeX dependency bundles, richer supported-form fixtures/iframe handling, deeper source-integrity recovery UX, and normalized salary/experience matching remain open. A new versioned Windows download is needed before merged repairs reach installed `v0.2.1` users. No real employer applications were submitted.
+
+## PR #31 repair work merged (27 September 2026)
+
+The earlier statement that the technical product implementation was complete is no longer a reliable readiness claim. A repository-wide audit found production-path defects despite green Windows checks. PR #31 addressed the desktop model-state contract, human review of exact-context form questions, orchestration transitions and scheduling beyond UI limits, pre-submit rebuilds with preserved history, scoped answer dependencies, Stop/Close worker ownership, final pilot freshness checks, exclusive profile ownership, factual/eligibility conservatism, Lever requirements extraction, selected-config evaluation binding, cheaper display snapshots, and main-only release execution. Dedicated regression cases were added.
+
+That merge is not a claim that live employer automation or all audit findings are solved. Remaining work includes browser variants and iframe support, custom LaTeX dependency bundles, fully paginated workspaces, deeper source-integrity recovery UX, and repository-admin enforcement of required CI/acceptance checks. The gate report is read-only even while the desktop is open. Real employer submissions remain outside synthetic tests. Keep the measured pilot inactive by default and do not expand it until the repair work and private human gates are validated.
 
 ## Current repository state
 
-JobPilot's technical product implementation is complete through verified Windows distribution and the explicitly user-authorized measured-pilot write path.
+The historical product slices below were implemented and packaged; the repository-wide audit identified defects that remain under repair. Green synthetic checks do not establish private pilot readiness.
 
 Recent cleanup:
 
@@ -66,6 +102,6 @@ After that gate closes, the final remaining item is the measured real-world pilo
 
 ## Repository administration boundary
 
-Repository engineering is complete in source. GitHub repository administration is a separate boundary: the live `main` branch remains unprotected. GitHub-native release immutability is enabled and the `v0.2.1` release is immutable. The connected integration can inspect these settings but does not expose the branch-protection administration write needed to protect `main`.
+The remaining source repairs are consolidated in PR #38 and are not yet in `main` or a published installer. GitHub repository administration is a separate boundary: the live `main` branch remains unprotected. GitHub-native release immutability is enabled and the `v0.2.1` release is immutable. The connected integration can inspect these settings but does not expose the branch-protection administration write needed to protect `main`.
 
 A repository administrator must still protect `main` with pull-request-only changes, strict `windows-ci` and `windows-acceptance`, conversation resolution, and disabled force-push/deletion. Release immutability is already enabled. Publisher signing remains a separate credential boundary. See `docs/REPOSITORY_GOVERNANCE.md`.
