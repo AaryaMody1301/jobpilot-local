@@ -1,5 +1,9 @@
 # Progress
 
+## Local LaTeX template dependencies (28 September 2026)
+
+Master `.tex` import now collects referenced local template files under the selected source folder with path/symlink/size limits, stores immutable content-hashed revisions, and verifies them before baseline compilation, tailoring, review, and application packaging. Changing an adjacent dependency through explicit reimport preserves older revisions and invalidates the old baseline until a new cached-only compile. Tailoring copies the verified files and records their hashes in the run manifest. The resume and job workspaces show an integrity failure while keeping recovery controls available. Controlled source tests cover versioning, tamper detection and path traversal; Windows Tectonic/model Acceptance must validate actual compilation with a local `\\input` file. No private resume or employer form is involved.
+
 ## Hosted form boundary (28 September 2026)
 
 Hosted-form inspection now recognizes hidden resume file inputs, reports outer-page blockers when the form lives in a frame, and rejects unsupported frame hosts. The final submit boundary checks blockers and the frame host again. Confirmation can recognize an explicit success change in the active frame or top page after a delayed response, with a bounded wait; unresolved submissions still become `UNCERTAIN` and are never automatically retried. Local unit checks passed. The controlled browser fixtures run only on loopback; Windows CI and Acceptance must verify the browser path because the local Playwright driver cannot initialize. No employer pages were written.
