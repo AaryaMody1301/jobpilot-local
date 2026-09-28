@@ -1,5 +1,9 @@
 # Progress
 
+## Targeting normalization (28 September 2026)
+
+The optional salary minimum now compares explicit annual base-pay ranges only when the user chooses a three-letter currency and the posting uses that same currency. Legacy currencyless settings, missing pay periods, mismatched currencies, and overlapping ranges stay in human review; an annual range entirely below the minimum is ineligible. An explicitly stated experience maximum below the configured target minimum is ineligible, with unsupported or unknown experience still conservatively assessed. Focused local unit tests and JavaScript syntax pass. Windows CI and Acceptance are still required; no automatic employer submissions were made.
+
 ## Paginated workspace repair (28 September 2026)
 
 The job, application, manual JD, and tailoring-run workspaces now have explicit pages and full-database search. The application status totals and attention lane no longer derive from the newest 200 attempts. Job source-integrity errors remain visible in the list and read-only detail, with unsafe eligibility downgraded to review. Local isolated regression tests cover 510 jobs, 205 applications, and 36 JDs beyond the former display limits. PR #33 targets `main` to trigger the Windows workflows; the local Playwright driver cannot initialize in this Linux workspace, so the Windows CI and Acceptance browser checks are required before this batch is complete. No real employer applications were submitted.
