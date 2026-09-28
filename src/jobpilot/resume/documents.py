@@ -5,6 +5,7 @@ import json
 import mimetypes
 import re
 import shutil
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +52,46 @@ class DocumentWorkspace:
             raise ValueError(f"document size must be between 1 byte and {limit} bytes")
         return size, suffix
 
+    def _managed_copy_path(self, document: dict[str, Any], root: Path, *, master: bool) -> Path:
+        name = "source.tex" if master else Path(str(document["stored_relpath"])).name
+        if not master and (not name.startswith("source.") or Path(name).suffix.lower() not in SUPPORTING_SUFFIXES):
+            raise RuntimeError("supporting source path is not an expected app-managed document")
+        target = root / str(document["id"]) / name
+        if (root.is_symlink() or target.parent.is_symlink()
+                or not target.parent.resolve(strict=True).is_relative_to(root.resolve(strict=True))
+                or target.relative_to(self.paths.root).as_posix() != str(document["stored_relpath"])):
+            raise RuntimeError("source record no longer points to its app-managed document path")
+        return target
+
+    def _restore_managed_copy(self, document: dict[str, Any], source: Path, target: Path, digest: str) -> bool:
+        """An explicit same-hash reimport repairs a damaged copy and retains its prior bytes."""
+        if target.is_file() and not target.is_symlink() and sha256_file(target) == digest:
+            return False
+        # Portable backups refuse symlinks; retain a corrupt link in runtime storage instead.
+        quarantine = ((self.paths.runtime / "source-quarantine" / str(document["id"]))
+                      if target.is_symlink() else (target.parent / "quarantine"))
+        if (quarantine.is_symlink() or self.paths.runtime.is_symlink()
+                or (self.paths.runtime / "source-quarantine").is_symlink()):
+            raise RuntimeError("source quarantine path is not an app-managed directory")
+        quarantine.mkdir(parents=True, exist_ok=True)
+        previous = None
+        if target.exists() or target.is_symlink():
+            previous = quarantine / f"{uuid.uuid4().hex}-{target.name}"
+            target.replace(previous)
+        try:
+            with source.open("rb") as input_file, target.open("xb") as output_file:
+                shutil.copyfileobj(input_file, output_file)
+            if sha256_file(target) != digest:
+                raise RuntimeError("trusted source changed during integrity recovery")
+        except Exception:
+            if target.exists():
+                target.replace(quarantine / f"{uuid.uuid4().hex}-failed-{target.name}")
+            if previous is not None:
+                previous.replace(target)
+            raise
+        self.store.set_integrity(str(document["id"]), "verified")
+        return True
+
     def import_master(self, source: Path) -> dict[str, Any]:
         source = source.resolve(strict=True)
         byte_size, _ = self._validate_source(source, master=True)
@@ -62,14 +103,12 @@ class DocumentWorkspace:
         dependencies = self._local_dependencies(source, source_text)
         existing = self.store.find_document_by_digest("master_resume", digest)
         if existing is not None:
-            stored = self.store.document_path(existing)
-            if not stored.is_file() or sha256_file(stored) != digest:
-                self.store.set_integrity(str(existing["id"]), "missing" if not stored.exists() else "mismatch")
-                raise RuntimeError("the previously imported immutable master no longer matches its recorded hash")
+            stored = self._managed_copy_path(existing, self.paths.master_documents, master=True)
+            restored = self._restore_managed_copy(existing, source, stored, digest)
             self._install_template_bundle(str(existing["id"]), stored, digest, dependencies)
             self.store.activate_existing_master(str(existing["id"]))
             created = self._initialize_master(str(existing["id"]), stored, digest)
-            return {"document_id": existing["id"], "deduplicated": True, "candidate_facts_created": created}
+            return {"document_id": existing["id"], "deduplicated": True, "restored": restored, "candidate_facts_created": created}
 
         document_id = f"resume-{digest[:16]}"
         target_dir = self.paths.master_documents / document_id
@@ -254,7 +293,9 @@ class DocumentWorkspace:
         digest = sha256_file(source)
         existing = self.store.find_document_by_digest("supporting", digest)
         if existing is not None:
-            return {"document_id": existing["id"], "deduplicated": True}
+            stored = self._managed_copy_path(existing, self.paths.supporting_documents, master=False)
+            restored = self._restore_managed_copy(existing, source, stored, digest)
+            return {"document_id": existing["id"], "deduplicated": True, "restored": restored}
         document_id = f"support-{digest[:16]}"
         target_dir = self.paths.supporting_documents / document_id
         target = target_dir / f"source{suffix}"
@@ -282,13 +323,19 @@ class DocumentWorkspace:
         return {"document_id": document_id, "deduplicated": False}
 
     def verify_document(self, document: dict[str, Any]) -> str:
-        path = self.store.document_path(document)
-        if not path.is_file():
-            status = "missing"
-        elif sha256_file(path) != str(document["sha256"]):
+        try:
+            original_path = self.paths.root / str(document["stored_relpath"])
+            path = self.store.document_path(document)
+            if original_path.is_symlink() or original_path.parent.is_symlink():
+                status = "mismatch"
+            elif not path.is_file():
+                status = "missing"
+            elif sha256_file(path) != str(document["sha256"]):
+                status = "mismatch"
+            else:
+                status = "verified"
+        except (OSError, ValueError):
             status = "mismatch"
-        else:
-            status = "verified"
         if status != document.get("integrity_status"):
             self.store.set_integrity(str(document["id"]), status)
         return status
