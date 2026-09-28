@@ -1,5 +1,9 @@
 # Progress
 
+## Hosted form boundary (28 September 2026)
+
+Hosted-form inspection now recognizes hidden resume file inputs, reports outer-page blockers when the form lives in a frame, and rejects unsupported frame hosts. The final submit boundary checks blockers and the frame host again. Confirmation can recognize an explicit success change in the active frame or top page after a delayed response, with a bounded wait; unresolved submissions still become `UNCERTAIN` and are never automatically retried. Local unit checks passed. The controlled browser fixtures run only on loopback; Windows CI and Acceptance must verify the browser path because the local Playwright driver cannot initialize. No employer pages were written.
+
 ## Targeting normalization (28 September 2026)
 
 The optional salary minimum now compares explicit annual base-pay ranges only when the user chooses a three-letter currency and the posting uses that same currency. Legacy currencyless settings, missing pay periods, mismatched currencies, and overlapping ranges stay in human review; an annual range entirely below the minimum is ineligible. An explicitly stated experience maximum below the configured target minimum is ineligible, with unsupported or unknown experience still conservatively assessed. Focused local unit tests and JavaScript syntax pass. Windows CI and Acceptance are still required; no automatic employer submissions were made.
