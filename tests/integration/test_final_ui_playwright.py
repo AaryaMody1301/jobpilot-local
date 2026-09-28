@@ -120,6 +120,44 @@ def test_final_shell_has_current_product_ui_without_development_fixture_controls
         assert chromium_page.locator('[data-view="dashboard"]').get_attribute("aria-current") is None
 
 
+def test_full_workspaces_can_open_records_beyond_snapshot_limits(chromium_page) -> None:
+    state = _state()
+    state["jobs"]["items"] = [{
+        "id": f"job-{index}", "title": "Data Analyst", "employer": f"Employer {index}",
+        "location": "Surat", "eligibility": "review", "score": 10,
+    } for index in range(500)]
+    state["orchestration"]["history"] = [{
+        "id": f"app-{index}", "state": "prepared", "title": "Data Analyst",
+        "employer": f"Employer {index}",
+    } for index in range(200)]
+    state["orchestration"]["counts"] = {"prepared": 201}
+    chromium_page.add_init_script("""
+        window.pywebview = {api: new Proxy({}, {get: (_, method) => async (...args) => {
+            if (method === 'job_workspace_page') return {
+                items: [{id: args[2] ? 'job-500' : 'job-0', title: 'Data Analyst',
+                         employer: args[2] ? 'Employer 500' : 'Employer 0',
+                         location: 'Surat', eligibility: 'review', score: 10}],
+                counts: {eligible: 0, review: 501, ineligible: 0},
+                total: 51, offset: args[2], page_size: 50,
+            };
+            if (method === 'application_workspace_page') return {
+                items: [{id: args[2] ? 'app-200' : 'app-0', state: 'prepared',
+                         title: 'Data Analyst', employer: args[2] ? 'Employer 200' : 'Employer 0'}],
+                states: {prepared: 201}, total: 51, offset: args[2], page_size: 50,
+            };
+            return window.__fixtureState;
+        }})};
+    """)
+    with local_ui_server() as url:
+        chromium_page.goto(url)
+        chromium_page.evaluate("state => { window.__fixtureState = state; render(state); showView('jobs'); }", state)
+        chromium_page.locator("#job-pages").get_by_text("Next").click()
+        assert "Employer 500" in chromium_page.locator("#job-list").inner_text()
+        chromium_page.locator('[data-view="history"]').click()
+        chromium_page.locator("#application-pages").get_by_text("Next").click()
+        assert "Employer 200" in chromium_page.locator("#orchestration-history").inner_text()
+
+
 def test_measured_pilot_actions_render_in_final_shell_and_require_exact_phrase(chromium_page) -> None:
     state = _state()
     chromium_page.add_init_script(
