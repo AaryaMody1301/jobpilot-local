@@ -9,7 +9,8 @@ Status legend: `[ ] planned`, `[~] in progress`, `[x] complete`, `[!]` private e
 - [~] Paginated job, application, JD, and tailoring workspaces; complete application status totals and attention queries; visible evidence-integrity errors. Windows checks pending.
 - [~] Annual salary/currency and explicit experience-range targeting, conservatively reviewing unknown compensation; Windows checks pending.
 - [~] Hidden resume inputs, nested frame blockers/host validation, and delayed iframe confirmation, with controlled browser checks pending Windows CI.
-- [ ] Custom LaTeX dependency bundles; deeper evidence recovery and broader real-form compatibility.
+- [~] Immutable local LaTeX dependency revisions copied into baseline and tailoring packages, with integrity/approval invalidation and controlled Tectonic acceptance pending Windows checks.
+- [ ] Deeper evidence recovery and broader real-form compatibility.
 - [ ] Publish a new versioned Windows release after the repair batch passes acceptance; `v0.2.1` is immutable and predates PR #31.
 
 ## Completed product foundation [x]
