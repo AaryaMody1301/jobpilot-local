@@ -6,13 +6,13 @@ Status legend: `[ ] planned`, `[~] in progress`, `[x] complete`, `[!]` private e
 
 - [x] PR #31: desktop and orchestration response/state fixes, package freshness and session ownership, evidence/eligibility guards, selected evaluation binding, and main-only release execution.
 - [x] PR #32: validated unchanged-master application packages, browser draft retention, and partial-malformed-board recovery; Windows CI and Acceptance passed.
-- [~] Paginated job, application, JD, and tailoring workspaces; complete application status totals and attention queries; visible evidence-integrity errors. Windows checks pending.
-- [~] Annual salary/currency and explicit experience-range targeting, conservatively reviewing unknown compensation; Windows checks pending.
-- [~] Hidden resume inputs, nested frame blockers/host validation, and delayed iframe confirmation, with controlled browser checks pending Windows CI.
-- [~] Immutable local LaTeX dependency revisions copied into baseline and tailoring packages, with integrity/approval invalidation and controlled Tectonic acceptance pending Windows checks.
-- [~] Explicit same-hash master/supporting-source recovery with quarantine and preserved approvals; Windows checks pending.
+- [x] PR #33: paginated job, application, JD, and tailoring workspaces; complete application totals and visible evidence-integrity errors. Windows CI and Acceptance passed.
+- [x] PR #34: annual salary/currency and explicit experience-range targeting, conservatively reviewing unknown compensation. Windows CI and Acceptance passed.
+- [x] PR #35: hidden resume inputs, nested frame blockers/host validation, and delayed iframe confirmation. Windows CI and controlled Acceptance passed.
+- [x] PR #36: immutable local LaTeX dependency revisions copied into baseline and tailoring packages, with integrity/approval invalidation. Windows CI and controlled Tectonic Acceptance passed.
+- [~] PR #37: explicit same-hash master/supporting-source recovery with quarantine and preserved approvals; Windows CI passed, Acceptance pending.
 - [ ] Broader real-form compatibility beyond the controlled supported shapes.
-- [~] Prepare `0.2.2` and publish only after the repair PRs merge and the `main` Windows release path passes; `v0.2.1` is immutable and predates PR #31.
+- [~] PR #38: prepare `0.2.2` and publish only after PR #32–#38 merge in order and the `main` Windows release path passes; `v0.2.1` is immutable and predates PR #31.
 
 ## Completed product foundation [x]
 
