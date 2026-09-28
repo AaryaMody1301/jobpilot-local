@@ -113,8 +113,8 @@ class ApplicationController:
             result = self.documents.import_master(source)
             self.database.record_foundation_activity(
                 self.session_id,
-                "resume_import",
-                f"Imported immutable master resume {result['document_id']}",
+                "resume_source_restored" if result.get("restored") else "resume_import",
+                f"{'Restored trusted' if result.get('restored') else 'Imported immutable'} master resume {result['document_id']}",
             )
             return self.snapshot()
 
@@ -124,8 +124,8 @@ class ApplicationController:
             result = self.documents.import_supporting(source)
             self.database.record_foundation_activity(
                 self.session_id,
-                "supporting_import",
-                f"Registered immutable supporting source {result['document_id']}",
+                "supporting_source_restored" if result.get("restored") else "supporting_import",
+                f"{'Restored trusted' if result.get('restored') else 'Registered immutable'} supporting source {result['document_id']}",
             )
             return self.snapshot()
 
