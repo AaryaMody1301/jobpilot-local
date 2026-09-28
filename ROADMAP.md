@@ -10,7 +10,7 @@ Status legend: `[ ] planned`, `[~] in progress`, `[x] complete`, `[!]` private e
 - [x] PR #34: annual salary/currency and explicit experience-range targeting, conservatively reviewing unknown compensation. Windows CI and Acceptance passed.
 - [x] PR #35: hidden resume inputs, nested frame blockers/host validation, and delayed iframe confirmation. Windows CI and controlled Acceptance passed.
 - [x] PR #36: immutable local LaTeX dependency revisions copied into baseline and tailoring packages, with integrity/approval invalidation. Windows CI and controlled Tectonic Acceptance passed.
-- [~] PR #37: explicit same-hash master/supporting-source recovery with quarantine and preserved approvals; Windows CI passed, Acceptance pending.
+- [x] PR #37: explicit same-hash master/supporting-source recovery with quarantine and preserved approvals; Windows CI and Acceptance passed.
 - [ ] Broader real-form compatibility beyond the controlled supported shapes.
 - [~] PR #38: prepare `0.2.2` and publish only after PR #32–#38 merge in order and the `main` Windows release path passes; `v0.2.1` is immutable and predates PR #31.
 
