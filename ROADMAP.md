@@ -10,7 +10,8 @@ Status legend: `[ ] planned`, `[~] in progress`, `[x] complete`, `[!]` private e
 - [~] Annual salary/currency and explicit experience-range targeting, conservatively reviewing unknown compensation; Windows checks pending.
 - [~] Hidden resume inputs, nested frame blockers/host validation, and delayed iframe confirmation, with controlled browser checks pending Windows CI.
 - [~] Immutable local LaTeX dependency revisions copied into baseline and tailoring packages, with integrity/approval invalidation and controlled Tectonic acceptance pending Windows checks.
-- [ ] Deeper evidence recovery and broader real-form compatibility.
+- [~] Explicit same-hash master/supporting-source recovery with quarantine and preserved approvals; Windows checks pending.
+- [ ] Broader real-form compatibility beyond the controlled supported shapes.
 - [ ] Publish a new versioned Windows release after the repair batch passes acceptance; `v0.2.1` is immutable and predates PR #31.
 
 ## Completed product foundation [x]
