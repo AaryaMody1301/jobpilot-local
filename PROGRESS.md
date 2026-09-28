@@ -96,6 +96,6 @@ After that gate closes, the final remaining item is the measured real-world pilo
 
 ## Repository administration boundary
 
-Repository engineering is complete in source. GitHub repository administration is a separate boundary: the live `main` branch remains unprotected. GitHub-native release immutability is enabled and the `v0.2.1` release is immutable. The connected integration can inspect these settings but does not expose the branch-protection administration write needed to protect `main`.
+The remaining source repairs are proposed in draft PR #32–#38 and are not yet in `main` or a published installer. GitHub repository administration is a separate boundary: the live `main` branch remains unprotected. GitHub-native release immutability is enabled and the `v0.2.1` release is immutable. The connected integration can inspect these settings but does not expose the branch-protection administration write needed to protect `main`.
 
 A repository administrator must still protect `main` with pull-request-only changes, strict `windows-ci` and `windows-acceptance`, conversation resolution, and disabled force-push/deletion. Release immutability is already enabled. Publisher signing remains a separate credential boundary. See `docs/REPOSITORY_GOVERNANCE.md`.
