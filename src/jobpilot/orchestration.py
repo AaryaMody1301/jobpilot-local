@@ -422,7 +422,26 @@ class OrchestrationJournal(ApplicationJournal):
                     continue
             return super().claim_next(session_id)
 
-    def history(self, limit: int = 200) -> list[dict[str, Any]]:
+    def history(self, limit: int = 200, offset: int = 0, search: str = "", state: str = "all", attention_only: bool = False) -> list[dict[str, Any]]:
+        if not 1 <= limit <= 200 or not 0 <= offset <= 1_000_000 or state != "all" and state not in {item.value for item in ApplicationState}:
+            raise ValueError("invalid application history page")
+        search = search.strip()[:200].casefold()
+        where: list[str] = []
+        params: list[Any] = []
+        if state != "all":
+            where.append("a.state=?")
+            params.append(state)
+        if attention_only:
+            states = (ApplicationState.NEEDS_REVIEW, ApplicationState.REVIEW_REQUIRED, ApplicationState.PREPARED,
+                      ApplicationState.BLOCKED, ApplicationState.STALE, ApplicationState.UNCERTAIN)
+            where.append("a.state IN (" + ",".join("?" for _ in states) + ")")
+            params.extend(item.value for item in states)
+        if search:
+            where.append("(" + " OR ".join(f"instr(lower(COALESCE({field}, '')), ?)" for field in (
+                "j.employer", "j.title", "j.location", "j.provider", "a.notes", "a.next_action",
+            )) + ")")
+            params.extend([search] * 6)
+        clause = " WHERE " + " AND ".join(where) if where else ""
         with self.database._lock:
             rows = self.database.connection.execute(
                 """
@@ -440,10 +459,8 @@ class OrchestrationJournal(ApplicationJournal):
                   LEFT JOIN discovered_jobs j ON j.id=a.discovered_job_id
                   LEFT JOIN application_packages p ON p.id=a.package_id
                   LEFT JOIN tailored_resumes t ON t.id=a.tailoring_run_id
-                 ORDER BY COALESCE(a.created_at, a.updated_at) DESC, a.id DESC
-                 LIMIT ?
-                """,
-                (limit,),
+                """ + clause + " ORDER BY COALESCE(a.created_at, a.updated_at) DESC, a.id DESC LIMIT ? OFFSET ?",
+                (*params, limit, offset),
             ).fetchall()
         result: list[dict[str, Any]] = []
         for row in rows:
@@ -452,6 +469,31 @@ class OrchestrationJournal(ApplicationJournal):
             item["live_form"] = _decoded(item.pop("live_form_json", "{}"))
             result.append(item)
         return result
+
+    def history_page(self, search: str = "", state: str = "all", offset: int = 0) -> dict[str, Any]:
+        if not 0 <= offset <= 1_000_000 or state != "all" and state not in {item.value for item in ApplicationState}:
+            raise ValueError("invalid application history page")
+        search = search.strip()[:200].casefold()
+        where: list[str] = []
+        params: list[Any] = []
+        if state != "all":
+            where.append("a.state=?")
+            params.append(state)
+        if search:
+            where.append("(" + " OR ".join(f"instr(lower(COALESCE({field}, '')), ?)" for field in (
+                "j.employer", "j.title", "j.location", "j.provider", "a.notes", "a.next_action",
+            )) + ")")
+            params.extend([search] * 6)
+        clause = " WHERE " + " AND ".join(where) if where else ""
+        with self.database._lock:
+            total = self.database.connection.execute(
+                "SELECT COUNT(*) FROM application_attempts a LEFT JOIN discovered_jobs j ON j.id=a.discovered_job_id" + clause, params
+            ).fetchone()[0]
+            states = {row["state"]: row["n"] for row in self.database.connection.execute(
+                "SELECT state, COUNT(*) n FROM application_attempts GROUP BY state"
+            )}
+        return {"items": self.history(50, offset, search, state), "total": total, "offset": offset,
+                "page_size": 50, "states": states}
 
     def workspace_detail(self, application_id: str) -> dict[str, Any]:
         with self.database._lock:
@@ -552,11 +594,14 @@ class OrchestrationJournal(ApplicationJournal):
     def orchestration_summary(self) -> dict[str, Any]:
         history = self.history()
         open_question_ids = {str(question["application_id"]) for question in self.open_questions()}
-        counts: dict[str, int] = {}
+        with self.database._lock:
+            counts = {row["state"]: row["n"] for row in self.database.connection.execute(
+                "SELECT state, COUNT(*) n FROM application_attempts GROUP BY state"
+            )}
+        attention_candidates = self.history(100, attention_only=True)
         attention: list[dict[str, Any]] = []
-        for item in history:
+        for item in attention_candidates:
             state = str(item["state"])
-            counts[state] = counts.get(state, 0) + 1
             kind = ""
             if state == ApplicationState.NEEDS_REVIEW.value:
                 assessment = item.get("eligibility") or {}
