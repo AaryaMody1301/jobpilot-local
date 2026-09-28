@@ -12,7 +12,7 @@ Status legend: `[ ] planned`, `[~] in progress`, `[x] complete`, `[!]` private e
 - [~] Immutable local LaTeX dependency revisions copied into baseline and tailoring packages, with integrity/approval invalidation and controlled Tectonic acceptance pending Windows checks.
 - [~] Explicit same-hash master/supporting-source recovery with quarantine and preserved approvals; Windows checks pending.
 - [ ] Broader real-form compatibility beyond the controlled supported shapes.
-- [ ] Publish a new versioned Windows release after the repair batch passes acceptance; `v0.2.1` is immutable and predates PR #31.
+- [~] Prepare `0.2.2` and publish only after the repair PRs merge and the `main` Windows release path passes; `v0.2.1` is immutable and predates PR #31.
 
 ## Completed product foundation [x]
 
