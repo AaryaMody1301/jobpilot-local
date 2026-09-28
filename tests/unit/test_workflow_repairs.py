@@ -14,6 +14,7 @@ from jobpilot.domain.states import ApplicationState
 from jobpilot.domain.states import SessionState
 from jobpilot.jobs import assess_job, normalize_manual_job
 from jobpilot.pilot import LiveHostedFormEngine
+from jobpilot.resume.jd import normalize_job_description
 from jobpilot.runtime.paths import ManagedPaths
 from jobpilot.settings import TargetingSettings
 from jobpilot.storage.database import Database
@@ -84,6 +85,52 @@ def test_scheduler_processes_jobs_past_display_limits(tmp_path: Path) -> None:
             assert controller._orchestrate_once(threading.Event()) is True
         assert controller.database.connection.execute("SELECT COUNT(*) FROM application_attempts").fetchone()[0] == 205
         assert len(controller.applications.history()) == 200  # Display size does not cap the scheduler.
+        page = DesktopBridge(controller).application_workspace_page(offset=200)
+        assert page["total"] == 205 and len(page["items"]) == 5
+        assert controller.snapshot()["orchestration"]["counts"]["ineligible"] == 205
+        found = DesktopBridge(controller).application_workspace_page(search="Example 204")
+        assert found["total"] == 1 and found["items"][0]["employer"] == "Example 204"
+    finally:
+        controller.close()
+
+
+def test_job_and_jd_workspaces_reach_every_saved_record(tmp_path: Path) -> None:
+    controller = create_controller(ManagedPaths(tmp_path / "profile"))
+    try:
+        for index in range(510):
+            controller.job_store.upsert({**_job(index), "description": f"Permanent full-time data analyst role {index} in Surat."})
+        bridge = DesktopBridge(controller)
+        first = bridge.job_workspace_page()
+        last = bridge.job_workspace_page(offset=500)
+        assert first["total"] == last["total"] == 510
+        assert len(first["items"]) == 50 and len(last["items"]) == 10
+        assert not {job["id"] for job in first["items"]} & {job["id"] for job in last["items"]}
+        found = bridge.job_workspace_page(search="Example 509")
+        assert found["total"] == 1 and found["items"][0]["employer"] == "Example 509"
+        for index in range(36):
+            controller.tailoring_store.register_jd(normalize_job_description(f"Saved JD needle {index:03d}"))
+        older = bridge.tailoring_workspace_page("jds", offset=30)
+        assert older["total"] == 36 and len(older["items"]) == 6
+        assert all("jd_text" not in item for item in older["items"])
+        found_jd = bridge.tailoring_workspace_page("jds", search="needle 035")
+        assert found_jd["total"] == 1 and "needle 035" in found_jd["items"][0]["preview"]
+        with pytest.raises(ValueError, match="invalid"):
+            bridge.job_workspace_page(offset=-1)
+    finally:
+        controller.close()
+
+
+def test_job_detail_keeps_integrity_failure_visible_without_trusting_missing_evidence(tmp_path: Path) -> None:
+    controller = create_controller(ManagedPaths(tmp_path / "profile"))
+    try:
+        controller.job_store.upsert(_job(1))
+        job_id = controller.job_store.jobs()[0]["id"]
+        with patch.object(controller, "_approved_evidence", side_effect=RuntimeError("source hash mismatch")):
+            state = controller.snapshot()
+            detail = DesktopBridge(controller).job_workspace_detail(job_id)
+        assert "source hash mismatch" in state["jobs"]["evidence_error"]
+        assert detail["eligibility"] == "review"
+        assert "source hash mismatch" in detail["review_reasons"][-1]
     finally:
         controller.close()
 
