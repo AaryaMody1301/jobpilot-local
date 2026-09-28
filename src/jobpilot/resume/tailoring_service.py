@@ -471,8 +471,7 @@ class TailoringService:
             source = self.resume_store.get_document(str(fact["source_document_id"]))
             if source is None:
                 raise RuntimeError("approved fact source is missing")
-            path = self.resume_store.document_path(source)
-            if not path.is_file() or sha256_file(path) != str(source["sha256"]):
+            if DocumentWorkspace(self.paths, self.resume_store).verify_document(source) != "verified":
                 raise RuntimeError(f"approved fact {fact['id']} has stale or missing source evidence")
             approved.append(fact)
         return approved
