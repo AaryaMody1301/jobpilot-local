@@ -2,7 +2,7 @@
 
 ## Paginated workspace repair (28 September 2026)
 
-The job, application, manual JD, and tailoring-run workspaces now have explicit pages and full-database search. The application status totals and attention lane no longer derive from the newest 200 attempts. Job source-integrity errors remain visible in the list and read-only detail, with unsafe eligibility downgraded to review. Local isolated regression tests cover 510 jobs, 205 applications, and 36 JDs beyond the former display limits. The local Playwright driver cannot initialize in this Linux workspace; the Windows CI and Acceptance browser checks are required before this batch is complete. No real employer applications were submitted.
+The job, application, manual JD, and tailoring-run workspaces now have explicit pages and full-database search. The application status totals and attention lane no longer derive from the newest 200 attempts. Job source-integrity errors remain visible in the list and read-only detail, with unsafe eligibility downgraded to review. Local isolated regression tests cover 510 jobs, 205 applications, and 36 JDs beyond the former display limits. PR #33 targets `main` to trigger the Windows workflows; the local Playwright driver cannot initialize in this Linux workspace, so the Windows CI and Acceptance browser checks are required before this batch is complete. No real employer applications were submitted.
 
 ## Follow-up repair batch (27 September 2026)
 
