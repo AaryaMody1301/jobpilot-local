@@ -156,6 +156,65 @@ def test_managed_source_tampering_is_detected(tmp_path: Path) -> None:
         db.close()
 
 
+def test_explicit_reimport_restores_exact_master_and_supporting_bytes_without_losing_history(tmp_path: Path) -> None:
+    paths, db, store, workspace = _workspace(tmp_path)
+    try:
+        original = _resume(tmp_path / "resume.tex")
+        first = workspace.import_master(original)
+        master = store.get_active_master()
+        assert master is not None
+        fact_ids = [fact["id"] for fact in store.list_facts()]
+        managed = store.document_path(master)
+        managed.write_text("tampered master", encoding="utf-8")
+        assert workspace.verify_active_master() == "mismatch"
+        restored = workspace.import_master(original)
+        assert restored["restored"] and restored["document_id"] == first["document_id"]
+        assert workspace.verify_active_master() == "verified"
+        assert [fact["id"] for fact in store.list_facts()] == fact_ids
+        assert any(path.read_text(encoding="utf-8") == "tampered master" for path in (managed.parent / "quarantine").iterdir())
+
+        support = tmp_path / "evidence.txt"
+        support.write_text("trusted evidence", encoding="utf-8")
+        supporting = workspace.import_supporting(support)
+        supporting_record = store.get_document(supporting["document_id"])
+        assert supporting_record is not None
+        stored_support = store.document_path(supporting_record)
+        stored_support.write_text("tampered evidence", encoding="utf-8")
+        assert workspace.verify_document(supporting_record) == "mismatch"
+        restored_support = workspace.import_supporting(support)
+        assert restored_support["restored"] and restored_support["document_id"] == supporting["document_id"]
+        assert workspace.verify_document(store.get_document(supporting["document_id"])) == "verified"
+        assert any(path.read_text(encoding="utf-8") == "tampered evidence" for path in (stored_support.parent / "quarantine").iterdir())
+    finally:
+        db.close()
+
+
+def test_external_symlink_cannot_break_recovery_snapshot_or_redirect_restore(tmp_path: Path) -> None:
+    paths, db, store, workspace = _workspace(tmp_path)
+    try:
+        original = _resume(tmp_path / "resume.tex")
+        workspace.import_master(original)
+        master = store.get_active_master()
+        assert master is not None
+        stored = store.document_path(master)
+        stored.unlink()
+        outside = tmp_path / "outside.tex"
+        outside.write_text("external data", encoding="utf-8")
+        try:
+            stored.symlink_to(outside)
+        except OSError as exc:
+            pytest.skip(f"symlink creation unavailable: {exc}")
+        assert workspace.verify_active_master() == "mismatch"
+        restored = workspace.import_master(original)
+        assert restored["restored"] and not stored.is_symlink()
+        assert any(path.is_symlink() for path in (paths.runtime / "source-quarantine" / str(master["id"])).iterdir())
+        assert not any(path.is_symlink() for path in paths.documents.rglob("*"))
+        assert outside.read_text(encoding="utf-8") == "external data"
+        assert workspace.verify_active_master() == "verified"
+    finally:
+        db.close()
+
+
 def test_supporting_registry_accepts_supported_files_and_rejects_executable(tmp_path: Path) -> None:
     _, db, store, workspace = _workspace(tmp_path)
     try:
