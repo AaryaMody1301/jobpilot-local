@@ -23,7 +23,7 @@ class JobController(TailoringController):
         with self._lock:
             state = super().snapshot()
             state["tailoring"]["job_discovery_enabled"] = True
-            state["jobs"] = self._job_snapshot()
+            state["jobs"] = self._job_snapshot(state["resume"].get("template_bundle_error"))
             return state
 
     def import_manual_job(self, raw: Mapping[str, Any]) -> dict[str, Any]:
@@ -143,8 +143,10 @@ class JobController(TailoringController):
                 self._end_onboarding_operation()
         return self.snapshot()
 
-    def _approved_evidence(self) -> list[dict[str, Any]]:
+    def _approved_evidence(self, *, verify_template: bool = True) -> list[dict[str, Any]]:
         master = self.resume_store.get_active_master()
+        if master is not None and verify_template:
+            self.documents.verified_bundle(master)
         return self.tailoring._approved_current_facts(master) if master else []
 
     def job_workspace_page(self, search: str = "", eligibility: str = "all", offset: int = 0) -> dict[str, Any]:
@@ -174,10 +176,10 @@ class JobController(TailoringController):
             return {"items": [{key: value for key, value in job.items() if key != "description"} for job in jobs[offset:offset + 50]],
                     "total": len(jobs), "counts": counts, "offset": offset, "page_size": 50, "evidence_error": error}
 
-    def _job_snapshot(self) -> dict[str, Any]:
-        evidence_error = None
+    def _job_snapshot(self, bundle_error: str | None = None) -> dict[str, Any]:
+        evidence_error = bundle_error
         try:
-            facts = self._approved_evidence()
+            facts = self._approved_evidence(verify_template=False) if not bundle_error else []
         except Exception as exc:
             facts = []
             evidence_error = f"approved resume evidence is unavailable: {str(exc)[:300]}"
