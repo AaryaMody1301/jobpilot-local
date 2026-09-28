@@ -1,10 +1,14 @@
 # Progress
 
+## Paginated workspace repair (28 September 2026)
+
+The job, application, manual JD, and tailoring-run workspaces now have explicit pages and full-database search. The application status totals and attention lane no longer derive from the newest 200 attempts. Job source-integrity errors remain visible in the list and read-only detail, with unsafe eligibility downgraded to review. Local isolated regression tests cover 510 jobs, 205 applications, and 36 JDs beyond the former display limits. The local Playwright driver cannot initialize in this Linux workspace; the Windows CI and Acceptance browser checks are required before this batch is complete. No real employer applications were submitted.
+
 ## Follow-up repair batch (27 September 2026)
 
 PR #31 merged at `484182281e0ed506a28b06f7d9c1987060eb2538` and passed its Windows CI/release workflows. This follow-up branch fixes valid no-change tailoring by copying and offline-compiling the verified original into a per-job audit package; explicit approval is still required and unchanged examples do not count toward the five edited-resume reviews. It also preserves unsaved targeting/application-workspace drafts through desktop refresh and navigation, and rejects malformed individual board postings without discarding their valid siblings (or erasing prior jobs when every posting is malformed).
 
-Local targeted tests and JavaScript syntax checks passed. The Linux workspace has no Playwright Chromium, so the affected browser UI checks and Windows acceptance must run on the PR. Full workspace pagination, custom LaTeX dependency bundles, richer supported-form fixtures/iframe handling, source-integrity recovery UX, and normalized salary/experience matching remain open. A new versioned Windows download is needed before merged repairs reach installed `v0.2.1` users. No real employer applications were submitted.
+Local targeted tests and JavaScript syntax checks passed. PR #32 Windows CI and Windows Acceptance passed on `f82de3d`. Full workspace pagination is in the next batch; custom LaTeX dependency bundles, richer supported-form fixtures/iframe handling, deeper source-integrity recovery UX, and normalized salary/experience matching remain open. A new versioned Windows download is needed before merged repairs reach installed `v0.2.1` users. No real employer applications were submitted.
 
 ## PR #31 repair work merged (27 September 2026)
 
